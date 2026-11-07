@@ -8,6 +8,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from orchestrator.config import Config, Research
 from orchestrator.runtime import Runtime
@@ -104,6 +105,30 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(self.provider.calls[0][1],self.provider.calls[1][1])
         self.assertIn("web-1",str(self.provider.calls[-1][1]["sources"]))
         self.assertEqual(self.provider.calls[2][0],self.config.roles["fast_secondary"])
+
+    def test_research_resume_preserves_unicode_with_legacy_system_encoding(self):
+        row = self.runtime.prepare({"mode": "balanced", "prompt": "Find the sample", "research": True})
+        run_id = row["id"]
+        text = "東京 — café"
+        result_item = {"url": "https://example.org/library", "title": text, "description": text}
+        receipt = {"retrieved_at": "2026-11-01T00:00:00Z",
+                   "body": json.dumps({"web": {"results": [result_item]}}, ensure_ascii=False)}
+        store = self.runtime.store
+        store.save_artifact(run_id, "web_search_1", "request", {"provider": "brave", "query": text})
+        store.save_artifact(run_id, "web_search_1", "raw", receipt)
+        read_text = Path.read_text
+
+        def system_read(path, encoding=None, **kwargs):
+            return read_text(path, encoding=encoding or "cp1252", **kwargs)
+
+        with patch.object(Path, "read_text", system_read), patch(
+            "orchestrator.research.build_opener", side_effect=AssertionError("Repeated search")
+        ):
+            research = self.runtime.researcher.search([text], store, run_id)
+            self.assertIn(text, research["sources"][0]["text"])
+            store.save_artifact(run_id, "research", "raw", research)
+            self.assertEqual(self.runtime.research({"run_id": run_id}), research)
+            self.assertEqual(self.provider.calls, [])
 
     def test_verified_selects_one_combines_or_escalates(self):
         for choice, end in [("A","decider"),("B","decider"),("combine","synthesis"),("neither","deep")]:

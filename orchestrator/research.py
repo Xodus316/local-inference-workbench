@@ -33,7 +33,7 @@ class BraveResearch:
             raw_path = store.artifact(run_id, stage, "raw")
             intent = store.artifact(run_id, stage, "request")
             if raw_path.exists():
-                receipt = json.loads(raw_path.read_text())
+                receipt = json.loads(raw_path.read_text(encoding="utf-8"))
             elif intent.exists():
                 errors.append("search_completion_unknown; not retried")
                 continue

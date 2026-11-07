@@ -214,7 +214,7 @@ class Stages:
         run_id = state["run_id"]
         saved = self.store.artifact(run_id, "research", "raw")
         if saved.exists():
-            return json.loads(saved.read_text())
+            return json.loads(saved.read_text(encoding="utf-8"))
         if not self.researcher.available():
             result = {
                 "ok": False,
