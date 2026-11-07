@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "local-inference-workbench"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "A local multi-model reasoning and code review workbench"
+dependencies = ["langgraph>=1.0,<2", "pydantic>=2.10,<3"]
+
+[project.optional-dependencies]
+pdf = ["pypdf==6.20.1"]
+
+[project.scripts]
+inference-workbench = "orchestrator.__main__:main"
+inference-workbench-panel = "orchestrator.desktop:main"
+
+[tool.setuptools.packages.find]
+include = ["orchestrator*"]
+
+[tool.setuptools.package-data]
+orchestrator = ["static/*"]
+"orchestrator.chat" = ["static/*"]

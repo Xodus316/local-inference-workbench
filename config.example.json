@@ -1,0 +1,23 @@
+{
+  "ollama_url": "http://127.0.0.1:11434",
+  "roles": {
+    "fast_primary": "gemma4:12b",
+    "fast_secondary": "qwen3.5:9b-q4_K_M",
+    "deep_reasoner": "gemma4:31b-it-qat",
+    "decider": "pplx-decider:review-32k",
+    "planner": "gemma4:26b-a4b-it-mtp-q4_K_M",
+    "editor": "qwen3.8:27b-mtp-q4_K_M",
+    "reviewer": "gemma4:31b-it-qat"
+  },
+  "generation": {
+    "fast_primary": {"context": 32768, "think": true},
+    "fast_secondary": {"context": 32768, "think": true},
+    "deep_reasoner": {"context": 32768, "think": true},
+    "planner": {"context": 32768, "think": true},
+    "editor": {"context": 32768, "think": false},
+    "reviewer": {"context": 32768, "think": false}
+  },
+  "repositories": [],
+  "test_commands": {"unittest": ["python", "-m", "unittest", "discover", "-s", "tests"]},
+  "research": {"enabled": false}
+}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Inference Workbench</title>
+<link rel="stylesheet" href="/panel/style.css">
+<script defer src="/panel/app.js"></script>
+</head>
+<body>
+<header><strong>Local Inference Workbench</strong><nav aria-label="Workspace"><a aria-current="page" href="/panel">Workflows</a><a href="/chat/">Chat</a></nav></header>
+<main>
+<aside><div class="sectionhead"><h2>Saved runs</h2><button id="refresh" type="button">Refresh</button></div><ol id="runs" aria-label="Saved runs"></ol></aside>
+<section class="content">
+<h1>New workflow</h1>
+<form id="prepare">
+<div class="options"><label>Mode<select id="mode"><option value="auto">Auto</option><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="verified">Verified</option><option value="deep">Deep reasoning</option><option value="plan">Code plan</option><option value="edit">Repository edit</option></select></label>
+<label id="research-field" hidden><input type="checkbox" id="research"> Search public sources when needed</label></div>
+<label>Request<textarea id="prompt" rows="4" required placeholder="What would you like the system to do?"></textarea></label>
+<details id="evidence"><summary>Supporting text</summary><label>Source text<textarea id="source" rows="4" placeholder="Paste text to cite in the answer"></textarea></label></details>
+<fieldset id="repository-fields" hidden><legend>Repository scope</legend>
+<label>Approved repository path<input id="repository" placeholder="Absolute path on this computer"></label>
+<label>Files, one relative path per line<textarea id="files" rows="3"></textarea></label><fieldset id="test-field" hidden><legend>Tests to run after applying</legend><div id="test-options"></div></fieldset></fieldset>
+<button id="prepare-button" class="accent" type="submit">Prepare for review</button>
+</form>
+<div id="notice" role="status"></div>
+<section id="selected" hidden><div class="sectionhead"><h2>Run details</h2><span id="status"></span></div>
+<dl id="metadata"></dl>
+<details id="input-view"><summary>Prepared inputs and roles</summary><pre id="input"></pre></details>
+<h3>Model activity</h3><div id="calls"></div>
+<div id="result-block" hidden><h3>Result</h3><pre id="result"></pre></div>
+<div id="diff-block" hidden><h3>Proposed changes</h3><pre id="diff"></pre></div>
+<div id="review-block" hidden><h3>Independent review</h3><pre id="review"></pre></div>
+<div id="workspace-block" hidden><h3>Applied workspace and tests</h3><pre id="workspace"></pre></div>
+<div class="actions"><button type="button" class="accent" id="approve" hidden>Approve and run</button>
+<button type="button" id="resume" hidden>Resume interrupted run</button>
+<button type="button" id="cancel" hidden>Cancel run</button>
+<button type="button" class="accent" id="apply" hidden>Apply reviewed changes</button></div>
+</section></section>
+</main></body></html>

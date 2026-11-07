@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#080b14">
+  <title>Local Chat</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/chat/style.css">
+  <script src="/chat/app.js" defer></script>
+</head>
+<body>
+  <div id="app-view" class="app-shell">
+    <button id="sidebar-scrim" class="scrim" aria-label="Close conversations" hidden></button>
+    <aside id="sidebar" class="sidebar" aria-label="Conversations">
+      <div class="sidebar-brand"><div class="small-mark" aria-hidden="true">L<span>✦</span></div><span>Local Chat</span><button id="close-sidebar" class="icon-button mobile-only" aria-label="Close conversations">×</button></div>
+      <button id="new-chat" class="new-chat"><span aria-hidden="true">＋</span> New conversation <span class="new-arrow" aria-hidden="true">↗</span></button>
+      <a class="orchestrator-link" href="/panel">◇ Workflows <span aria-hidden="true">↗</span></a>
+      <label class="search-label"><span aria-hidden="true">⌕</span><input id="conversation-search" type="search" aria-label="Search conversations" placeholder="Search conversations" autocomplete="off"></label>
+      <div class="sidebar-heading">YOUR CONVERSATIONS <span id="conversation-count">0</span></div>
+      <nav id="conversation-list" class="conversation-list" aria-label="Saved conversations"></nav>
+      <div class="sidebar-footer"><div class="server-identity"><span class="status-dot" aria-hidden="true"></span><div><strong id="server-label">PC hosted</strong><span id="server-description">Conversations saved on your PC</span></div></div></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <button id="open-sidebar" class="icon-button mobile-only" aria-label="Open conversations">☰</button>
+        <div class="conversation-heading"><h1 id="conversation-title">New conversation</h1><span id="conversation-subtitle"></span></div>
+        <div class="header-actions"><span id="demo-badge" class="demo-badge" hidden>Demo · simulated models</span><button id="refresh-models" class="icon-button" aria-label="Refresh installed models" title="Refresh installed models">↻</button><button id="settings-toggle" class="settings-toggle" aria-label="Model settings" aria-expanded="false"><span aria-hidden="true">☷</span><span class="settings-label">Settings</span></button></div>
+      </header>
+
+      <div class="workspace-body">
+        <div class="conversation-column">
+          <div id="notice" class="notice" role="status" hidden><span id="notice-text"></span><button id="dismiss-notice" aria-label="Dismiss message">×</button></div>
+          <div id="message-scroll" class="message-scroll" tabindex="0" aria-label="Conversation messages">
+            <section id="welcome" class="welcome" aria-labelledby="welcome-title">
+              <div class="welcome-orbit" aria-hidden="true"><span>✦</span><i></i><b>+</b></div>
+
+              <h2 id="welcome-title">Start a conversation</h2>
+              <p>Choose an installed model below, then send a message.</p>
+              <div class="starter-grid"><button class="starter" data-prompt="Help me think through an idea. Start by asking me a few useful questions."><span aria-hidden="true">◇</span><strong>Explore an idea</strong><span>Find the next useful question ↗</span></button><button class="starter" data-prompt="Help me turn rough notes into a clear, concise draft. Ask me to paste my notes."><span aria-hidden="true">≋</span><strong>Shape a first draft</strong><span>Give your thoughts a little structure ↗</span></button></div>
+            </section>
+            <div id="messages" class="messages" aria-live="off"></div>
+          </div>
+          <div id="generation-status" class="generation-status" role="status" hidden></div>
+          <div class="composer-area">
+            <form id="composer-form" class="composer">
+              <div id="pending-attachments" class="pending-attachments" aria-label="Files to send" hidden></div>
+              <label for="composer-input" class="sr-only">Message</label><textarea id="composer-input" rows="1" placeholder="Write a message…" maxlength="100000"></textarea>
+              <div class="composer-toolbar"><button id="attach-button" class="attach-button" type="button" aria-label="Attach files" title="Attach files">＋</button><input id="file-input" class="sr-only" type="file" multiple accept=".txt,.md,.csv,.json,.html,.htm,.xml,.yaml,.yml,.toml,.ini,.log,.py,.js,.ts,.jsx,.tsx,.css,.sql,.sh,.java,.go,.rs,.c,.cpp,.h,.pdf,.docx,.png,.jpg,.jpeg,.webp" tabindex="-1"><div class="model-picker"><span class="model-symbol" aria-hidden="true">◈</span><label for="model-select" class="sr-only">Model</label><select id="model-select"><option value="">Choose a model</option></select><span id="loaded-badge" class="loaded-badge" hidden>Loaded</span></div><button id="stop-button" class="stop-button" type="button" hidden><span aria-hidden="true">■</span> Stop</button><button id="send-button" class="send-button" type="submit" aria-label="Send message" title="Send message">↑</button></div>
+              <p id="attachment-message" class="attachment-message" role="status" hidden></p>
+              <div id="drop-hint" class="drop-hint" hidden>Drop files to attach them</div>
+            </form>
+            <p class="attachment-help">Attach text, code, PDF, DOCX, or PNG/JPEG/WebP images · 8 files · 10 MB each · 20 MB total. Drop files or paste an image.</p>
+            <p class="composer-hint"><span>Enter to send · Shift + Enter for a new line</span><span>Local models can make mistakes.</span></p>
+          </div>
+        </div>
+
+        <aside id="settings-panel" class="settings-panel" aria-labelledby="settings-title" hidden>
+          <div class="settings-heading"><div><h2 id="settings-title">Model settings</h2></div><button id="settings-close" class="icon-button" aria-label="Close settings">×</button></div>
+          <p id="settings-model-name" class="settings-model-name">Choose a model</p>
+          <p id="model-capabilities" class="model-capabilities"></p>
+          <form id="settings-form">
+            <label for="temperature">Temperature <span>Creativity</span></label><input id="temperature" type="number" min="0" max="2" step="any" required><small>Model presets help avoid repetitive thinking; lower is not always faster.</small>
+            <label for="num-ctx">Context window <span>Tokens</span></label><input id="num-ctx" type="number" min="256" step="1" required><small id="context-help">Larger windows use more memory.</small>
+            <label for="num-predict">Response limit <span>Tokens</span></label><input id="num-predict" type="number" min="1" max="32768" step="1" required><small>Maximum tokens generated for a response.</small>
+            <div id="thinking-field" hidden><label for="thinking-select">Thinking <span>Model specific</span></label><select id="thinking-select"></select><small>Only options reported by this model are shown.</small></div>
+            <label for="top-p">Top P <span>Sampling</span></label><input id="top-p" type="number" min="0" max="1" step="any"><small>Leave blank to use the model preset.</small>
+            <label for="top-k">Top K <span>Sampling</span></label><input id="top-k" type="number" min="1" max="1000" step="1"><small>Leave blank to use the model preset.</small>
+            <label for="repetition-guard"><input id="repetition-guard" type="checkbox"> Stop repeated thinking</label><small>Stops sustained repetition and preserves the partial response without retrying.</small>
+            <label for="system-prompt">System prompt <span>Optional</span></label><textarea id="system-prompt" rows="5" maxlength="20000" placeholder="How would you like this model to respond?"></textarea><small>Applies to future responses in this conversation.</small>
+            <button type="submit" id="save-settings" class="primary wide">Save settings <span aria-hidden="true">✓</span></button><button type="button" id="reset-settings" class="quiet-button" hidden>Discard unsaved changes</button><p id="settings-feedback" class="settings-feedback" role="status"></p>
+          </form>
+          <p class="settings-footnote">Saved separately for each model. Switching models keeps your conversation history.</p>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="edit-dialog" class="edit-dialog"><form id="edit-form"><div class="dialog-heading"><h2>Edit message</h2><button id="edit-close" type="button" class="icon-button" aria-label="Close edit message">×</button></div><p>This replaces this message and all later replies with a new response. Existing files are kept unless you remove them below.</p><label for="edit-input" class="sr-only">Edited message</label><textarea id="edit-input" rows="8" maxlength="100000"></textarea><div id="edit-attachments" class="edit-attachments" aria-label="Files in edited message" hidden></div><p id="edit-error" class="error-text" role="alert"></p><div class="dialog-actions"><button id="edit-cancel" type="button" class="quiet-button">Cancel</button><button id="edit-submit" type="submit" class="primary">Save & regenerate</button></div></form></dialog>
+  <dialog id="confirm-dialog" class="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Delete conversation?</h2><p id="confirm-description">This removes the conversation and its messages from your PC.</p><div class="dialog-actions"><button value="cancel" class="quiet-button">Cancel</button><button value="confirm" class="danger-button">Delete conversation</button></div></form></dialog>
+  <div id="announcement" class="sr-only" role="status" aria-live="polite"></div>
+</body>
+</html>

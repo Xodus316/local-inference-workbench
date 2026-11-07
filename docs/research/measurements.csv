@@ -1,0 +1,25 @@
+model,exercise,checks_passed,checks_total,qualified,finish_reason,elapsed_seconds,generated_tokens
+Gemma 12B Q4_K_M,corrected-note extraction,8,8,True,stop,22.486,1146
+Gemma 12B Q4_K_M,FIFO reasoning,4,4,True,stop,12.17,538
+Gemma 12B Q4_K_M,research query drafting,3,4,False,stop,7.834,250
+Gemma 12B Q4_K_M,code review A,4,5,False,stop,34.382,1653
+Gemma 12B Q4_K_M,code review B,3,3,True,stop,19.592,821
+Gemma 12B Q4_K_M,conflict synthesis,8,8,True,stop,32.226,1727
+Gemma 12B Q8_0,corrected-note extraction,7,8,False,stop,30.882,1090
+Gemma 12B Q8_0,FIFO reasoning,4,4,True,stop,20.551,620
+Gemma 12B Q8_0,research query drafting,3,4,False,stop,18.724,381
+Gemma 12B Q8_0,code review A,5,5,True,stop,30.663,960
+Gemma 12B Q8_0,code review B,3,3,True,stop,29.674,1002
+Gemma 12B Q8_0,conflict synthesis,8,8,True,stop,39.642,1443
+Qwen 9B BF16,corrected-note extraction,8,8,True,stop,104.206,4285
+Qwen 9B BF16,FIFO reasoning,4,4,True,stop,51.796,1945
+Qwen 9B BF16,research query drafting,4,4,True,stop,102.652,4303
+Qwen 9B BF16,code review A,4,5,False,stop,138.917,5248
+Qwen 9B BF16,code review B,0,3,False,length,744.837,31917
+Qwen 9B BF16,conflict synthesis,8,8,True,stop,89.94,3595
+Qwen 9B Q4_K_M,corrected-note extraction,7,8,False,stop,44.735,4065
+Qwen 9B Q4_K_M,FIFO reasoning,4,4,True,stop,24.367,2061
+Qwen 9B Q4_K_M,research query drafting,4,4,True,stop,20.947,1751
+Qwen 9B Q4_K_M,code review A,4,5,False,stop,71.623,6200
+Qwen 9B Q4_K_M,code review B,3,3,True,stop,60.474,5542
+Qwen 9B Q4_K_M,conflict synthesis,8,8,True,stop,37.933,3543
