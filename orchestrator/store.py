@@ -41,6 +41,11 @@ def digest(value):
 STAGES = {"primary", "secondary", "synthesis", "deep", "decider", "plan", "patch", "review",
           "research_queries", "research", "web_search_1", "web_search_2"}
 
+STAGES.update({"build_plan", "build_tests", "implement", "build_frozen", "build_strength"})
+for number in range(16):
+    for prefix in ("build_tests_syntax", "build_tests_coverage", "build_tests_fixture", "repair", "build_verify", "build_control", "build_strengthen", "build_strength"):
+        STAGES.add(f"{prefix}_{number}")
+
 
 class Store:
     def __init__(self, directory: Path, max_bytes=512000000):
@@ -242,15 +247,20 @@ class Store:
             with self.lock:
                 self.save_artifact(run_id, stage, "failure", safe)
 
-    def cached(self, run_id, stage):
+    def cached(self, run_id, stage, *, request=None, role=None, model=None):
         with self.lock:
             row = self.db.execute(
-                "SELECT status FROM calls WHERE run_id=? AND stage=?", (run_id, stage)
+                "SELECT status,role,model FROM calls WHERE run_id=? AND stage=?", (run_id, stage)
             ).fetchone()
             if row is None:
                 return None
             path = self.artifact(run_id, stage, "raw")
             if path.exists():
+                if request is not None:
+                    saved = self.artifact(run_id, stage, "request")
+                    if (row["role"] != role or row["model"] != model or not saved.is_file()
+                            or digest(json.loads(saved.read_text(encoding="utf-8"))) != digest(request)):
+                        raise ValueError("Saved model response belongs to different inputs")
                 return json.loads(path.read_text(encoding="utf-8"))
             raise RuntimeError("native_completion_unknown")
 
@@ -268,6 +278,7 @@ class Store:
             self.db.execute("DELETE FROM approvals WHERE run_id=?", (run_id,))
             self.db.execute("DELETE FROM runs WHERE id=?", (run_id,))
             shutil.rmtree(self.directory / "artifacts" / run_id, ignore_errors=True)
+            shutil.rmtree(self.directory / "build-workspaces" / run_id, ignore_errors=True)
 
     def close(self):
         self.db.close()

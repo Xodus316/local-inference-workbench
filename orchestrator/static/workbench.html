@@ -14,10 +14,14 @@
 <section class="content">
 <h1>New workflow</h1>
 <form id="prepare">
-<div class="options"><label>Mode<select id="mode"><option value="auto">Auto</option><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="verified">Verified</option><option value="deep">Deep reasoning</option><option value="plan">Code plan</option><option value="edit">Repository edit</option></select></label>
+<div class="options"><label>Mode<select id="mode"><option value="auto">Auto</option><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="verified">Verified</option><option value="deep">Deep reasoning</option><optgroup label="Coding"><option value="build">Build a Python project</option><option value="plan">Code plan</option><option value="edit">Repository edit</option></optgroup></select></label>
 <label id="research-field" hidden><input type="checkbox" id="research"> Search public sources when needed</label></div>
+<div id="build-help" hidden>Describe the Python program, its inputs, expected outputs and error cases. Build creates an independent test suite and runs the implementation in Docker.</div>
 <label>Request<textarea id="prompt" rows="4" required placeholder="What would you like the system to do?"></textarea></label>
 <details id="evidence"><summary>Supporting text</summary><label>Source text<textarea id="source" rows="4" placeholder="Paste text to cite in the answer"></textarea></label></details>
+<details id="build-control" hidden><summary>Trusted reference implementation (optional)</summary>
+<label>Top-level reference files<input type="file" multiple id="control-files"></label>
+<p>The service checks generated tests against these files before implementation. The models do not receive their source. Choose up to 40 files totaling 16,000 bytes.</p></details>
 <fieldset id="repository-fields" hidden><legend>Repository scope</legend>
 <label>Approved repository path<input id="repository" placeholder="Absolute path on this computer"></label>
 <label>Files, one relative path per line<textarea id="files" rows="3"></textarea></label><fieldset id="test-field" hidden><legend>Tests to run after applying</legend><div id="test-options"></div></fieldset></fieldset>
@@ -28,6 +32,19 @@
 <dl id="metadata"></dl>
 <details id="input-view"><summary>Prepared inputs and roles</summary><pre id="input"></pre></details>
 <h3>Model activity</h3><div id="calls"></div>
+<section id="build-output" hidden><h3>Build results</h3>
+<p id="build-summary"></p>
+<details id="build-plan-block"><summary>Plan and acceptance criteria</summary><pre id="build-plan"></pre></details>
+<details id="build-suite-block"><summary>Frozen tests and coverage</summary><pre id="build-suite"></pre></details>
+<details id="build-diagnosis-block" hidden><summary>Implementation repair diagnoses</summary><pre id="build-diagnosis"></pre></details>
+<details id="build-verification-block"><summary>Verification receipts</summary><pre id="build-verification"></pre></details>
+<section id="build-files" hidden><h3>Verified files</h3>
+<label>Project file<select id="build-path"></select></label>
+<pre id="build-file"></pre>
+<div class="actions"><button type="button" id="copy-file">Copy contents</button>
+<button type="button" id="download-file">Download selected file</button>
+<button type="button" id="download-manifest">Download project manifest</button></div></section>
+</section>
 <div id="result-block" hidden><h3>Result</h3><pre id="result"></pre></div>
 <div id="diff-block" hidden><h3>Proposed changes</h3><pre id="diff"></pre></div>
 <div id="review-block" hidden><h3>Independent review</h3><pre id="review"></pre></div>

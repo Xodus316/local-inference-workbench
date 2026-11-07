@@ -26,11 +26,14 @@ Set `roles.fast_primary` in your configuration to a completion model installed i
 | Balanced with research | If the answers leave an unresolved question and research is enabled, a model proposes queries. The search adapter returns bounded excerpts for synthesis. |
 | Verified | Two readers produce candidates. A local decision model can select one, request synthesis or escalate to Deep. A low-confidence decision is returned for review. |
 | Deep | A single configured model takes the difficult reasoning request directly. |
+| Build | Create a standalone Python project. The planner defines acceptance criteria, an independent model writes tests, the implementer builds the program, and a repair model can fix failures against frozen tests. Docker runs the checks. |
 | Plan | Supply an allowlisted Git repository and selected files. An investigator examines the scope and a separate planner produces a structured proposal. |
 | Edit | Freeze selected files, generate replacements, review the proposed diff and approve application to a detached worktree. |
 | Chat | Choose an installed model, stream a response, attach documents or images, edit a conversation or stop a generation. |
 
 ### Desktop control panel
+
+To build a new program, choose **Open Build** in the desktop panel or **Build a Python project** in the workflow selector. The [Build walkthrough](docs/using-the-workbench.md#build-a-python-project) covers Docker setup, a sample request, verification receipts and downloading generated files.
 
 On Windows, launch `.\.venv\Scripts\python -m orchestrator.desktop --config config.local.json` from the checkout. The panel can start and stop its service, open the workflow and chat interfaces, edit local configuration and show recent runs, resident models and NVIDIA GPU measurements. The desktop interface uses Tk. Starting the service from a terminal is also supported.
 

@@ -34,3 +34,19 @@ A dense Gemma 31B QAT model at 32K was observed at 91% GPU / 9% CPU on the RTX 3
 Model-written tests have two distinct failure modes. An incorrectly constructed success input can reject a correct program. A weak assertion can accept a broken one. For example, to test all-or-nothing stock allocation, request an available item followed by an insufficient one in the same order. Then submit a later order that needs the first item. Check its fulfillment and the exact remaining stock. A sequence of independent, single-item orders cannot expose a partial deduction within one order.
 
 A useful evaluation sequence is to run the tests on a trusted control, try a small set of witnessed changes that violate the contract, freeze the accepted suite, and run the implementation on separate held-out inputs. Track manual fixture repairs, model calls and elapsed time independently. Passing generated tests alone cannot tell whether the program or its expected results were correct.
+
+## From-scratch Build
+
+**Coder-Next first, Qwen 27B xhigh for a reproduced failure.** On a turn-based combat CLI, both models received the same plan and frozen tests. Coder-Next UD-IQ1_M produced its implementation in 30.3 seconds and Qwen 27B MTP Q4_K_M took 326.7 seconds. Both passed all eight generated tests. Independent checks separated them.
+
+| First-pass check | Coder-Next IQ1 | Qwen 27B xhigh |
+|---|---:|---:|
+| Hand-calculated battles | 8/11 | 11/11 |
+| Invalid inputs | 4/8 | 8/8 |
+| Seeded comparisons with the reference implementation | 946/1,000 | 1,000/1,000 |
+
+On the separate inventory CLI, Coder-Next also delivered in about 30 seconds. A held-out name ending in a newline exposed a validator defect. Once a regression reproduced it, Qwen repaired the implementation in one xhigh call. It then passed 26 frozen tests and 31 held-out inputs, and its tests detected six sampled implementation mutations. These two examples explain the role split. An initial pass costs little, and a reproduced defect gives the more expensive repair model a precise target. Detection still depends on the suite. The implementation and repair roles use a 98,304-token window without a separate output cap. Coder-Next uses its native generation mode.
+
+**Gemma 31B IQ4_XS writes independent tests.** On a fresh expiration-based store, its first suite accepted both correct controls and detected all ten seeded defects. On inventory, its first suite contained invalid Python quoting, and several success fixtures used order IDs containing digits even though the specification allowed only lowercase letters. That experiment required human fixture and coverage corrections. The planner and test author each use thinking at 32,768 context.
+
+Nemotron 3.5 Lightning IQ4_XS remains an experimental alternative. Its interval tests passed both controls and detected six of seven faults. Given the inventory brief and plan for an independent first attempt, it produced 34 discoverable tests in 175 seconds. Its coverage table omitted nine of 16 criteria. Both correct controls encountered 34 errors because the test helper passed strings and dictionaries as input to a binary subprocess pipe. That prevented a meaningful mutation score. The model received no control source or repair feedback. These two examples give little reason to replace the default author. They also show why the workbench can check fixtures against an operator-supplied reference before spending more time on implementation.

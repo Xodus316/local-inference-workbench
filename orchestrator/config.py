@@ -15,6 +15,9 @@ DEFAULT_ROLES = {
     "planner": "gemma4:26b-a4b-it-mtp-q4_K_M",
     "editor": "qwen3.8:27b-mtp-q4_K_M",
     "reviewer": "gemma4:31b-it-qat",
+    "test_author": "gemma4:31b-iq4_xs",
+    "implementer": "hf.co/unsloth/Qwen3-Coder-Next-GGUF:UD-IQ1_M",
+    "repairer": "qwen3.8:27b-mtp-q4_K_M",
 }
 
 
@@ -33,7 +36,30 @@ class Research(Record):
     results_per_query: int = Field(default=3, ge=1, le=5)
 
 
+class BuildConfig(Record):
+    enabled: bool = True
+    image: str = Field(default="python:3.13-alpine", min_length=1, max_length=300)
+    max_repair_attempts: int = Field(default=3, ge=0, le=3)
+    max_test_syntax_repairs: int = Field(default=2, ge=0, le=3)
+    max_test_coverage_repairs: int = Field(default=2, ge=0, le=3)
+    max_test_fixture_repairs: int = Field(default=1, ge=0, le=3)
+    max_test_strengthening_attempts: int = Field(default=1, ge=0, le=2)
+    max_test_mutations: int = Field(default=6, ge=1, le=12)
+    mutation_timeout_seconds: int = Field(default=15, ge=1, le=60)
+    test_timeout_seconds: int = Field(default=120, ge=1, le=900)
+    memory_mb: int = Field(default=1024, ge=256, le=8192)
+    cpus: float = Field(default=2.0, ge=0.25, le=8.0)
+
+    @field_validator("image")
+    @classmethod
+    def exact_image(cls, value):
+        if ":" not in value or value.startswith("-") or any(c.isspace() for c in value):
+            raise ValueError("Configure a preinstalled image with an explicit tag or digest")
+        return value
+
+
 class Config(Record):
+    build: BuildConfig = Field(default_factory=BuildConfig)
     ollama_url: str = "http://127.0.0.1:11434"
     roles: dict[str, str] = Field(default_factory=lambda: dict(DEFAULT_ROLES))
     generation: dict[str, Generation] = Field(default_factory=dict)
@@ -55,6 +81,22 @@ class Config(Record):
         if parsed.hostname != "localhost" and not ipaddress.ip_address(parsed.hostname).is_loopback:
             raise ValueError("Configure a loopback Ollama endpoint")
         return value.rstrip("/")
+
+    @field_validator("roles", mode="before")
+    @classmethod
+    def include_build_roles(cls, value):
+        # Upgrade existing seven-role configurations while honoring explicit role bindings.
+        if not isinstance(value, dict):
+            raise ValueError("Role bindings must be an object")
+        return {**{role: DEFAULT_ROLES[role] for role in ("test_author", "implementer", "repairer")}, **value}
+
+    def generation_for(self, role):
+        defaults = {}
+        if role in {"implementer", "repairer"}:
+            defaults = {"context": 98304, "think": None if role == "implementer" else "xhigh"}
+        profile = self.generation.get(role)
+        overrides = profile.model_dump(exclude_unset=True) if profile else {}
+        return Generation.model_validate({**defaults, **overrides})
 
     @model_validator(mode="after")
     def valid_roles(self):

@@ -7,7 +7,10 @@
     "decider": "pplx-decider:review-32k",
     "planner": "gemma4:26b-a4b-it-mtp-q4_K_M",
     "editor": "qwen3.8:27b-mtp-q4_K_M",
-    "reviewer": "gemma4:31b-it-qat"
+    "reviewer": "gemma4:31b-it-qat",
+    "test_author": "gemma4:31b-iq4_xs",
+    "implementer": "hf.co/unsloth/Qwen3-Coder-Next-GGUF:UD-IQ1_M",
+    "repairer": "qwen3.8:27b-mtp-q4_K_M"
   },
   "generation": {
     "fast_primary": {"context": 32768, "think": true},
@@ -15,8 +18,12 @@
     "deep_reasoner": {"context": 32768, "think": true},
     "planner": {"context": 32768, "think": true},
     "editor": {"context": 32768, "think": false},
-    "reviewer": {"context": 32768, "think": false}
+    "reviewer": {"context": 32768, "think": false},
+    "test_author": {"context": 32768, "think": true},
+    "implementer": {"context": 98304, "think": null},
+    "repairer": {"context": 98304, "think": "xhigh"}
   },
+  "build": {"enabled": true, "image": "python:3.13-alpine"},
   "repositories": [],
   "test_commands": {"unittest": ["python", "-m", "unittest", "discover", "-s", "tests"]},
   "research": {"enabled": false}

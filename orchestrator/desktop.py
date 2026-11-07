@@ -187,8 +187,9 @@ def main(argv=None):
     start_button.pack(side="left"); stop_button.pack(side="left", padx=5)
     ttk.Button(toolbar, text="Configuration", command=configure).pack(side="left")
     workflows = ttk.Button(toolbar, text="Open workflows", command=lambda: webbrowser.open(service.base + "/panel"))
+    build = ttk.Button(toolbar, text="Open Build", command=lambda: webbrowser.open(service.base + "/panel#mode=build"))
     chat = ttk.Button(toolbar, text="Open chat", command=lambda: webbrowser.open(service.base + "/chat/"))
-    chat.pack(side="right"); workflows.pack(side="right", padx=5)
+    chat.pack(side="right"); build.pack(side="right", padx=5); workflows.pack(side="right")
     gpu_info = tk.StringVar(value="Checking GPU…")
     ttk.Label(layout, textvariable=gpu_info, wraplength=840, padding=(0,12)).pack(anchor="w")
     def make_table(title, columns):
@@ -265,7 +266,7 @@ def main(argv=None):
             detail.set(owner + ("  ·  " + active if up else ""))
             start_button.configure(state="normal" if not up and not owned else "disabled")
             stop_button.configure(state="normal" if up and owned and not state["stopping"] else "disabled")
-            for control in (workflows, chat):
+            for control in (workflows, build, chat):
                 control.configure(state="normal" if up else "disabled")
             models.delete(*models.get_children()); runs.delete(*runs.get_children())
             for row in resident:

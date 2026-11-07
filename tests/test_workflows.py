@@ -125,6 +125,20 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.runtime.approve(row["id"],row["digest"],resume=True)
 
+    def test_reuse_requires_same_stage_inputs_role_and_model(self):
+        row = self.execute("fast")
+        store = self.runtime.store
+        run_id = row["id"]
+        model = self.config.roles["fast_primary"]
+        request = json.loads(store.artifact(run_id, "primary", "request").read_text(encoding="utf-8"))
+        raw = store.cached(run_id, "primary", request=request, role="fast_primary", model=model)
+        self.assertEqual(raw["choices"][0]["finish_reason"], "stop")
+        for payload, role, model_name in [({"changed": True}, "fast_primary", model),
+                                          (request, "reviewer", model),
+                                          (request, "fast_primary", "other-model")]:
+            with self.assertRaisesRegex(ValueError, "different inputs"):
+                store.cached(run_id, "primary", request=payload, role=role, model=model_name)
+
     def test_reviewed_edit_applies_only_in_new_worktree_and_runs_approved_test(self):
         def git(*args):
             subprocess.run(["git","-C",str(self.repo),*args],check=True,capture_output=True)

@@ -27,6 +27,31 @@ Open **Workflows**, choose a mode and enter a request. Add text under **Supporti
 
 For **Code plan** and **Repository edit**, enter an approved absolute repository path and list the relative file paths to include. For an edit, select any configured tests to run after application. The prepared record identifies the files and commands. Review the proposed diff and independent review when generation finishes. **Apply reviewed changes** binds approval to that exact proposal and writes into a separate Git worktree. The result records the worktree path and test receipts.
 
+### Build a Python project
+
+Build starts from a written specification. It produces a project with Python source and an independently authored standard-library test suite. The container runs `python3 -m unittest discover -s tests -v`. Start Docker with Linux containers enabled and install the configured image on the computer running the service. With the example configuration, run the following under the same account that starts the workbench.
+
+```sh
+docker info
+docker pull python:3.13-alpine
+docker image inspect python:3.13-alpine
+ollama list
+```
+
+Check the four model names in `roles` against the installed tags. The example uses Gemma 26B Q4 for `planner`, Gemma 31B IQ4_XS for `test_author`, Qwen3-Coder-Next for `implementer` and Qwen 27B xhigh for `repairer`. If your local tag differs, enter it in **Configuration**, save, then restart the idle service. The example enables thinking for both Gemma roles with a 32,768-token context. The coding roles use 98,304. Coder-Next uses its native generation mode and Qwen repair uses xhigh. The Build profiles have no separate output cap. See the [example configuration](../config.example.json) for the exact settings.
+
+The example tag `gemma4:31b-iq4_xs` is a local alias. Point `test_author` to your installed IQ4_XS package or alias with thinking support. Use a different model for test authorship than for implementation and repair. The repair package must support the configured reasoning effort.
+
+1. Choose **Open Build** in the desktop panel, or open the [Build form](http://127.0.0.1:8787/panel#mode=build) on the default port. Try this specification.
+
+   > Write a single-file Python CLI called `solution.py`. Read one nonempty JSON array of integers from stdin. Print a JSON object with exactly two fields, `minimum` and `maximum`. For `[7, -2, 7]` the result is `{"minimum": -2, "maximum": 7}`. For invalid JSON, an empty array or any non-integer element (including a boolean), exit nonzero with empty stdout. Use only the standard library.
+
+2. If you have a known-correct implementation, select its files under **Trusted reference implementation**. Choose top-level files matching the public interface, such as `solution.py`. These files are used to execute the tests before implementation. **Supporting text** is model-visible and can hold a specification or usage examples.
+3. Select **Prepare for review**. Inspect the frozen specification, role assignments, generation settings, execution limits and Docker image identity. **Approve and run** authorizes those inputs. Build uses a disposable project workspace and needs no repository selection.
+4. **Model activity** identifies the current stage and model. The test author can repair syntax, fixtures and missing acceptance coverage before the suite freezes. Once the implementation runs, a failing baseline can send diagnostics to the repair model. Each implementation attempt is checked with the same frozen tests.
+5. Read **Verification receipts** for execution results and mutation outcomes. A surviving mutation means a sampled code change still passed the tests. By default the test author can add tests once to expose surviving behavior. Existing test files stay frozen. The expanded suite must pass the baseline and mutation checks. An inconclusive result needs operator review. Review the expected behavior and the assertions before integrating generated code.
+6. On a completed Build, select a path in **Verified files**. **Copy contents** copies that file. **Download selected file** saves it by its basename. **Download project manifest** saves all verified implementation and test files as JSON, preserving their relative paths and source text.
+
 ## Chat
 
 Open **Chat**, select an installed model and send a message. Chat streams directly from Ollama and shares inference admission with the workflow worker. Conversations, messages, model settings and attachment data persist in the service data directory. The sidebar supports searching, selecting and deleting conversations. Use **Settings** to adjust context, sampling and advertised thinking settings for the selected model.

@@ -84,12 +84,18 @@ class Source(Record):
     kind: Literal["source", "diff", "tests", "observation", "local_document"] = "source"
 
 
+class ControlFile(Record):
+    path: str = Field(min_length=1, max_length=500)
+    content: str = Field(max_length=16000)
+
+
 class Request(Record):
     prompt: str = Field(min_length=1, max_length=20000)
-    mode: Literal["auto","fast","balanced","verified","deep","plan","edit"] = "auto"
+    mode: Literal["auto","fast","balanced","verified","deep","plan","edit","build"] = "auto"
     sources: list[Source] = Field(default_factory=list, max_length=32)
     research: bool = False
     tests: list[str] = Field(default_factory=list, max_length=8)
+    control_files: list[ControlFile] = Field(default_factory=list, max_length=40)
     repository: str | None = None
     files: list[str] = Field(default_factory=list, max_length=24)
 
@@ -102,6 +108,8 @@ class Request(Record):
                 raise ValueError("Select a repository and files")
         elif self.repository or self.files:
             raise ValueError("Repository scope requires plan or edit mode")
+        if self.control_files and self.mode != "build":
+            raise ValueError("Reference implementations require Build mode")
         if self.tests and (self.mode != "edit" or len(set(self.tests)) != len(self.tests)):
             raise ValueError("Select distinct tests in edit mode")
         if self.research and self.mode != "balanced":

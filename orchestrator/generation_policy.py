@@ -32,6 +32,8 @@ def sampling_defaults(model: str, think: bool | str | None) -> dict:
     if family in {"qwen3.5", "qwen3.8"}:
         return {"temperature": 0.7 if think is False else 1.0,
                 "top_p": 0.8 if think is False else 0.95, "top_k": 20}
+    if family.startswith("qwen3-coder-next"):
+        return {"temperature": 1.0, "top_p": 0.95, "top_k": 20}
     if family.startswith("glm-4.7-flash"):
         return {"temperature": 1.0, "top_p": 0.95}
     if family.startswith("nvidia-nemotron-3.5-lightning"):

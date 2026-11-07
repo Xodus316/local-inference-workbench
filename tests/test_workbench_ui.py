@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
 from queue import Queue
 from types import SimpleNamespace
@@ -72,6 +73,29 @@ class ChatIntegration(unittest.TestCase):
             status, text = self.request(path)
             self.assertEqual(status,200)
             self.assertIn(expected,text)
+
+    def test_panel_offers_build_and_starts_with_downloads_hidden(self):
+        class Controls(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.by_id = {}
+                self.modes = []
+
+            def handle_starttag(self, tag, attrs):
+                fields = dict(attrs)
+                if "id" in fields:
+                    self.by_id[fields["id"]] = fields
+                if tag == "option":
+                    self.modes.append(fields.get("value"))
+
+        status, page = self.request("/panel")
+        self.assertEqual(status, 200)
+        controls = Controls()
+        controls.feed(page)
+        self.assertIn("build", controls.modes)
+        self.assertIn("hidden", controls.by_id["build-files"])
+        for element in ("build-path", "copy-file", "download-file", "download-manifest", "build-verification"):
+            self.assertIn(element, controls.by_id)
 
     def test_stream_history_attachments_and_duplicate_submission(self):
         status,models = self.request("/chat/api/models")

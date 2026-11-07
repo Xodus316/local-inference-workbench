@@ -5,6 +5,7 @@ from langgraph.graph import END, START, StateGraph
 
 class State(TypedDict, total=False):
     run_id: str
+    code_build: dict
     primary: dict
     secondary: dict
     research: dict
@@ -16,6 +17,7 @@ class State(TypedDict, total=False):
 
 def build(runtime):
     graph = StateGraph(State)
+    graph.add_node("code_build", lambda s: {"code_build": runtime.run_code_build(s)})
     graph.add_node("primary", lambda s: {"primary": runtime.assess(s, "primary", "fast_primary")})
     graph.add_node("secondary", lambda s: {"secondary": runtime.assess(s, "secondary", "fast_secondary")})
     graph.add_node("research", lambda s: {"research": runtime.research(s)})
@@ -47,12 +49,12 @@ def build(runtime):
             return END
         return {"neither": "deep", "combine": "synthesis"}.get(decision["result"]["choice"], END)
 
-    graph.add_conditional_edges(START, lambda s: "deep" if runtime.bundle(s)["mode"] == "deep" else "primary")
+    graph.add_conditional_edges(START, lambda s: {"deep": "deep", "build": "code_build"}.get(runtime.bundle(s)["mode"], "primary"))
     graph.add_conditional_edges("primary", after_primary)
     graph.add_conditional_edges("secondary", after_secondary)
     graph.add_conditional_edges("decision", after_decision)
     graph.add_edge("research", "synthesis")
     graph.add_edge("patch", "review")
-    for name in ("synthesis", "plan", "deep", "review"):
+    for name in ("synthesis", "plan", "deep", "review", "code_build"):
         graph.add_edge(name, END)
     return graph.compile()

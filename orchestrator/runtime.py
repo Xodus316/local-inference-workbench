@@ -8,7 +8,8 @@ import time
 from pathlib import Path
 
 from . import edits, repository
-from .config import Generation
+from .build_workflow import CodeBuild
+from .build_sandbox import DockerBuildExecutor
 from .graph import build
 from .ollama import _strict_json
 from .provider import NativeProvider
@@ -19,14 +20,15 @@ from .store import Store, digest
 from .test_runner import run_test
 
 
-class Runtime(Stages):
-    def __init__(self, directory, config, provider=None):
+class Runtime(CodeBuild, Stages):
+    def __init__(self, directory, config, provider=None, build_executor=None):
         for key in ("LANGCHAIN_TRACING", "LANGCHAIN_TRACING_V2", "LANGSMITH_TRACING", "LANGSMITH_TRACING_V2"):
             if os.environ.get(key, "").lower() not in ("", "0", "false", "no"):
                 raise ValueError(f"Disable {key} for local workflow execution")
         self.config = config
         self.provider = provider or NativeProvider(config)
         self.store = Store(Path(directory), config.storage_bytes)
+        self.build_executor = build_executor or DockerBuildExecutor(self.store.directory, config.build)
         self.researcher = BraveResearch(config.research)
         self.inference_lock = threading.Lock()
         self.management = threading.RLock()
@@ -70,9 +72,18 @@ class Runtime(Stages):
                 raise ValueError("Configured test executable is unavailable")
             commands[name] = [str(Path(executable).absolute()), *argv[1:]]
         bundle = {"tests": commands, "mode":mode, "request":packed, "repository":scope, "roles":self.config.roles,
-                  "generation":{role:self.config.generation.get(role, Generation()).model_dump()
+                  "generation":{role:self.config.generation_for(role).model_dump()
                                 for role in self.config.roles}, "config_digest":digest(self.config.model_dump()),
                   "web_research":request.research}
+        if mode == "build":
+            if bundle["roles"]["test_author"] in {bundle["roles"][r] for r in ("implementer", "repairer")}:
+                raise ValueError("Configure an independent test author for Build")
+            if request.control_files:
+                from .build_workflow import implementation_files
+                from .build_models import BuildArtifact
+                implementation_files(BuildArtifact(summary="Trusted reference", files=packed["control_files"]))
+            bundle["sandbox"] = self.build_executor.preflight()
+            bundle["build"] = self.config.build.model_dump()
         with self.management:
             return self.store.get(self.store.create(bundle))
 
@@ -103,15 +114,15 @@ class Runtime(Stages):
     def _call(self, state, stage, role, payload, schema=None):
         run_id = state["run_id"]
         self._guard(run_id)
-        raw = self.store.cached(run_id, stage)
+        bundle = self.bundle(state)
+        model = bundle["roles"][role]
+        raw = self.store.cached(run_id, stage, request=payload, role=role, model=model)
         if raw is not None:
             return raw
         while not self.inference_lock.acquire(timeout=.1):
             self._guard(run_id)
         try:
             self._guard(run_id)
-            bundle = self.bundle(state)
-            model = bundle["roles"][role]
             self.provider.admit(model, bundle["generation"][role], payload, stage)
             self.store.begin_call(run_id, stage, role, model, payload)
             if stage == "decider":
@@ -143,6 +154,9 @@ class Runtime(Stages):
 
     def _finish(self, state, run_id):
         bundle = self.bundle(state)
+        if "code_build" in state:
+            result = dict(state["code_build"])
+            return result.pop("status"), result
         decision = state.get("decision", {})
         if decision.get("ok") and decision["result"]["confidence"] < .75:
             return "review_required", {"decision":decision["result"], "output":None}
