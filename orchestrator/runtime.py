@@ -13,7 +13,7 @@ from .build_sandbox import DockerBuildExecutor
 from .graph import build
 from .ollama import _strict_json
 from .provider import NativeProvider
-from .research import BraveResearch
+from .research import create_researcher
 from .schemas import Request
 from .stages import Stages
 from .store import Store, digest
@@ -29,7 +29,7 @@ class Runtime(CodeBuild, Stages):
         self.provider = provider or NativeProvider(config)
         self.store = Store(Path(directory), config.storage_bytes)
         self.build_executor = build_executor or DockerBuildExecutor(self.store.directory, config.build)
-        self.researcher = BraveResearch(config.research)
+        self.researcher = create_researcher(config.research)
         self.inference_lock = threading.Lock()
         self.management = threading.RLock()
         self.queue = queue.Queue(maxsize=config.queue_size)
@@ -45,9 +45,21 @@ class Runtime(CodeBuild, Stages):
     def bundle(self, state):
         return self.store.get(state["run_id"])["bundle"]
 
+    def search_readiness(self):
+        readiness = getattr(self.researcher, "readiness", None)
+        if readiness is not None:
+            return readiness()
+        available = self.researcher.available()
+        return {"provider": self.config.research.provider, "available": available,
+                "reason": None if available else "Internet search is unavailable in this service."}
+
     def prepare(self, raw):
         request = Request.model_validate(raw)
         mode = "fast" if request.mode == "auto" else request.mode
+        if mode == "research":
+            readiness = self.search_readiness()
+            if not readiness["available"]:
+                raise ValueError(f"Internet search is unavailable ({readiness['provider']}, {readiness['reason']})")
         scope = None
         packed = request.model_dump()
         if mode in {"edit", "plan"}:
@@ -74,7 +86,9 @@ class Runtime(CodeBuild, Stages):
         bundle = {"tests": commands, "mode":mode, "request":packed, "repository":scope, "roles":self.config.roles,
                   "generation":{role:self.config.generation_for(role).model_dump()
                                 for role in self.config.roles}, "config_digest":digest(self.config.model_dump()),
-                  "web_research":request.research}
+                  "web_research":mode == "research" or request.research}
+        if bundle["web_research"]:
+            bundle["internet_search_provider"] = self.config.research.provider
         if mode == "build":
             if bundle["roles"]["test_author"] in {bundle["roles"][r] for r in ("implementer", "repairer")}:
                 raise ValueError("Configure an independent test author for Build")
@@ -87,13 +101,26 @@ class Runtime(CodeBuild, Stages):
         with self.management:
             return self.store.get(self.store.create(bundle))
 
+    def _config_matches(self, bundle):
+        current = self.config.model_dump()
+        if digest(current) == bundle["config_digest"]:
+            return True
+        # Prior releases had a single search provider. An existing search approval
+        # only authorizes sending queries to that provider.
+        if "internet_search_provider" in bundle:
+            return False
+        if bundle.get("web_research") and current["research"]["provider"] != "brave":
+            return False
+        del current["research"]["provider"]
+        return digest(current) == bundle["config_digest"]
+
     def approve(self, run_id, approved_digest, resume=False):
         with self.management:
             row = self.store.get(run_id)
             expected = "interrupted" if resume else "prepared"
             if self.stopping or row["status"] != expected or row["digest"] != approved_digest:
                 raise ValueError("Run state or approval digest changed")
-            if digest(self.config.model_dump()) != row["bundle"]["config_digest"]:
+            if not self._config_matches(row["bundle"]):
                 raise ValueError("Configuration changed; prepare another scope")
             if resume and (not row["approved"] or self.store.has_unknown(run_id)):
                 raise ValueError("The interrupted run has an unresolved call or approval")
@@ -165,6 +192,27 @@ class Runtime(CodeBuild, Stages):
             result = {"output":proposed, "review":state["review"], "diff":edits.patch_diff(bundle["repository"], proposed)}
             result["apply_digest"] = digest({"id":run_id,"scope":bundle,"edits":proposed})
             return ("awaiting_apply" if state["review"]["approved"] else "review_required"), result
+        if bundle["mode"] == "research":
+            stages = {key: value for key, value in state.items() if key != "run_id"}
+            research = state.get("research", {})
+            result = {"output": None, "stages": stages}
+            if not research:
+                return "failed", {**result, "error": "Research stopped before internet search"}
+            if not research.get("sources"):
+                return "degraded", {**result, "error": "Internet search produced no usable excerpts"}
+            final = state.get("final") or {}
+            if not final.get("ok"):
+                return "failed", {**result, "error": "Research synthesis did not return a valid answer"}
+            excerpt_lines = {source["id"]: source.get("excerpt_start_line", 1)
+                             for source in research["sources"]}
+            grounded = any(cite["source_id"] in excerpt_lines
+                           and cite["start_line"] >= excerpt_lines[cite["source_id"]]
+                           for cite in final["result"]["evidence"])
+            if not grounded:
+                return "degraded", {**result, "error": "Research synthesis cited no retrieved excerpt"}
+            result["output"] = final["result"]
+            return ("completed" if research["ok"] else "degraded"), result
+
         final = state.get("final", state.get("primary"))
         if decision.get("ok") and decision["result"]["choice"] in {"A","B"}:
             final = state[{"A":"primary","B":"secondary"}[decision["result"]["choice"]]]

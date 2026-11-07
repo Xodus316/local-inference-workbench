@@ -6,6 +6,7 @@
   let busy = false;
   let polling = false;
   let testNames = [];
+  let internetSearch = null;
 
   async function api(path, body) {
     const options = { method: body === undefined ? "GET" : "POST", cache: "no-store",
@@ -97,6 +98,62 @@
     if (files.some(file => file.path === priorPath)) paths.value = priorPath;
     showFile();
   }
+  function sourceLink(source, urlText) {
+    const name = source.title || source.id || "Untitled source";
+    try {
+      const url = new URL(urlText);
+      if (["https:", "http:"].includes(url.protocol) && !url.username && !url.password) {
+        const link = document.createElement("a");
+        link.href = url.href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = name + " (" + url.host + ")";
+        return link;
+      }
+    } catch { /* Older receipts may have no URL. Keep their source text readable. */ }
+    return document.createTextNode(name);
+  }
+  function showSearchReceipt(row, previous) {
+    if (previous?.id === row.id && previous.updated === row.updated && previous.status === row.status) return;
+    const receipt = row.result?.stages?.research;
+    const requested = row.bundle.request.mode === "research" || row.bundle.web_research;
+    const show = Boolean(receipt || (requested && row.result));
+    el("search-results").hidden = !show;
+    el("search-queries").replaceChildren();
+    el("search-sources").replaceChildren();
+    if (!show) return;
+
+    const statusNames = {completed: "Search complete.", partial: "Some search results could not be retrieved.",
+                         failed: "Search returned no usable results.", unavailable: "Search provider unavailable.",
+                         invalid_queries: "The model did not produce valid search queries."};
+    const message = receipt ? statusNames[receipt.status] || "Search status: " + receipt.status
+                            : "No Internet search was recorded for this run.";
+    el("search-outcome").textContent = receipt?.error ? message + " " + receipt.error : message;
+    for (const query of receipt?.queries || []) {
+      const item = document.createElement("li");
+      item.textContent = query;
+      el("search-queries").append(item);
+    }
+    const cited = new Set((row.result?.output?.evidence || []).map(ref => ref.source_id));
+    for (const source of receipt?.sources || []) {
+      const item = document.createElement("li");
+      const text = source.text || "";
+      const header = /^URL: ([^\r\n]+)\r?\nRetrieved: [^\r\n]*\r?\nSearch excerpts[^\r\n]*:\r?\n/.exec(text);
+      item.append(sourceLink(source, source.url || header?.[1]));
+      if (cited.has(source.id)) item.append(document.createTextNode(" · Cited in answer"));
+      const excerpt = header ? text.slice(header[0].length) : text;
+      if (excerpt) {
+        const details = document.createElement("details");
+        const title = document.createElement("summary");
+        title.textContent = "Retrieved excerpt";
+        const content = document.createElement("p");
+        content.textContent = excerpt;
+        details.append(title, content);
+        item.append(details);
+      }
+      el("search-sources").append(item);
+    }
+  }
   function renderRun(row) {
     const previous = selected;
     selected = row;
@@ -121,8 +178,12 @@
       el("calls").append(item);
     }
     const result = row.result || {};
-    const output = result.output ?? result.review ?? result;
+    const researchAnswer = request.mode === "research" && typeof result.output?.answer === "string";
+    const output = researchAnswer ? result.output.answer : result.output ?? result.error ?? result.review ?? result;
+    el("research-assessment").hidden = !researchAnswer;
+    el("research-assessment-data").textContent = researchAnswer ? JSON.stringify(result.output, null, 2) : "";
     renderBuild(row, previous);
+    showSearchReceipt(row, previous);
     el("result-block").hidden = !row.error && (!row.result || !el("build-output").hidden);
     el("result").textContent = el("result-block").hidden ? "" : row.error || (typeof output === "string" ? output : JSON.stringify(output, null, 2));
     el("diff-block").hidden = !result.diff;
@@ -187,11 +248,39 @@
     el("repository").required = repo; el("files").required = repo;
     el("test-field").hidden = el("mode").value !== "edit" || !testNames.length;
     el("research-field").hidden = el("mode").value !== "balanced";
+    updateSearchHelp();
     el("build-help").hidden = el("mode").value !== "build";
     el("build-control").hidden = el("mode").value !== "build";
   };
+  function updateSearchHelp() {
+    const mode = el("mode").value;
+    const help = el("search-help");
+    help.hidden = !(mode === "research" || (mode === "balanced" && el("research").checked));
+    if (help.hidden) return;
+    if (!internetSearch) {
+      help.textContent = "Search availability has not been confirmed.";
+      return;
+    }
+    const provider = {brave: "Brave Search", exa: "Exa Search", ollama: "Ollama Web Search"}[internetSearch.provider]
+                     || internetSearch.provider || "the search provider";
+    if (!internetSearch.available) {
+      const key = {brave: "BRAVE_SEARCH_API_KEY", ollama: "OLLAMA_API_KEY"}[internetSearch.provider];
+      if (internetSearch.reason === "disabled") {
+        help.textContent = "Enable research.enabled in Configuration and restart the service to use " + provider + ".";
+      } else if (internetSearch.reason === "missing_api_key" && key) {
+        help.textContent = "Set " + key + " in the service environment and restart to use " + provider + ".";
+      } else {
+        help.textContent = internetSearch.reason || "Configure " + provider + " and restart the service.";
+      }
+      return;
+    }
+    help.textContent = mode === "research"
+      ? "After approval, the workflow sends public queries to " + provider + " and cites retrieved excerpts."
+      : "If a reader flags an open question, the workflow can send public queries to " + provider + ".";
+  }
+  el("research").onchange = updateSearchHelp;
   const route = new URLSearchParams(location.hash.slice(1));
-  if (route.get("mode") === "build") el("mode").value = "build";
+  if (["build", "research"].includes(route.get("mode"))) el("mode").value = route.get("mode");
   el("mode").onchange();
   el("prepare").onsubmit = (event) => {
     event.preventDefault();
@@ -226,13 +315,17 @@
     if (action === "apply") body = {digest: selected.result.apply_digest};
     mutation("/api/runs/" + encodeURIComponent(selected.id) + "/" + action, body);
   };
-  async function loadTests() {
+  async function loadCapabilities() {
     try {
       const status = await api("/api/status");
+      internetSearch = status.internet_search || null;
+      const checkedTests = Array.from(el("test-options").querySelectorAll("input:checked"), item => item.value);
       testNames = status.test_commands || [];
+      el("test-options").replaceChildren();
       for (const name of testNames) {
         const label = document.createElement("label"); label.className = "test-name";
         const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.value = name;
+        checkbox.checked = checkedTests.includes(name);
         label.append(checkbox, document.createTextNode(name)); el("test-options").append(label);
       }
       el("mode").onchange();
@@ -240,8 +333,8 @@
   }
   const linked = route.get("run");
   if (linked && /^[0-9a-f-]{36}$/.test(linked)) select(linked);
-  loadTests();
-  el("refresh").onclick = refresh;
+  loadCapabilities();
+  el("refresh").onclick = () => Promise.all([loadCapabilities(), refresh()]);
   refresh();
   setInterval(() => { if (!document.hidden) refresh(); }, 3500);
 })();

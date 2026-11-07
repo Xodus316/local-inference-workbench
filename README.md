@@ -25,6 +25,7 @@ See [model choices by role](#model-choices-by-role) for the lineup and benchmark
 |---|---|
 | Auto / Fast | One reader summarizes or reasons over the prompt and supplied sources. Auto currently selects Fast. |
 | Balanced | Two readers inspect the same sources independently. The first model synthesizes their findings. |
+| Internet Research | Search the selected provider, synthesize retrieved excerpts locally and return an answer with source citations. |
 | Balanced with research | If the answers leave an unresolved question and research is enabled, a model proposes queries. The search adapter returns bounded excerpts for synthesis. |
 | Verified | Two readers produce candidates. A local decision model can select one, request synthesis or escalate to Deep. A low-confidence decision is returned for review. |
 | Deep | A single configured model takes the difficult reasoning request directly. |
@@ -43,7 +44,7 @@ On Windows, launch `.\.venv\Scripts\python -m orchestrator.desktop --config conf
 
 Verified requires a compatible local System One endpoint and decision model. The adapter sends typed choices to `/v1/systemone`; the example decider name is a local alias. Confirm your runtime supports this protocol before enabling Verified. Ordinary generation uses Ollama's native streaming chat endpoint.
 
-To enable external research, configure `research.enabled` and set `BRAVE_SEARCH_API_KEY` in the service environment. The operator must also enable research on the individual Balanced request. Search queries are sent to Brave. The model receives bounded search excerpts.
+For internet access, set `research.enabled` and choose `research.provider`. The example selects Exa’s hosted search, which works without an account key. Ollama Web Search and Brave Search are also supported. Select **Internet Research** for a required lookup or enable optional search on a Balanced run. [Windows setup and provider comparison](docs/internet-research.md)
 
 Add absolute repository paths to `repositories` in your configuration to enable planning and edits. Inspect the selected file contents and proposed diff before approving changes. A separate worktree keeps the proposed files available for testing and review. Approved test commands run with the service account’s operating-system permissions. Use trusted repositories and commands. A Git worktree shares the host filesystem and network.
 

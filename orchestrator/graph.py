@@ -41,9 +41,9 @@ def build(runtime, *, parallel_analysis=None, complete_pair_on_error=False):
 
     def after_primary(s):
         mode = runtime.bundle(s)["mode"]
-        if not s["primary"]["ok"] and not (complete_pair_on_error and mode in {"balanced", "verified"}):
+        if not s["primary"]["ok"] and not (complete_pair_on_error and mode in {"balanced", "research", "verified"}):
             return END
-        if mode in {"balanced", "verified"}:
+        if mode in {"balanced", "research", "verified"}:
             return "secondary"
         return {"plan": "plan", "edit": "patch"}.get(mode, END)
 
@@ -62,7 +62,7 @@ def build(runtime, *, parallel_analysis=None, complete_pair_on_error=False):
 
     def start(state):
         mode = runtime.bundle(state)["mode"]
-        if mode in {"balanced", "verified"} and parallel_analysis and parallel_analysis(state):
+        if mode in {"balanced", "research", "verified"} and parallel_analysis and parallel_analysis(state):
             return ["paired_primary", "paired_secondary"]
         return {"deep": "deep", "build": "code_build"}.get(mode, "primary")
 
@@ -76,7 +76,12 @@ def build(runtime, *, parallel_analysis=None, complete_pair_on_error=False):
     graph.add_conditional_edges("primary", after_primary)
     graph.add_conditional_edges("secondary", after_secondary)
     graph.add_conditional_edges("decision", after_decision)
-    graph.add_edge("research", "synthesis")
+    def after_research(state):
+        if runtime.bundle(state)["mode"] == "research" and not state["research"].get("sources"):
+            return END
+        return "synthesis"
+
+    graph.add_conditional_edges("research", after_research)
     graph.add_edge("patch", "review")
     for name in ("synthesis", "plan", "deep", "review", "code_build"):
         graph.add_edge(name, END)

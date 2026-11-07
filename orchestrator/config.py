@@ -31,6 +31,8 @@ class Generation(Record):
 
 
 class Research(Record):
+    # Older configurations without this field were configured for Brave.
+    provider: Literal["brave", "ollama", "exa"] = "brave"
     enabled: bool = False
     timeout_seconds: int = Field(default=10, ge=1, le=60)
     results_per_query: int = Field(default=3, ge=1, le=5)

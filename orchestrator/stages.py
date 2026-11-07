@@ -67,6 +67,12 @@ class Stages:
                 "Cite their source-line references and URL links for claims they support. "
                 "Never claim a failed or unavailable search verified anything. Retain unresolved uncertainty. "
             )
+        if compare and bundle["mode"] == "research":
+            instruction += (
+                "Answer using the retrieved web excerpts. Include a supporting excerpt line in evidence "
+                "for each material externally verifiable claim. The URL and retrieval date are metadata. "
+                "If the excerpts cannot establish the answer, explain what the available evidence supports. "
+            )
         if compare:
             instruction += "Synthesize the independent candidates, preserving disagreements and limitations. "
             if self.bundle(state)["mode"] not in {"plan", "edit"}:
@@ -196,6 +202,8 @@ class Stages:
 
     def needs_research(self, state):
         bundle = self.bundle(state)
+        if bundle["mode"] == "research":
+            return True
         return (
             bundle["mode"] == "balanced"
             and bundle.get("web_research", False)

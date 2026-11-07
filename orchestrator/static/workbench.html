@@ -14,8 +14,9 @@
 <section class="content">
 <h1>New workflow</h1>
 <form id="prepare">
-<div class="options"><label>Mode<select id="mode"><option value="auto">Auto</option><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="verified">Verified</option><option value="deep">Deep reasoning</option><optgroup label="Coding"><option value="build">Build a Python project</option><option value="plan">Code plan</option><option value="edit">Repository edit</option></optgroup></select></label>
+<div class="options"><label>Mode<select id="mode"><option value="auto">Auto</option><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="research">Internet Research</option><option value="verified">Verified</option><option value="deep">Deep reasoning</option><optgroup label="Coding"><option value="build">Build a Python project</option><option value="plan">Code plan</option><option value="edit">Repository edit</option></optgroup></select></label>
 <label id="research-field" hidden><input type="checkbox" id="research"> Search public sources when needed</label></div>
+<p id="search-help" role="status" hidden></p>
 <div id="build-help" hidden>Describe the Python program, its inputs, expected outputs and error cases. Build creates an independent test suite and runs the implementation in Docker.</div>
 <label>Request<textarea id="prompt" rows="4" required placeholder="What would you like the system to do?"></textarea></label>
 <details id="evidence"><summary>Supporting text</summary><label>Source text<textarea id="source" rows="4" placeholder="Paste text to cite in the answer"></textarea></label></details>
@@ -45,7 +46,11 @@
 <button type="button" id="download-file">Download selected file</button>
 <button type="button" id="download-manifest">Download project manifest</button></div></section>
 </section>
-<div id="result-block" hidden><h3>Result</h3><pre id="result"></pre></div>
+<div id="result-block" hidden><h3>Result</h3><pre id="result"></pre>
+<details id="research-assessment" hidden><summary>Full assessment and citations</summary><pre id="research-assessment-data"></pre></details></div>
+<section id="search-results" hidden><h3>Internet search</h3>
+<p id="search-outcome"></p><ul id="search-queries" aria-label="Search queries"></ul>
+<ol id="search-sources" aria-label="Retrieved sources"></ol></section>
 <div id="diff-block" hidden><h3>Proposed changes</h3><pre id="diff"></pre></div>
 <div id="review-block" hidden><h3>Independent review</h3><pre id="review"></pre></div>
 <div id="workspace-block" hidden><h3>Applied workspace and tests</h3><pre id="workspace"></pre></div>

@@ -91,7 +91,7 @@ class ControlFile(Record):
 
 class Request(Record):
     prompt: str = Field(min_length=1, max_length=20000)
-    mode: Literal["auto","fast","balanced","verified","deep","plan","edit","build"] = "auto"
+    mode: Literal["auto","fast","balanced","research","verified","deep","plan","edit","build"] = "auto"
     sources: list[Source] = Field(default_factory=list, max_length=32)
     research: bool = False
     tests: list[str] = Field(default_factory=list, max_length=8)
@@ -112,8 +112,8 @@ class Request(Record):
             raise ValueError("Reference implementations require Build mode")
         if self.tests and (self.mode != "edit" or len(set(self.tests)) != len(self.tests)):
             raise ValueError("Select distinct tests in edit mode")
-        if self.research and self.mode != "balanced":
-            raise ValueError("Web research requires balanced mode")
+        if self.research and self.mode not in {"balanced", "research"}:
+            raise ValueError("Web research requires Balanced or Research mode")
         if len({s.id for s in self.sources}) != len(self.sources):
             raise ValueError("Duplicate source identifier")
         if len({p.casefold() for p in self.files}) != len(self.files):

@@ -23,7 +23,7 @@ By default the desktop panel stores configuration in `~/.local-inference-workben
 
 ## Workflows
 
-Open **Workflows**, choose a mode and enter a request. Add text under **Supporting text** to make a source available for citations. Balanced mode also offers public research when the operator has enabled and configured it. Click **Prepare for review**, then inspect the frozen inputs and roles. **Approve and run** starts the work described in that record. Click a saved run in the browser, or double-click one in the desktop panel, to see individual calls, the result and errors.
+Open **Workflows**, choose a mode and enter a request. Add text under **Supporting text** to make a source available for citations. Choose **Internet Research** for a search with source citations, or select optional public search in **Balanced** mode. [Enable a provider and inspect the results](internet-research.md) Click **Prepare for review**, then inspect the frozen inputs and roles. **Approve and run** starts the work described in that record. Click a saved run in the browser, or double-click one in the desktop panel, to see individual calls, the result and errors.
 
 For **Code plan** and **Repository edit**, enter an approved absolute repository path and list the relative file paths to include. For an edit, select any configured tests to run after application. The prepared record identifies the files and commands. Review the proposed diff and independent review when generation finishes. **Apply reviewed changes** binds approval to that exact proposal and writes into a separate Git worktree. The result records the worktree path and test receipts.
 

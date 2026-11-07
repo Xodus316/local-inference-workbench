@@ -40,7 +40,20 @@ For `balanced` or `verified`, the readers first see the source packet independen
 
 For `plan` or `edit`, add an absolute allowlisted `repository` directory and a list of relative `files`. Inspect the prepared scope. An accepted edit returns a proposed diff and an application digest. The application call uses that digest so it cannot authorize a different diff. Read the resulting worktree path and any execution receipts in the run result before integrating the patch.
 
-The model journal records intent before dispatch and saves a returned completion before validating it. If a call ends in an uncertain state, the journal gives the operator a record to reconcile with the native runtime. Research requests may contact Brave when both the operator configuration and the run request authorize research. Model calls use the local Ollama endpoint.
+The model journal records intent before dispatch and saves a returned completion before validating it. If a call ends in an uncertain state, the journal gives the operator a record to reconcile with the native runtime. Research requests send generated queries to the configured provider after approval. Model calls use the local Ollama endpoint.
+
+## Research a question on the Internet
+
+Check `api("/api/status")["internet_search"]` for the configured provider and readiness. Prepare the request below, review its bundle and use the same approval and polling steps as above.
+
+```python
+prepared = api("/api/runs", {
+    "mode": "research",
+    "prompt": "Which Ollama endpoint searches the web, and how does it authenticate? Cite the docs."
+})
+```
+
+Inspect `result.stages.research` for the provider, queries, source excerpts, URLs and errors. A completed answer in `result.output` cites retrieved content. Balanced callers retain conditional lookup through `{"mode": "balanced", "research": true}`. [Provider setup](internet-research.md)
 
 ## Build a standalone Python program
 

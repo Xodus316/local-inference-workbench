@@ -74,7 +74,7 @@ class ChatIntegration(unittest.TestCase):
             self.assertEqual(status,200)
             self.assertIn(expected,text)
 
-    def test_panel_offers_build_and_starts_with_downloads_hidden(self):
+    def test_panel_offers_build_and_internet_research_with_results_initially_hidden(self):
         class Controls(HTMLParser):
             def __init__(self):
                 super().__init__()
@@ -93,6 +93,11 @@ class ChatIntegration(unittest.TestCase):
         controls = Controls()
         controls.feed(page)
         self.assertIn("build", controls.modes)
+        self.assertIn("research", controls.modes)
+        self.assertIn("hidden", controls.by_id["search-help"])
+        self.assertIn("hidden", controls.by_id["search-results"])
+        self.assertIn("hidden", controls.by_id["research-assessment"])
+        self.assertIn("search-sources", controls.by_id)
         self.assertIn("hidden", controls.by_id["build-files"])
         for element in ("build-path", "copy-file", "download-file", "download-manifest", "build-verification"):
             self.assertIn(element, controls.by_id)
