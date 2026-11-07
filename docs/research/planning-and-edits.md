@@ -1,5 +1,7 @@
 # Planning, editing and independent checks
 
+The [planning and Build comparisons](coding-comparisons.md) give the full readiness results, first-pass code scores and repair outcomes. The [six-exercise implementation screen](implementation-screen.md) covers the earlier standalone coding draws.
+
 ## Standalone planning
 
 Gemma 26B A4B MTP Q4_K_M is the planning choice. A planning response must be implementable. A wrong numerical example can make a correct implementation look defective when the example becomes a test.

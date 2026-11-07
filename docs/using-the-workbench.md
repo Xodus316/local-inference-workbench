@@ -52,6 +52,8 @@ The example tag `gemma4:31b-iq4_xs` is a local alias. Point `test_author` to you
 5. Read **Verification receipts** for execution results and mutation outcomes. A surviving mutation means a sampled code change still passed the tests. By default the test author can add tests once to expose surviving behavior. Existing test files stay frozen. The expanded suite must pass the baseline and mutation checks. An inconclusive result needs operator review. Review the expected behavior and the assertions before integrating generated code.
 6. On a completed Build, select a path in **Verified files**. **Copy contents** copies that file. **Download selected file** saves it by its basename. **Download project manifest** saves all verified implementation and test files as JSON, preserving their relative paths and source text.
 
+The [independent test-author results](research/test-authorship.md) show how generated assertions behaved on known-correct and deliberately faulty programs. The [combat repair study](research/independent-testing.md) shows what changed after specific gaps were fed back to the test author.
+
 ## Chat
 
 Open **Chat**, select an installed model and send a message. Chat streams directly from Ollama and shares inference admission with the workflow worker. Conversations, messages, model settings and attachment data persist in the service data directory. The sidebar supports searching, selecting and deleting conversations. Use **Settings** to adjust context, sampling and advertised thinking settings for the selected model.

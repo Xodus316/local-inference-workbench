@@ -1,0 +1,199 @@
+model_package,generation_mode,context_tokens,output_limit,exercise,draw,finish_reason,whole_attempt,hidden_passed,hidden_total
+GPT-OSS 20B MXFP4,high,16384,8192,bounded_async,1,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,bounded_async,2,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,bounded_async,3,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,expiring_lru,1,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,expiring_lru,2,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,expiring_lru,3,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,pricing_feature,1,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,pricing_feature,2,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,pricing_feature,3,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,query_parser,1,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,query_parser,2,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,query_parser,3,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,resumable_log,1,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,resumable_log,2,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,resumable_log,3,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,scheduler_repair,1,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,scheduler_repair,2,length,output_limit,,
+GPT-OSS 20B MXFP4,high,16384,8192,scheduler_repair,3,length,output_limit,,
+GPT-OSS 20B MXFP4,low,65536,32768,bounded_async,1,stop,failed_checks,14,15
+GPT-OSS 20B MXFP4,low,65536,32768,bounded_async,2,stop,failed_checks,13,15
+GPT-OSS 20B MXFP4,low,65536,32768,bounded_async,3,stop,failed_checks,9,15
+GPT-OSS 20B MXFP4,low,65536,32768,expiring_lru,1,stop,passed,90,90
+GPT-OSS 20B MXFP4,low,65536,32768,expiring_lru,2,stop,passed,90,90
+GPT-OSS 20B MXFP4,low,65536,32768,expiring_lru,3,stop,passed,90,90
+GPT-OSS 20B MXFP4,low,65536,32768,pricing_feature,1,stop,failed_checks,115,117
+GPT-OSS 20B MXFP4,low,65536,32768,pricing_feature,2,stop,failed_checks,114,117
+GPT-OSS 20B MXFP4,low,65536,32768,pricing_feature,3,stop,failed_checks,115,117
+GPT-OSS 20B MXFP4,low,65536,32768,query_parser,1,stop,failed_checks,89,127
+GPT-OSS 20B MXFP4,low,65536,32768,query_parser,2,stop,failed_checks,89,127
+GPT-OSS 20B MXFP4,low,65536,32768,query_parser,3,stop,failed_checks,122,127
+GPT-OSS 20B MXFP4,low,65536,32768,resumable_log,1,stop,failed_checks,22,24
+GPT-OSS 20B MXFP4,low,65536,32768,resumable_log,2,stop,failed_checks,22,24
+GPT-OSS 20B MXFP4,low,65536,32768,resumable_log,3,stop,failed_checks,21,24
+GPT-OSS 20B MXFP4,low,65536,32768,scheduler_repair,1,stop,failed_checks,34,102
+GPT-OSS 20B MXFP4,low,65536,32768,scheduler_repair,2,stop,failed_checks,34,102
+GPT-OSS 20B MXFP4,low,65536,32768,scheduler_repair,3,stop,failed_checks,34,102
+GPT-OSS 20B MXFP4,medium,65536,32768,bounded_async,1,stop,failed_checks,14,15
+GPT-OSS 20B MXFP4,medium,65536,32768,bounded_async,2,stop,passed,15,15
+GPT-OSS 20B MXFP4,medium,65536,32768,bounded_async,3,stop,passed,15,15
+GPT-OSS 20B MXFP4,medium,65536,32768,expiring_lru,1,stop,invalid_python,,
+GPT-OSS 20B MXFP4,medium,65536,32768,expiring_lru,2,stop,invalid_python,,
+GPT-OSS 20B MXFP4,medium,65536,32768,expiring_lru,3,stop,passed,90,90
+GPT-OSS 20B MXFP4,medium,65536,32768,pricing_feature,1,stop,failed_checks,114,117
+GPT-OSS 20B MXFP4,medium,65536,32768,pricing_feature,2,stop,failed_checks,114,117
+GPT-OSS 20B MXFP4,medium,65536,32768,pricing_feature,3,stop,failed_checks,115,117
+GPT-OSS 20B MXFP4,medium,65536,32768,query_parser,1,length,output_limit,,
+GPT-OSS 20B MXFP4,medium,65536,32768,query_parser,2,stop,passed,127,127
+GPT-OSS 20B MXFP4,medium,65536,32768,query_parser,3,stop,passed,127,127
+GPT-OSS 20B MXFP4,medium,65536,32768,resumable_log,1,stop,failed_checks,23,24
+GPT-OSS 20B MXFP4,medium,65536,32768,resumable_log,2,length,output_limit,,
+GPT-OSS 20B MXFP4,medium,65536,32768,resumable_log,3,stop,failed_checks,23,24
+GPT-OSS 20B MXFP4,medium,65536,32768,scheduler_repair,1,stop,passed,102,102
+GPT-OSS 20B MXFP4,medium,65536,32768,scheduler_repair,2,stop,passed,102,102
+GPT-OSS 20B MXFP4,medium,65536,32768,scheduler_repair,3,stop,failed_checks,34,102
+Gemma 12B Q4_K_M,direct,16384,8192,bounded_async,1,stop,failed_checks,13,15
+Gemma 12B Q4_K_M,direct,16384,8192,bounded_async,2,length,output_limit,,
+Gemma 12B Q4_K_M,direct,16384,8192,bounded_async,3,stop,failed_checks,14,15
+Gemma 12B Q4_K_M,direct,16384,8192,expiring_lru,1,stop,failed_checks,89,90
+Gemma 12B Q4_K_M,direct,16384,8192,expiring_lru,2,stop,failed_checks,89,90
+Gemma 12B Q4_K_M,direct,16384,8192,expiring_lru,3,stop,failed_checks,89,90
+Gemma 12B Q4_K_M,direct,16384,8192,pricing_feature,1,stop,failed_checks,114,117
+Gemma 12B Q4_K_M,direct,16384,8192,pricing_feature,2,stop,failed_checks,115,117
+Gemma 12B Q4_K_M,direct,16384,8192,pricing_feature,3,stop,failed_checks,115,117
+Gemma 12B Q4_K_M,direct,16384,8192,query_parser,1,stop,invalid_python,,
+Gemma 12B Q4_K_M,direct,16384,8192,query_parser,2,stop,invalid_python,,
+Gemma 12B Q4_K_M,direct,16384,8192,query_parser,3,stop,invalid_python,,
+Gemma 12B Q4_K_M,direct,16384,8192,resumable_log,1,stop,invalid_python,,
+Gemma 12B Q4_K_M,direct,16384,8192,resumable_log,2,stop,invalid_python,,
+Gemma 12B Q4_K_M,direct,16384,8192,resumable_log,3,stop,invalid_python,,
+Gemma 12B Q4_K_M,direct,16384,8192,scheduler_repair,1,stop,passed,102,102
+Gemma 12B Q4_K_M,direct,16384,8192,scheduler_repair,2,stop,passed,102,102
+Gemma 12B Q4_K_M,direct,16384,8192,scheduler_repair,3,stop,passed,102,102
+Gemma 12B QAT,direct,16384,8192,bounded_async,1,stop,invalid_python,,
+Gemma 12B QAT,direct,16384,8192,bounded_async,2,stop,invalid_python,,
+Gemma 12B QAT,direct,16384,8192,bounded_async,3,stop,failed_checks,13,15
+Gemma 12B QAT,direct,16384,8192,expiring_lru,1,stop,invalid_python,,
+Gemma 12B QAT,direct,16384,8192,expiring_lru,2,stop,passed,90,90
+Gemma 12B QAT,direct,16384,8192,expiring_lru,3,stop,failed_checks,9,90
+Gemma 12B QAT,direct,16384,8192,pricing_feature,1,stop,failed_checks,115,117
+Gemma 12B QAT,direct,16384,8192,pricing_feature,2,stop,failed_checks,115,117
+Gemma 12B QAT,direct,16384,8192,pricing_feature,3,stop,failed_checks,115,117
+Gemma 12B QAT,direct,16384,8192,query_parser,1,stop,invalid_python,,
+Gemma 12B QAT,direct,16384,8192,query_parser,2,stop,failed_checks,1,127
+Gemma 12B QAT,direct,16384,8192,query_parser,3,stop,failed_checks,95,127
+Gemma 12B QAT,direct,16384,8192,resumable_log,1,stop,invalid_python,,
+Gemma 12B QAT,direct,16384,8192,resumable_log,2,stop,failed_checks,19,24
+Gemma 12B QAT,direct,16384,8192,resumable_log,3,stop,invalid_python,,
+Gemma 12B QAT,direct,16384,8192,scheduler_repair,1,stop,passed,102,102
+Gemma 12B QAT,direct,16384,8192,scheduler_repair,2,stop,passed,102,102
+Gemma 12B QAT,direct,16384,8192,scheduler_repair,3,stop,passed,102,102
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,bounded_async,1,stop,failed_checks,10,15
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,bounded_async,2,stop,failed_checks,8,15
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,bounded_async,3,stop,passed,15,15
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,expiring_lru,1,stop,passed,90,90
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,expiring_lru,2,stop,failed_checks,7,90
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,expiring_lru,3,stop,failed_checks,7,90
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,pricing_feature,1,stop,passed,117,117
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,pricing_feature,2,stop,failed_checks,116,117
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,pricing_feature,3,stop,failed_checks,116,117
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,query_parser,1,stop,failed_checks,124,127
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,query_parser,2,stop,failed_checks,105,127
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,query_parser,3,stop,failed_checks,105,127
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,resumable_log,1,stop,failed_checks,22,24
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,resumable_log,2,stop,failed_checks,22,24
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,resumable_log,3,stop,failed_checks,22,24
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,scheduler_repair,1,stop,failed_checks,15,102
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,scheduler_repair,2,stop,passed,102,102
+Gemma 26B A4B MTP Q4_K_M,direct,16384,8192,scheduler_repair,3,stop,failed_checks,66,102
+Gemma 31B QAT,direct,16384,8192,bounded_async,1,stop,passed,15,15
+Gemma 31B QAT,direct,16384,8192,bounded_async,2,stop,passed,15,15
+Gemma 31B QAT,direct,16384,8192,bounded_async,3,stop,passed,15,15
+Gemma 31B QAT,direct,16384,8192,expiring_lru,1,stop,passed,90,90
+Gemma 31B QAT,direct,16384,8192,expiring_lru,2,stop,passed,90,90
+Gemma 31B QAT,direct,16384,8192,expiring_lru,3,stop,passed,90,90
+Gemma 31B QAT,direct,16384,8192,pricing_feature,1,stop,passed,117,117
+Gemma 31B QAT,direct,16384,8192,pricing_feature,2,stop,passed,117,117
+Gemma 31B QAT,direct,16384,8192,pricing_feature,3,stop,passed,117,117
+Gemma 31B QAT,direct,16384,8192,query_parser,1,stop,invalid_python,,
+Gemma 31B QAT,direct,16384,8192,query_parser,2,stop,invalid_python,,
+Gemma 31B QAT,direct,16384,8192,query_parser,3,stop,failed_checks,104,127
+Gemma 31B QAT,direct,16384,8192,resumable_log,1,stop,failed_checks,22,24
+Gemma 31B QAT,direct,16384,8192,resumable_log,2,stop,failed_checks,22,24
+Gemma 31B QAT,direct,16384,8192,resumable_log,3,stop,failed_checks,22,24
+Gemma 31B QAT,direct,16384,8192,scheduler_repair,1,stop,passed,102,102
+Gemma 31B QAT,direct,16384,8192,scheduler_repair,2,stop,passed,102,102
+Gemma 31B QAT,direct,16384,8192,scheduler_repair,3,stop,passed,102,102
+Qwen 27B GSQ IQ3_S,direct,16384,8192,bounded_async,1,stop,failed_checks,14,15
+Qwen 27B GSQ IQ3_S,direct,16384,8192,bounded_async,2,stop,failed_checks,11,15
+Qwen 27B GSQ IQ3_S,direct,16384,8192,bounded_async,3,stop,failed_checks,9,15
+Qwen 27B GSQ IQ3_S,direct,16384,8192,expiring_lru,1,stop,passed,90,90
+Qwen 27B GSQ IQ3_S,direct,16384,8192,expiring_lru,2,stop,passed,90,90
+Qwen 27B GSQ IQ3_S,direct,16384,8192,expiring_lru,3,stop,passed,90,90
+Qwen 27B GSQ IQ3_S,direct,16384,8192,pricing_feature,1,stop,passed,117,117
+Qwen 27B GSQ IQ3_S,direct,16384,8192,pricing_feature,2,stop,passed,117,117
+Qwen 27B GSQ IQ3_S,direct,16384,8192,pricing_feature,3,stop,passed,117,117
+Qwen 27B GSQ IQ3_S,direct,16384,8192,query_parser,1,stop,failed_checks,102,127
+Qwen 27B GSQ IQ3_S,direct,16384,8192,query_parser,2,stop,failed_checks,57,127
+Qwen 27B GSQ IQ3_S,direct,16384,8192,query_parser,3,stop,passed,127,127
+Qwen 27B GSQ IQ3_S,direct,16384,8192,resumable_log,1,stop,passed,24,24
+Qwen 27B GSQ IQ3_S,direct,16384,8192,resumable_log,2,stop,passed,24,24
+Qwen 27B GSQ IQ3_S,direct,16384,8192,resumable_log,3,stop,passed,24,24
+Qwen 27B GSQ IQ3_S,direct,16384,8192,scheduler_repair,1,stop,failed_checks,10,102
+Qwen 27B GSQ IQ3_S,direct,16384,8192,scheduler_repair,2,stop,failed_checks,34,102
+Qwen 27B GSQ IQ3_S,direct,16384,8192,scheduler_repair,3,stop,passed,102,102
+Qwen 27B MTP Q4_K_M,direct,16384,8192,bounded_async,1,stop,passed,15,15
+Qwen 27B MTP Q4_K_M,direct,16384,8192,bounded_async,2,length,output_limit,,
+Qwen 27B MTP Q4_K_M,direct,16384,8192,bounded_async,3,stop,failed_checks,14,15
+Qwen 27B MTP Q4_K_M,direct,16384,8192,expiring_lru,1,stop,passed,90,90
+Qwen 27B MTP Q4_K_M,direct,16384,8192,expiring_lru,2,stop,passed,90,90
+Qwen 27B MTP Q4_K_M,direct,16384,8192,expiring_lru,3,stop,passed,90,90
+Qwen 27B MTP Q4_K_M,direct,16384,8192,pricing_feature,1,stop,passed,117,117
+Qwen 27B MTP Q4_K_M,direct,16384,8192,pricing_feature,2,stop,passed,117,117
+Qwen 27B MTP Q4_K_M,direct,16384,8192,pricing_feature,3,stop,passed,117,117
+Qwen 27B MTP Q4_K_M,direct,16384,8192,query_parser,1,stop,failed_checks,97,127
+Qwen 27B MTP Q4_K_M,direct,16384,8192,query_parser,2,stop,failed_checks,44,127
+Qwen 27B MTP Q4_K_M,direct,16384,8192,query_parser,3,stop,passed,127,127
+Qwen 27B MTP Q4_K_M,direct,16384,8192,resumable_log,1,stop,passed,24,24
+Qwen 27B MTP Q4_K_M,direct,16384,8192,resumable_log,2,stop,passed,24,24
+Qwen 27B MTP Q4_K_M,direct,16384,8192,resumable_log,3,stop,passed,24,24
+Qwen 27B MTP Q4_K_M,direct,16384,8192,scheduler_repair,1,stop,failed_checks,34,102
+Qwen 27B MTP Q4_K_M,direct,16384,8192,scheduler_repair,2,stop,failed_checks,34,102
+Qwen 27B MTP Q4_K_M,direct,16384,8192,scheduler_repair,3,stop,passed,102,102
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,bounded_async,1,stop,failed_checks,12,15
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,bounded_async,2,stop,failed_checks,13,15
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,bounded_async,3,stop,failed_checks,12,15
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,expiring_lru,1,stop,failed_checks,89,90
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,expiring_lru,2,stop,failed_checks,8,90
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,expiring_lru,3,stop,failed_checks,89,90
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,pricing_feature,1,stop,failed_checks,95,117
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,pricing_feature,2,stop,failed_checks,106,117
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,pricing_feature,3,stop,failed_checks,115,117
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,query_parser,1,stop,failed_checks,38,127
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,query_parser,2,stop,failed_checks,43,127
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,query_parser,3,stop,invalid_python,,
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,resumable_log,1,stop,failed_checks,21,24
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,resumable_log,2,stop,failed_checks,21,24
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,resumable_log,3,stop,failed_checks,21,24
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,scheduler_repair,1,stop,failed_checks,34,102
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,scheduler_repair,2,stop,failed_checks,34,102
+Qwen3-Coder 30B A3B Q4_K_M,native,16384,8192,scheduler_repair,3,stop,failed_checks,34,102
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,bounded_async,1,stop,failed_checks,14,15
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,bounded_async,2,stop,failed_checks,12,15
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,bounded_async,3,stop,failed_checks,11,15
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,expiring_lru,1,stop,failed_checks,54,90
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,expiring_lru,2,stop,failed_checks,54,90
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,expiring_lru,3,stop,failed_checks,54,90
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,pricing_feature,1,stop,failed_checks,115,117
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,pricing_feature,2,stop,failed_checks,106,117
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,pricing_feature,3,stop,failed_checks,107,117
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,query_parser,1,stop,failed_checks,105,127
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,query_parser,2,stop,failed_checks,106,127
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,query_parser,3,stop,failed_checks,104,127
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,resumable_log,1,stop,failed_checks,19,24
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,resumable_log,2,stop,failed_checks,16,24
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,resumable_log,3,stop,invalid_python,,
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,scheduler_repair,1,stop,failed_checks,34,102
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,scheduler_repair,2,stop,failed_checks,34,102
+Qwen3-Coder-Next UD-IQ1_M,native,16384,8192,scheduler_repair,3,stop,failed_checks,34,102

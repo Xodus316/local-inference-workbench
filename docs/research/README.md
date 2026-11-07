@@ -1,5 +1,17 @@
 # Model selection on a 24 GB RTX 3090
 
+## Benchmark results
+
+| Question | What was measured |
+|---|---|
+| [Which coding models returned working programs?](implementation-screen.md) | 198 independent attempts across six Python exercises. Whole-program pass rates by model, partial successes, output-limit failures and the result after a second model reviewed the draft. |
+| [Which models wrote tests that caught defects?](test-authorship.md) | First submissions on occupancy, cache expiration, stock allocation and interval union. Control passes, detection rates and examples where a seemingly sensible test exercised the wrong behavior. |
+| [Could a model strengthen a frozen suite?](independent-testing.md) | Seven model/package configurations on combat simulation, with the original nine-fault corpus. First submissions, guided additions and evaluator-assisted outcomes are identified individually. |
+| [Who should plan, implement and repair a Build?](coding-comparisons.md) | Readiness on blinded planning briefs, independent execution checks on two combat implementations, and the effect of running Qwen xhigh only after a reproduced failure. |
+| [When did a second reader help?](reasoning.md) | All-checks pass rates, individual rubric checks and adjudication mistakes in summaries, research queries and the Verified chain. |
+
+## Selected roles
+
 | Use case | Preferred models | Basis |
 |---|---|---|
 | Fast / Auto | Gemma 12B Q4_K_M | Complete FIFO, extraction and synthesis checks with the lowest combined latency. |

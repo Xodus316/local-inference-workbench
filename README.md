@@ -53,6 +53,8 @@ For scripts, `POST /api/runs` prepares a run and returns its identifier and dige
 
 ## How the models were chosen
 
+The [benchmark results](docs/research/README.md#benchmark-results) include pass rates for 198 coding attempts, independent test suites against correct controls and seeded defects, and the failure cases that shaped the Build roles.
+
 The [research guide](docs/research/README.md) covers the RTX 3090 experiments, model roles and their limits. It includes measured quality and wall time for the small-model pair, arbitration outcomes, the effect of GPU residency, numerical errors in candidate plans, and checks on proposed code. The [per-call data](docs/research/measurements.csv) lets you compare quality and time on the same exercises.
 
 ## Development
