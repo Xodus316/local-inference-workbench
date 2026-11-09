@@ -58,7 +58,7 @@ class NativeProvider:
         if limits and generation.context > max(limits):
             raise ValueError("Configured context exceeds this model's advertised capacity")
 
-    def complete(self, model, settings, payload, cancel: threading.Event, deadline):
+    def complete(self, model, settings, payload, cancel: threading.Event, deadline, *, protocol_request_id=None):
         generation = Generation.model_validate(settings)
         overrides = {k: getattr(generation, k) for k in (
             "temperature", "top_k", "top_p", "min_p", "presence_penalty",
@@ -71,7 +71,9 @@ class NativeProvider:
                    "num_ctx": generation.context, "num_predict": generation.output_tokens or -1}
         stream = self.ollama.stream_chat(model, payload["messages"], options, think=generation.think,
                                          cancel=cancel, deadline=deadline, format_schema=payload["schema"],
-                                         repetition_guard=generation.repetition_guard)
+                                         repetition_guard=generation.repetition_guard,
+                                         **({"protocol_request_id": protocol_request_id}
+                                            if self.config.backend == "strata" else {}))
         final = None
         content = []
         reasoning = []
@@ -109,6 +111,11 @@ class NativeProvider:
                            if self.config.backend == "strata" else {"backend": "ollama"})}
         if self.config.backend == "strata" and isinstance(final.get("strata_native_transport"), dict):
             result["native_transport"] = final["strata_native_transport"]
+        if self.config.backend == "strata":
+            for source, target in (("strata_native_protocol", "native_protocol"),
+                                   ("strata_native_protocol_request", "native_protocol_request")):
+                if isinstance(final.get(source), dict):
+                    result[target] = final[source]
         return result
 
     def decide(self, model, payload, cancel, deadline):

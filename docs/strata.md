@@ -56,7 +56,7 @@ can be journaled before local validation.
 Strata v0.2.12 can repeat a request internally after non-finite logits before the
 first token. Its stock response does not expose that attempt count. Keep
 `native_attempts_observable` false unless a separately reviewed server revision
-provides an authoritative receipt. A benchmark requiring exactly one native
+provides an authoritative receipt. A profile requiring exactly one native
 attempt must reject such a profile before inference; transport success alone is
 not an eligibility receipt.
 
@@ -81,3 +81,60 @@ partial receipt. Runtime archives it as a nonterminal transport artifact before
 filtering diagnostics. No token count or successful text output substitutes for
 the native dispatch counter. Synthetic tests do not establish real cancellation,
 RAM fit or the patched server's live compatibility.
+
+Two additional server contracts are independently opt-in through the frozen
+`approximation_switches` map:
+
+```json
+{
+  "native_protocol_token_count": "strata-openai-native-token-count-v1",
+  "native_cleanup_policy": "strata-serial-stop-done-v1"
+}
+```
+
+Only configure contracts provided by a separately reviewed server revision.
+`identity()` requires the configured policies to be advertised by `/v1/status`
+and includes them in its observed identity. The cleanup policy also requires
+`protocol_quarantined: false`, `protocol_request_id_required: true` and a qualified `native_protocol_owner` containing
+exactly the server instance, engine PID and engine generation. That owner is included in
+the observed identity, so replacing it changes the identity of a prepared run.
+
+With the token-count policy enabled, `StrataClient.count_tokens()` accepts the
+same model, messages, options, reasoning setting and optional `format_schema` as
+`stream_chat()`. Both methods use one ordinary OpenAI request builder, including
+the schema system message, `stream: true`, the reasoning settings and omission of
+`max_tokens` for uncapped requests. Counting posts that body only to
+`/v1/chat/completions/count_tokens`. It requires a nonnegative integer
+`input_tokens`, the matching model and policy, a request digest, a token-ID digest,
+strict integer `native_dispatches: 0` and `prefix_cache_written: false`. The
+request digest uses UTF-8 JSON with sorted keys, compact separators, literal
+Unicode and non-finite numbers rejected. Counting never calls the generation
+endpoint.
+
+With the cleanup policy enabled, every generation sends
+`X-Strata-Protocol-Request-ID`. Callers may provide a canonical UUID through
+`stream_chat(..., protocol_request_id=...)` or `NativeProvider.complete()`; the
+client otherwise creates one and retains it in `native_protocol_request`.
+An ordinary complete stream must also obtain a matching native `stop` or
+`length` receipt with exactly one attempt and a released handler before it can
+report success. The client waits up to 30 seconds for this read-only proof.
+On an explicit cancellation, the client first
+closes the stream and preserves its partial content, reasoning and transport
+bytes. It then polls the read-only `/v1/protocol/requests/<UUID>` endpoint for at
+most 30 seconds. A confirmed receipt must match the UUID, canonical request
+digest, model and preflight owner, and prove exactly one native attempt,
+observed generation, actual native DONE acknowledgement, completed handler and
+released admission. Cancellation additionally requires native reason `cancel`,
+ordered token/cancellation/STOP/DONE/handler timestamps and cleanup within the
+30-second bound. Idle status and socket closure do not prove native completion.
+
+The raised `StrataCancelled` still contains the partial `raw_response`.
+`native_protocol` retains the server receipt and `native_transport.complete`
+continues to describe the original stream. Confirmed cancellation reports native
+terminal state `cancelled` and the actual native DONE reason `cancel`. A natural
+DONE `stop` that wins the race may prove a terminal stop, with
+`cancellation_exercised: false`; it does not prove cancellation was exercised.
+Missing acknowledgement, invalid types or timings, owner drift, native errors and
+unconfirmed cleanup leave native completion unknown. No cancellation path
+replays generation. Without these policy switches, the existing transport and
+unknown-completion behavior remain unchanged.
