@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "path": "tests/test_validation_boundaries.py",
+      "content": "import json\nimport subprocess\nimport unittest\n\n\nclass InventoryValidationBoundaries(unittest.TestCase):\n    def invalid(self, stock, orders):\n        reply = subprocess.run(['python3', 'solution.py'], input=json.dumps({'stock': stock, 'orders': orders}),\n                               capture_output=True, text=True, timeout=5)\n        self.assertNotEqual(reply.returncode, 0)\n        self.assertEqual(reply.stdout, '')\n\n    def test_later_invalid_stock(self):\n        self.invalid({'good': 1, 'second': -1}, [])\n\n    def test_zero_quantity_for_existing_sku(self):\n        self.invalid({'part': 1}, [{'id': 'valid', 'priority': 0, 'items': {'part': 0}}])\n\n    def test_final_newline_in_name(self):\n        self.invalid({'part\\n': 1}, [])\n        self.invalid({'part': 1}, [{'id': 'valid\\n', 'priority': 0, 'items': {'part': 1}}])\n        self.invalid({'part': 1}, [{'id': 'valid', 'priority': 0, 'items': {'part\\n': 1}}])\n"
+    }
+  ],
+  "coverage": [
+    {
+      "criterion": 6,
+      "test_file": "tests/test_validation_boundaries.py",
+      "test_name": "InventoryValidationBoundaries.test_later_invalid_stock",
+      "scenario": "Valid first stock entry then invalid second quantity",
+      "expected_result": "Nonzero exit and exactly empty stdout",
+      "catches": "Validating only first stock entry"
+    },
+    {
+      "criterion": 8,
+      "test_file": "tests/test_validation_boundaries.py",
+      "test_name": "InventoryValidationBoundaries.test_zero_quantity_for_existing_sku",
+      "scenario": "Zero requested quantity for a stocked SKU",
+      "expected_result": "Nonzero exit and exactly empty stdout",
+      "catches": "Accepting zero quantity"
+    },
+    {
+      "criterion": 7,
+      "test_file": "tests/test_validation_boundaries.py",
+      "test_name": "InventoryValidationBoundaries.test_final_newline_in_name",
+      "scenario": "A trailing newline in a stock SKU, order ID or item SKU",
+      "expected_result": "Nonzero exit and exactly empty stdout",
+      "catches": "Partial regex matches that accept trailing line breaks"
+    }
+  ]
+}

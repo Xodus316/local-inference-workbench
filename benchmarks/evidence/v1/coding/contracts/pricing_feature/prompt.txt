@@ -1,0 +1,26 @@
+You are implementing a small Python 3.11+ project. Standard-library imports, classes and helpers are allowed. Do not use third-party packages or access the network. Return exactly one JSON object with key "code": its string value must be the complete replacement Python module specified below, without Markdown fences or explanatory text. This JSON wrapper is your RESPONSE format; the Python functions must return the values specified by their interfaces. Do not include tests in the module or run code at import time other than definitions and ordinary constants.
+
+Extend the existing pricing.py module with an optional keyword-only coupon=None argument to quote. Preserve every existing call and output shape. money.py is supplied alongside your module and stays unchanged. lines is a list of (sku,quantity) pairs; duplicate SKUs are allowed. catalog maps SKUs to nonnegative integer prices in cents. Existing arguments are guaranteed valid: known SKUs, positive exact integer quantities, integer discount_percent 0..100, nonnegative integer shipping_cents. Do not mutate any input.
+Compute original subtotal, then the existing discount_percent discount using percent_of (floor, once on the order subtotal). Coupon is None or an exact dict. Its required kind is 'fixed', 'percent', or 'free_shipping'. fixed/percent require exact integer value (bool invalid), nonnegative for fixed, 0..100 for percent. free_shipping must NOT have a value field. All kinds optionally accept min_subtotal, an exact nonnegative int (bool invalid), default 0; it is checked against ORIGINAL subtotal before any discounts. No other keys are permitted. Reject invalid coupons with ValueError, even when their threshold would not be met.
+When eligible, apply fixed cents or a percent discount to the merchandise remaining AFTER the original discount; cap the additional discount at that remaining amount. Percent uses floor via percent_of. free_shipping sets shipping to zero and adds no merchandise discount. When not eligible, apply no coupon benefit. Preserve the exact four output keys: subtotal is original subtotal; discount is original PLUS coupon merchandise discount; shipping is the resulting shipping charge; total is subtotal-discount+shipping. Coupon must never discount shipping except via free_shipping. Return only the complete replacement pricing.py code, not money.py.
+
+Current module:
+from money import percent_of
+
+def quote(lines, catalog, *, discount_percent=0, shipping_cents=0):
+    subtotal = sum(catalog[sku] * quantity for sku, quantity in lines)
+    discount = percent_of(subtotal, discount_percent)
+    return {"subtotal": subtotal, "discount": discount, "shipping": shipping_cents,
+            "total": subtotal - discount + shipping_cents}
+
+
+Existing project file money.py (unchanged):
+def percent_of(cents, percent):
+    return cents * percent // 100
+
+
+Visible smoke test (imports your module as candidate):
+from pricing import quote
+assert quote([("a",2)],{"a":125},discount_percent=10,shipping_cents=30)=={"subtotal":250,"discount":25,"shipping":30,"total":255}
+assert quote([("a",2)],{"a":125},discount_percent=10,shipping_cents=30,coupon={"kind":"fixed","value":100})["total"]==155
+

@@ -1,0 +1,107 @@
+{
+  "format_version": 1,
+  "task": "Synthetic turn-based combat CLI",
+  "inference_hardware": "RTX 3090, 24 GB VRAM",
+  "implementation_generation": {
+    "context": 98304,
+    "output_tokens": null,
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 20,
+    "repetition_guard": true
+  },
+  "initial_eight_test_comparison": [
+    {
+      "model": "Qwen3-Coder-Next UD-IQ1_M",
+      "thinking": null,
+      "model_call_seconds": 30.3,
+      "frozen_tests_passed": 8,
+      "frozen_tests_total": 8,
+      "hand_cases_passed": 8,
+      "hand_cases_total": 11,
+      "reference_matches": 946,
+      "reference_cases": 1000,
+      "extra_invalid_inputs_passed": 4,
+      "extra_invalid_inputs_total": 8
+    },
+    {
+      "model": "Qwen 27B MTP Q4_K_M",
+      "thinking": "xhigh",
+      "model_call_seconds": 326.7,
+      "frozen_tests_passed": 8,
+      "frozen_tests_total": 8,
+      "hand_cases_passed": 11,
+      "hand_cases_total": 11,
+      "reference_matches": 1000,
+      "reference_cases": 1000,
+      "extra_invalid_inputs_passed": 8,
+      "extra_invalid_inputs_total": 8
+    }
+  ],
+  "matched_fourteen_test_workflows": [
+    {
+      "route": "Coder-Next followed by Qwen xhigh repair",
+      "initial_model_seconds": 23.8,
+      "initial_tests_passed": false,
+      "repair_calls": 1,
+      "repair_seconds": 338.6,
+      "workflow_seconds": 395.301,
+      "final_frozen_tests_passed": 14,
+      "final_hand_cases_passed": 11,
+      "final_extra_boundaries_passed": 3,
+      "final_reference_matches": 1000,
+      "reference_cases": 1000
+    },
+    {
+      "route": "Qwen xhigh from the start",
+      "initial_model_seconds": 494.8,
+      "initial_tests_passed": true,
+      "repair_calls": 0,
+      "repair_seconds": 0,
+      "workflow_seconds": 520.064,
+      "final_frozen_tests_passed": 14,
+      "final_hand_cases_passed": 11,
+      "final_extra_boundaries_passed": 3,
+      "final_reference_matches": 1000,
+      "reference_cases": 1000
+    }
+  ],
+  "later_no_inference_recheck": [
+    {
+      "route": "Hybrid saved final code",
+      "frozen_tests_passed": 16,
+      "assertion_detections": 5,
+      "controlled_timeout_detections": 1,
+      "reviewed_equivalent_exclusions": 0,
+      "unresolved": 0
+    },
+    {
+      "route": "Qwen saved final code",
+      "frozen_tests_passed": 16,
+      "assertion_detections": 3,
+      "controlled_timeout_detections": 1,
+      "reviewed_equivalent_exclusions": 2,
+      "unresolved": 0
+    }
+  ],
+  "prompt_identity_evidence": "Frozen plan/test equality was checked. Full-message equality was reconstructed from retained bundles and the prompt builder; original native request artifacts were not retrieved directly.",
+  "available_artifacts": [
+    "Original synthetic task",
+    "Two later boundary regression methods"
+  ],
+  "unavailable_artifacts": [
+    "Original eight-test and fourteen-test suites",
+    "Saved implementation sources",
+    "Accepted plan",
+    "Independent thousand-case simulator and full hand-case corpus"
+  ],
+  "limitations": [
+    "Archival evidence only: these scores cannot be independently replayed from the incomplete combat archive.",
+    "One matched pair; order and warm/cold effects were not controlled.",
+    "Workflow time includes testing and mutation work, not just generation; independent audit time is excluded.",
+    "Robustness cases partly exceeded the original underspecified invalid-input contract.",
+    "Later gate results used extra tests and updated timeout policy; historical outcomes and times were not changed.",
+    "Different source-dependent mutation samples must not be compared as model accuracy.",
+    "No stored reasoning, private request envelope, caller destination or operator identifier is included."
+  ]
+}

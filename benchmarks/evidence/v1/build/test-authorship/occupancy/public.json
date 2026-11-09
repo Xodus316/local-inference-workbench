@@ -1,0 +1,26 @@
+{
+  "task": "Implement solution.py, a Python CLI that audits simultaneous reservations within a reporting window. It reads a single JSON object from stdin and emits a summary of occupancy. Use only Python's standard library.",
+  "approved_plan": {
+    "goal": "Report the duration, peak and alert ranges for reservations within one time window.",
+    "acceptance_criteria": [
+      "Require an object with window, threshold and intervals. A window or reservation is a JSON array of exactly two integer endpoints [start,end] with start < end. Endpoints may be negative. Booleans and floats do not qualify as integers. threshold must be a positive integer and intervals an array. Ignore extra object keys.",
+      "Interpret all ranges as start-inclusive and end-exclusive. Intersect each reservation with the window. Reservations outside the window contribute zero. Validate every supplied reservation, including those outside the window.",
+      "Count each input row separately, including duplicates. Input ordering has no significance.",
+      "covered is the total duration inside the window during which at least one reservation is active.",
+      "peak is the maximum number of simultaneous reservations inside the window. first_peak is the earliest time at which this maximum occurs; when peak is zero use null.",
+      "alerts is the chronological list of maximal half-open ranges where occupancy is at least threshold. Merge adjacent qualifying spans even when their occupancy counts differ. Use an empty array when none qualify.",
+      "On success exit zero and print one JSON object with exactly covered, peak, first_peak and alerts. JSON formatting and key order are immaterial. Malformed JSON or any invalid input must exit nonzero and produce no stdout. Stderr is unspecified."
+    ],
+    "implementation_steps": [
+      "Parse and validate the entire input.",
+      "Compute occupancy across the window and derive all four output fields.",
+      "Serialize the result or signal invalid input through the documented CLI."
+    ],
+    "test_strategy": [
+      "Exercise the observable success and failure contracts through stdin and stdout."
+    ],
+    "assumptions": [],
+    "risks": []
+  },
+  "interface_contract": "Run python3 solution.py from the project root. The 7 numbered acceptance criteria define the entire public contract. No importable API is promised."
+}

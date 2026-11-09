@@ -1,0 +1,125 @@
+{
+  "assumptions": [
+    "solution.py exists at project root",
+    "solution.py is executable and reads from stdin",
+    "solution.py outputs JSON to stdout on success",
+    "solution.py exits with code 0 on success, non-zero on failure",
+    "solution.py writes nothing to stdout on failure",
+    "solution.py uses only standard library",
+    "solution.py follows the documented CLI interface contract"
+  ],
+  "commands": [
+    "python3 -m unittest discover -s tests -v"
+  ],
+  "coverage": [
+    {
+      "catches": "Valid input with single reservation fully inside window",
+      "criterion": 1,
+      "expected_result": "covered equals interval length inside window, peak equals 1, first_peak equals start, alerts depends on threshold",
+      "scenario": "Basic valid input",
+      "test_file": "test_solution.py",
+      "test_name": "test_basic_valid_single_reservation"
+    },
+    {
+      "catches": "Reservation outside window contributes zero",
+      "criterion": 2,
+      "expected_result": "covered equals 0, peak equals 0, first_peak equals null, alerts empty",
+      "scenario": "Reservation completely outside window",
+      "test_file": "test_solution.py",
+      "test_name": "test_reservation_outside_window"
+    },
+    {
+      "catches": "Negative endpoints handled correctly",
+      "criterion": 1,
+      "expected_result": "covered calculated correctly with negative coordinates",
+      "scenario": "Negative endpoints",
+      "test_file": "test_solution.py",
+      "test_name": "test_negative_endpoints"
+    },
+    {
+      "catches": "Duplicate reservations counted separately",
+      "criterion": 4,
+      "expected_result": "covered and peak reflect duplicate counting",
+      "scenario": "Duplicate intervals",
+      "test_file": "test_solution.py",
+      "test_name": "test_duplicate_reservations"
+    },
+    {
+      "catches": "Alert generation and merging",
+      "criterion": 7,
+      "expected_result": "alerts contains merged maximal ranges where occupancy >= threshold",
+      "scenario": "Threshold alert generation",
+      "test_file": "test_solution.py",
+      "test_name": "test_alert_generation_merging"
+    },
+    {
+      "catches": "Malformed JSON input",
+      "criterion": 7,
+      "expected_result": "Non-zero exit, no stdout",
+      "scenario": "Malformed JSON",
+      "test_file": "test_solution.py",
+      "test_name": "test_malformed_json"
+    },
+    {
+      "catches": "Missing required keys",
+      "criterion": 1,
+      "expected_result": "Non-zero exit, no stdout",
+      "scenario": "Missing required keys",
+      "test_file": "test_solution.py",
+      "test_name": "test_missing_required_keys"
+    },
+    {
+      "catches": "Boolean instead of integer",
+      "criterion": 1,
+      "expected_result": "Non-zero exit, no stdout",
+      "scenario": "Boolean value for integer field",
+      "test_file": "test_solution.py",
+      "test_name": "test_boolean_not_integer"
+    },
+    {
+      "catches": "Invalid interval start >= end",
+      "criterion": 1,
+      "expected_result": "Non-zero exit, no stdout",
+      "scenario": "Invalid interval with start >= end",
+      "test_file": "test_solution.py",
+      "test_name": "test_invalid_interval"
+    },
+    {
+      "catches": "Peak calculation edge case",
+      "criterion": 6,
+      "expected_result": "peak is zero, first_peak is null when no reservations in window",
+      "scenario": "No reservations within window",
+      "test_file": "test_solution.py",
+      "test_name": "test_no_reservations_in_window"
+    },
+    {
+      "catches": "Extra object keys ignored",
+      "criterion": 1,
+      "expected_result": "Valid processing continues ignoring extra keys",
+      "scenario": "Extra keys in input object",
+      "test_file": "test_solution.py",
+      "test_name": "test_extra_keys_ignored"
+    },
+    {
+      "catches": "Multiple overlapping intervals merge correctly",
+      "criterion": 2,
+      "expected_result": "correct covered and peak with proper overlap calculation",
+      "scenario": "Multiple overlapping reservations",
+      "test_file": "test_solution.py",
+      "test_name": "test_multiple_overlapping_reservations"
+    }
+  ],
+  "implementation_files": [
+    "solution.py"
+  ],
+  "files": [
+    {
+      "path": "tests/test_solution.py",
+      "content": "\"\"\"Unit tests for solution.py CLI reservation auditing.\"\"\"\n\nimport json\nimport subprocess\nimport sys\n\n\nclass TestSolution:\n    \"\"\"Test suite for reservation auditing CLI.\"\"\"\n\n    def run_command(self, input_data):\n        \"\"\"Run solution.py with given input, return (returncode, stdout, stderr).\"\"\"\n        result = subprocess.run(\n            [sys.executable, 'solution.py'],\n            input=input_data,\n            capture_output=True,\n            text=True\n        )\n        return result.returncode, result.stdout, result.stderr\n\n    def _make_input(self, **kwargs):\n        \"\"\"Helper to create JSON input string.\"\"\"\n        return json.dumps(kwargs)\n\n    def test_basic_valid_single_reservation(self):\n        \"\"\"Covers criterion 1: Basic valid input with single reservation.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=1,\n            intervals=[[2, 5]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0, f\"Exit code should be 0, got {returncode}\"\n        result = json.loads(stdout)\n        assert result['covered'] == 3\n        assert result['peak'] == 1\n        assert result['first_peak'] == 2\n\n    def test_reservation_outside_window(self):\n        \"\"\"Covers criterion 2: Reservation outside window contributes zero.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=1,\n            intervals=[[15, 20]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0\n        result = json.loads(stdout)\n        assert result['covered'] == 0\n        assert result['peak'] == 0\n        assert result['first_peak'] is None\n\n    def test_negative_endpoints(self):\n        \"\"\"Covers criterion 1: Negative endpoints handled correctly.\"\"\"\n        input_data = self._make_input(\n            window=[-10, -5],\n            threshold=1,\n            intervals=[[-8, -6]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0\n        result = json.loads(stdout)\n        assert result['covered'] == 2\n        assert result['peak'] == 1\n        assert result['first_peak'] == -8\n\n    def test_duplicate_reservations(self):\n        \"\"\"Covers criterion 4: Duplicate reservations counted separately.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=1,\n            intervals=[[2, 5], [2, 5]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0\n        result = json.loads(stdout)\n        assert result['covered'] == 3  # 3 units covered by at least one\n        assert result['peak'] == 2  # 2 concurrent reservations\n\n    def test_alert_generation_merging(self):\n        \"\"\"Covers criterion 7: Alert generation and merging.\"\"\"\n        input_data = self._make_input(\n            window=[0, 20],\n            threshold=2,\n            intervals=[[2, 6], [8, 12], [10, 14]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0\n        result = json.loads(stdout)\n        # [2,6] with count 1, [8,12] and [10,14] merge where overlap\n        alerts = result['alerts']\n        assert len(alerts) >= 1\n\n    def test_malformed_json(self):\n        \"\"\"Covers criterion 7: Malformed JSON input.\"\"\"\n        input_data = '{invalid json'\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode != 0\n        assert stdout == ''\n\n    def test_missing_required_keys(self):\n        \"\"\"Covers criterion 1: Missing required keys.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=1\n            # missing intervals\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode != 0\n        assert stdout == ''\n\n    def test_boolean_not_integer(self):\n        \"\"\"Covers criterion 1: Boolean value for integer field.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=True,\n            intervals=[[2, 5]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode != 0\n        assert stdout == ''\n\n    def test_invalid_interval(self):\n        \"\"\"Covers criterion 1: Invalid interval with start >= end.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=1,\n            intervals=[[5, 2]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode != 0\n        assert stdout == ''\n\n    def test_no_reservations_in_window(self):\n        \"\"\"Covers criterion 6: Peak calculation edge case.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=1,\n            intervals=[]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0\n        result = json.loads(stdout)\n        assert result['peak'] == 0\n        assert result['first_peak'] is None\n        assert result['alerts'] == []\n\n    def test_extra_keys_ignored(self):\n        \"\"\"Covers criterion 1: Extra object keys ignored.\"\"\"\n        input_data = self._make_input(\n            window=[0, 10],\n            threshold=1,\n            intervals=[[2, 5]],\n            extra_key='should_be_ignored',\n            another_field=123\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0\n        result = json.loads(stdout)\n        assert 'covered' in result\n        assert 'peak' in result\n        assert 'first_peak' in result\n        assert 'alerts' in result\n\n    def test_multiple_overlapping_reservations(self):\n        \"\"\"Covers criterion 2: Multiple overlapping reservations.\"\"\"\n        input_data = self._make_input(\n            window=[0, 20],\n            threshold=2,\n            intervals=[[5, 10], [8, 15], [12, 18]]\n        )\n        returncode, stdout, stderr = self.run_command(input_data)\n        assert returncode == 0\n        result = json.loads(stdout)\n        assert result['peak'] >= 2\n        assert len(result['alerts']) > 0\n\n\ndef main():\n    \"\"\"Entry point for test discovery.\"\"\"\n    unittest.main()\n\n\nif __name__ == '__main__':\n    main()\n"
+    }
+  ],
+  "source_text_sha256": {
+    "tests/test_solution.py": "bbe051f63d2484e45e0b3e26e33245a4e7a487da36310a8b385f086e72e32322"
+  },
+  "archive_note": "Final submitted source only. Source text is UTF-8 with LF newlines; raw reasoning and transport envelopes are excluded."
+}

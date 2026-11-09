@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "common": "One terminal attempt per brief and model. Use the existing single-planner orchestrator with think=true, context=32768, output_tokens=null, temperature=1, top_p=0.95, top_k=64, repetition guard on. Same messages and schema within a brief. Run serially with alternating models, save raw receipts before validation, isolate grader from model identity, speed and other reviews.",
+  "scale": "Award 2 for complete and correct, 1 for partial or underspecified, 0 for missing or materially wrong in each of five dimensions. Record specific evidence and check each proposed numeric oracle. Do not require the rubric's particular examples or one reset policy.",
+  "apportion": [
+    "Defines the CLI, schema, integer and key constraints, positive sum, extra keys and failure/output contract.",
+    "Computes floor and remainder using exact integer products and positive total; no float or precision-losing shortcut.",
+    "Allocates exactly the residual count by descending remainder then ascending ID, independent of input order; emits all IDs sorted with zeros.",
+    "Internally consistent, implementable steps; handles credits=0 with positive total, zero weights, and large integers without inventing limits.",
+    "At least two concrete valid JSON-compatible inputs with exact observable results (failure exit and empty stdout count). At least one tie at the residual allocation cutoff. Oracles and arithmetic correct."
+  ],
+  "meter": [
+    "Defines input/CLI validation of all events before loss through deduplication; nonempty meter strings, integer constraints, extra keys and success/failure behavior.",
+    "Retains last input occurrence for each (meter,time), then processes distinct timestamps in chronological order independently per meter.",
+    "Computes deltas from baseline, handles equals, singleton meters, and empty batch; emits all seen meters with nonnegative integer totals.",
+    "Identifies reset accounting as a product decision needing confirmation, states a specific provisional rule, and applies it consistently to the reset interval and subsequent readings. Avoids inventing wrap limits, rejecting valid events, or treating a guess as mandated.",
+    "At least two concrete inputs with correct exact outputs. They collectively exercise an out-of-order duplicate and the provisional reset rule. The reset case must distinguish materially different plausible accounting conventions."
+  ],
+  "readiness": "Requires schema-valid terminal plan, at least 8/10 with no zero dimension, and no blocking defect. A contradiction or wrong test oracle that would reject a conforming implementation, a missing core algorithm or reset decision, or an implementation instruction that violates the brief is blocking. An incomplete ancillary detail alone is not blocking.",
+  "selection": "Eligible only if ready on both briefs. Select the lowest summed end-to-end model-call wall time across both briefs (includes load); if none qualify, report no winner. Treat six single samples as a pilot."
+}

@@ -12,6 +12,8 @@ For example, `[[4, 5], [1, 3]]` becomes `[[1, 5]]`. There is no missing integer 
 
 Implementations ran in isolated Docker against 12 valid and 17 invalid cases. Independent suites ran against two correct implementations, then against seven deliberate faults if they accepted both controls. Each row below represents two model calls. Time includes model loading where applicable.
 
+The [interval evidence](../../benchmarks/evidence/v1/interval/README.md) includes the exact synthetic brief, two controls, grader, fault definitions and all six submitted sources. Original scoring ran in Docker on an ARM64 Mac; its image ID is retained but container architecture was not separately recorded. A replay reports its own image and architecture. The default archive verifier checks source integrity and historical table accounting without importing or executing these submissions.
+
 | Model | Implementation checks | Generation time | Correct controls accepted by authored tests | Deliberate faults caught | Test generation time |
 |---|---:|---:|---:|---:|---:|
 | GLM-4.7-Flash Q4_K_M | 16/29 | 42.26 s | 0/2 | Unscored | 56.40 s |

@@ -1,5 +1,9 @@
 # Model selection on a 24 GB RTX 3090
 
+The defaults below are engineering choices based on the specific workloads and checks described here. Read the [versioned synthetic evidence bundle](../../benchmarks/evidence/v1/README.md) alongside the reports. It contains frozen exercise material, archived outcomes and recorded experiment settings without operational service data.
+
+Run `python scripts/verify-benchmark-evidence.py` from the repository root to check file integrity and reconcile the public measurement tables. This offline command does not run inference or execute generated code. Recomputing a historical score also requires its original grader and environment; unavailable assets are marked explicitly. A newly authored grader defines a separate benchmark and must not be pooled with historical pass rates.
+
 ## Benchmark results
 
 | Question | What was measured |
@@ -32,3 +36,17 @@
 The selection experiments used local inference and included loading where wall time is reported. Short probes establish feasibility. Blinded scoring of answers, comparisons against trusted implementations, and deliberate fault injection answer different questions about quality. Sample sizes and settings are given with each result.
 
 The [Build role comparison](planning-and-edits.md#from-scratch-build) covers initial coding, test authorship and repairs. The [GLM and Nemotron coding screen](interval-union.md) compares three additional local packages on independent implementation and test design.
+
+## Evidence limits by role
+
+| Selection | What the evidence establishes | What remains unmeasured |
+|---|---|---|
+| Primary and second reader | Quality and latency on fixed synthetic source-reading exercises; candidate and final outcomes in a small paired comparison | General document quality, alternative model pairs and reversed synthesis roles |
+| Query writer | Four criteria on one public-search query-writing prompt | Retrieval relevance and final-answer accuracy after search |
+| Planner | Structured-plan readiness on two briefs repeated across comparisons | Breadth across unrelated projects and average full-Build benefit |
+| Editor and reviewer | Standalone implementation and review-with-rewriting results; one small live Edit check | Verdict-only review accuracy, false approvals and matched multi-file edit performance |
+| Build roles | Independent controls, seeded faults and held-out outcomes on a small number of programs | Reliability on unseen specifications and the average cost of repairs |
+| PPLX and Deep | Recorded decision choices and routing frequency | Comparative decider superiority and direct Deep answer quality |
+| Chat | Earlier synthetic functional checks and example latencies | A matched comparison of current Workbench chat answer quality |
+
+Exact templates, parser paths and quantizations are part of the deployable package. Where immutable identity was not retained, the archive records that absence instead of treating a mutable local model tag as a reproducible identifier.

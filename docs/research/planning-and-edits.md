@@ -2,6 +2,8 @@
 
 The [planning and Build comparisons](coding-comparisons.md) give the full readiness results, first-pass code scores and repair outcomes. The [six-exercise implementation screen](implementation-screen.md) covers the earlier standalone coding draws.
 
+Supporting synthetic inputs, archived outcomes and recorded settings are in the [evidence bundle](../../benchmarks/evidence/v1/README.md). The first 26B-versus-31B-IQ4 pilot has an unavailable deployed-source revision, and the combat comparisons establish message equality through reconstructed requests. These limits are detailed in the linked evidence and comparison report.
+
 ## Standalone planning
 
 Gemma 26B A4B MTP Q4_K_M is the planning choice. A planning response must be implementable. A wrong numerical example can make a correct implementation look defective when the example becomes a test.

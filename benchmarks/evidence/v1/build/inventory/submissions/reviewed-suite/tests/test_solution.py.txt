@@ -1,0 +1,298 @@
+import unittest
+import subprocess
+import json
+import os
+
+class TestInventoryAllocation(unittest.TestCase):
+    def run_solution(self, input_data):
+        """Helper to run the solution.py CLI with a given input string."""
+        process = subprocess.Popen(
+            ['python3', 'solution.py'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        try:
+            stdout, stderr = process.communicate(input=input_data, timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            raise
+        return process.returncode, stdout, stderr
+
+    def assert_validation_failure(self, input_data, msg="Validation failed but script did not exit nonzero or stdout was not empty"):
+        rc, stdout, stderr = self.run_solution(input_data)
+        self.assertNotEqual(rc, 0, f"{msg}: Expected nonzero exit code for input {input_data}")
+        self.assertEqual(stdout, "", f"{msg}: Expected empty stdout for invalid input {input_data}")
+
+    def test_basic_success(self):
+        # Criterion 1, 2, 3, 9, 13
+        # Processing order: gamma (30), alpha (20), beta (20) [alpha < beta]
+        data = {
+            "stock": {"apple": 10, "banana": 5},
+            "orders": [
+                {"id": "beta", "priority": 20, "items": {"apple": 5, "banana": 2}},
+                {"id": "alpha", "priority": 20, "items": {"apple": 6, "banana": 1}},
+                {"id": "gamma", "priority": 30, "items": {"apple": 1, "banana": 1}}
+            ]
+        }
+        # Processing: gamma (S), alpha (S), beta (F - not enough apple)
+        # gamma: a 9, b 4
+        # alpha: a 3, b 3
+        # beta: requires a 5, only 3 left (F)
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['fulfilled'], ["gamma", "alpha"])
+        self.assertEqual(result['rejected'], ["beta"])
+        self.assertEqual(result['remaining'], [["apple", 3], ["banana", 3]])
+
+    def test_tie_breaking(self):
+        # Criterion 9: Descending priority, Ascending ID
+        data = {
+            "stock": {"item": 100},
+            "orders": [
+                {"id": "c", "priority": 10, "items": {"item": 1}},
+                {"id": "a", "priority": 10, "items": {"item": 1}},
+                {"id": "b", "priority": 10, "items": {"item": 1}},
+            ]
+        }
+        # Sorted order should be a, b, c
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['fulfilled'], ["a", "b", "c"])
+
+    def test_atomicity(self):
+        # Criterion 11, 12: Atomic fulfillment and recovery
+        # Request available, then insufficient, then available again
+        data = {
+            "stock": {"item": 5},
+            "orders": [
+                {"id": "alpha", "priority": 10, "items": {"item": 2}},
+                {"id": "beta", "priority": 5, "items": {"item": 10}},
+                {"id": "gamma", "priority": 1, "items": {"item": 2}}
+            ]
+        }
+        # alpha (S: 5->3), beta (F: stock remains 3), gamma (S: 3->1)
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['fulfilled'], ["alpha", "gamma"])
+        self.assertEqual(result['rejected'], ["beta"])
+        self.assertEqual(result['remaining'], [["item", 1]])
+
+    def test_remaining_stock_preservation(self):
+        # Criterion 14: Preserve all original SKUs, sorted, even 0 qty
+        data = {
+            "stock": {"cherry": 1, "apple": 1, "banana": 1},
+            "orders": [
+                {"id": "alpha", "priority": 10, "items": {"apple": 1}}
+            ]
+        }
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        # alphabetical order: apple, banana, cherry
+        self.assertEqual(result['remaining'], [["apple", 0], ["banana", 1], ["cherry", 1]])
+
+    def test_absent_sku_rejection(self):
+        # Criterion 10: Absent SKU is zero stock -> rejected, NOT added to remaining
+        data = {
+            "stock": {"apple": 10},
+            "orders": [
+                {"id": "alpha", "priority": 10, "items": {"banana": 1}}
+            ]
+        }
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['rejected'], ["alpha"])
+        self.assertEqual(result['remaining'], [["apple", 10]])
+
+    def test_malformed_json(self):
+        # Criterion 4: Malformed JSON
+        self.assert_validation_failure('{"stock": { "apple": 10 } ')
+
+    def test_non_object_root(self):
+        # Criterion 4: Non-object root
+        self.assert_validation_failure(json.dumps(["stock", "orders"]))
+
+    def test_missing_fields(self):
+        # Criterion 4: Missing fields
+        self.assert_validation_failure(json.dumps({"stock": {}}))
+        self.assert_validation_failure(json.dumps({"orders": []}))
+
+    def test_invalid_sku_id_names(self):
+        # Criterion 6, 7: Non-empty lowercase ASCII [a-z]+
+        cases = [
+            {"stock": {"Apple": 1}, "orders": []}, # uppercase
+            {"stock": {"apple1": 1}, "orders": []}, # number
+            {"stock": {"apple!": 1}, "orders": []}, # symbol
+            {"stock": {"": 1}, "orders": []},       # empty
+            {"stock": {}, "orders": [{"id": "O1", "priority": 1, "items": {"a": 1}}]}, # id uppercase/digit
+            {"stock": {}, "orders": [{"id": "", "priority": 1, "items": {"a": 1}}]},    # id empty
+            {"stock": {}, "orders": [{"id": "alpha", "priority": 1, "items": {"A": 1}}]}, # item SKU uppercase
+            {"stock": {}, "orders": [{"id": "o1", "priority": 1, "items": {"a": 1}}]},    # id contains digit
+            {"stock": {}, "orders": [{"id": "123", "priority": 1, "items": {"a": 1}}]},    # id digit-only
+        ]
+        for case in cases:
+            self.assert_validation_failure(json.dumps(case))
+
+    def test_invalid_integer_types(self):
+        # Criterion 6, 7, 8: No booleans or floats
+        cases = [
+            {"stock": {"a": 1.0}, "orders": []}, # float stock
+            {"stock": {"a": True}, "orders": []}, # bool stock
+            {"stock": {}, "orders": [{"id": "alpha", "priority": 1.0, "items": {"a": 1}}]}, # float priority
+            {"stock": {}, "orders": [{"id": "alpha", "priority": False, "items": {"a": 1}}]}, # bool priority
+            {"stock": {}, "orders": [{"id": "alpha", "priority": 1, "items": {"a": 1.5}}]}, # float item qty
+            {"stock": {}, "orders": [{"id": "alpha", "priority": 1, "items": {"a": True}}]},  # bool item qty
+        ]
+        for case in cases:
+            self.assert_validation_failure(json.dumps(case))
+
+    def test_invalid_ranges(self):
+        # Criterion 6, 8: Non-negative stock, strictly positive item qty
+        cases = [
+            {"stock": {"a": -1}, "orders": []}, # negative stock
+            {"stock": {}, "orders": [{"id": "alpha", "priority": 1, "items": {"a": 0}}]}, # zero item qty
+            {"stock": {}, "orders": [{"id": "alpha", "priority": 1, "items": {"a": -1}}]}, # negative item qty
+        ]
+        for case in cases:
+            self.assert_validation_failure(json.dumps(case))
+
+    def test_duplicate_order_ids(self):
+        # Criterion 7: Unique order IDs
+        data = {
+            "stock": {},
+            "orders": [
+                {"id": "alpha", "priority": 1, "items": {"a": 1}},
+                {"id": "alpha", "priority": 2, "items": {"a": 1}}
+            ]
+        }
+        self.assert_validation_failure(json.dumps(data))
+
+    def test_empty_items(self):
+        # Criterion 7: Non-empty object of items
+        data = {
+            "stock": {},
+            "orders": [
+                {"id": "alpha", "priority": 1, "items": {}}
+            ]
+        }
+        self.assert_validation_failure(json.dumps(data))
+
+    def test_large_integers(self):
+        # Criterion 15: Exact integer arithmetic > 2**53
+        large_val = 2**60
+        data = {
+            "stock": {"gold": large_val},
+            "orders": [
+                {"id": "alpha", "priority": 1, "items": {"gold": large_val - 1}}
+            ]
+        }
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['fulfilled'], ["alpha"])
+        self.assertEqual(result['remaining'], [["gold", 1]])
+
+    def test_extra_fields(self):
+        # Criterion 16: Ignore extra fields
+        data = {
+            "stock": {"a": 10},
+            "orders": [
+                {"id": "alpha", "priority": 1, "items": {"a": 1}, "extra": "ignore me"}
+            ],
+            "metadata": "root extra"
+        }
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['fulfilled'], ["alpha"])
+
+    def test_empty_stock_and_orders(self):
+        data = {
+            "stock": {},
+            "orders": []
+        }
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['fulfilled'], [])
+        self.assertEqual(result['rejected'], [])
+        self.assertEqual(result['remaining'], [])
+
+    def test_validation_before_allocation(self):
+        # Criterion 5: Validate everything before allocating
+        # Order 1: Valid
+        # Order 2: Insufficient stock (rejected)
+        # Order 3: Invalid (float priority)
+        data = {
+            "stock": {"item": 1},
+            "orders": [
+                {"id": "alpha", "priority": 10, "items": {"item": 1}},
+                {"id": "beta", "priority": 5, "items": {"item": 10}},
+                {"id": "gamma", "priority": 1.0, "items": {"item": 1}}
+            ]
+        }
+        # If validation is lazy, alpha might be fulfilled before gamma is checked.
+        # But since validation is whole-input, this must exit nonzero and stdout must be empty.
+        self.assert_validation_failure(json.dumps(data))
+
+    def test_signed_priorities(self):
+        # Criterion 7: signed integers
+        data = {
+            "stock": {"item": 10},
+            "orders": [
+                {"id": "alpha", "priority": -10, "items": {"item": 1}},
+                {"id": "beta", "priority": -20, "items": {"item": 1}},
+            ]
+        }
+        # -10 > -20, so alpha processed first
+        rc, stdout, stderr = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result['fulfilled'], ["alpha", "beta"])
+
+
+    def test_partial_deduction_on_rejection(self):
+        data = {"stock": {"bolt": 3, "nut": 0}, "orders": [
+            {"id": "first", "priority": 4, "items": {"bolt": 2, "nut": 1}},
+            {"id": "last", "priority": -1, "items": {"bolt": 3}}]}
+        rc, out, _ = self.run_solution(json.dumps(data))
+        self.assertEqual(rc, 0)
+        self.assertEqual(json.loads(out), {"fulfilled": ["last"], "rejected": ["first"],
+                                           "remaining": [["bolt", 0], ["nut", 0]]})
+
+    def test_invalid_order_even_when_stock_is_insufficient(self):
+        data = {"stock": {"part": 1}, "orders": [
+            {"id": "first", "priority": 3, "items": {"part": 1}},
+            {"id": "last", "priority": -2, "items": {"unknown": 2, "part": False}}]}
+        self.assert_validation_failure(json.dumps(data))
+
+    def test_actual_single_file_layout(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        self.assertEqual(sorted(p.relative_to(root).as_posix() for p in root.rglob("*.py")
+                                if p.relative_to(root).parts[0] != "tests"), ["solution.py"])
+
+    def test_missing_order_fields_and_container_types(self):
+        for bad in [None, {}, {"id": "a", "items": {"x": 1}},
+                    {"priority": 0, "items": {"x": 1}}, {"id": "a", "priority": 0},
+                    {"id": 1, "priority": 0, "items": {"x": 1}},
+                    {"id": "a", "priority": 0, "items": ["x"]}]:
+            with self.subTest(order=bad):
+                self.assert_validation_failure(json.dumps({"stock": {"x": 2}, "orders": [bad]}))
+        for data in [{"stock": [], "orders": []}, {"stock": {}, "orders": {}}]:
+            self.assert_validation_failure(json.dumps(data))
+
+    def test_empty_orders_preserve_stock(self):
+        rc, out, _ = self.run_solution(json.dumps({"stock": {"z": 0, "a": 2}, "orders": []}))
+        self.assertEqual(rc, 0)
+        self.assertEqual(json.loads(out), {"fulfilled": [], "rejected": [], "remaining": [["a", 2], ["z", 0]]})
+
+if __name__ == '__main__':
+    unittest.main()

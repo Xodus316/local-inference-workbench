@@ -1,0 +1,16 @@
+You are implementing a small Python 3.11+ project. Standard-library imports, classes and helpers are allowed. Do not use third-party packages or access the network. Return exactly one JSON object with key "code": its string value must be the complete replacement Python module specified below, without Markdown fences or explanatory text. This JSON wrapper is your RESPONSE format; the Python functions must return the values specified by their interfaces. Do not include tests in the module or run code at import time other than definitions and ordinary constants.
+
+Implement class ExpiringLRU(capacity, clock) in candidate.py. capacity must be an exact positive int (bool is invalid), otherwise raise ValueError. clock is a supplied zero-argument function returning a nondecreasing numeric time; do not use real wall time. Keys are hashable; stored values can be any Python object and are returned unchanged (no copying requirement).
+Methods: put(key,value,ttl=None) stores/replaces and returns None; get(key,default=None) returns the value on a live hit, otherwise default; delete(key) returns True only if it removes a LIVE entry, else False; len(cache) returns live-entry count. ttl is None or a finite numeric value, with bool excluded by input guarantee. None means no expiry. For numeric ttl > 0 the deadline is clock()+ttl; expiration occurs at now >= deadline. ttl <= 0 deletes any old entry immediately and does not evict other keys. Every method, including len, must purge expired entries before applying its operation. A successful get or a positive/None-ttl put makes that key most recently used; misses, delete and len do not refresh other entries. Replacing a key resets its expiry. At capacity, evict the least recently used live key. Support capacity up to 2,000 and 5,000 operations. Input calls satisfy the documented key/ttl contracts.
+
+Visible smoke test (imports your module as candidate):
+from candidate import ExpiringLRU
+now=[0.0]
+c=ExpiringLRU(2,lambda:now[0])
+c.put("a",1,ttl=2);c.put("b",None)
+assert c.get("a")==1
+now[0]=2
+assert c.get("a","missing")=="missing"
+assert c.get("b","missing") is None
+assert len(c)==1
+

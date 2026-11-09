@@ -1,0 +1,218 @@
+{
+  "format_version": 1,
+  "task": "Synthetic atomic inventory allocation CLI",
+  "inference_hardware": "RTX 3090, 24 GB VRAM",
+  "scoring_environment": "Docker on an ARM64 Mac; network disabled; container architecture not recorded",
+  "scoring_host_architecture": "arm64",
+  "scoring_container_architecture": null,
+  "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+  "generation": {
+    "planner": {
+      "context": 32768,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": true,
+      "top_k": 64,
+      "top_p": 0.95
+    },
+    "test_author": {
+      "context": 32768,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": true,
+      "top_k": 64,
+      "top_p": 0.95
+    },
+    "implementer": {
+      "context": 98304,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": null,
+      "top_k": 20,
+      "top_p": 0.95
+    },
+    "repairer": {
+      "context": 98304,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": "xhigh",
+      "top_k": 20,
+      "top_p": 0.95
+    }
+  },
+  "failed_initial_author": {
+    "model": "Gemma 31B IQ4_XS",
+    "model_call_seconds": 176.10215783119202,
+    "first_pass_accepted": false,
+    "failure": "Malformed Python fixtures; subsequent syntax repair was rejected before native dispatch. No official control or mutation score.",
+    "verbatim_submission_available": false
+  },
+  "guided_author": {
+    "model": "Gemma 31B IQ4_XS",
+    "model_call_seconds": 269.76,
+    "accepted_as_submitted": false,
+    "assessment": "Guided candidate corrected IDs and booleans but changed frozen assumptions/method names; human corrections were required."
+  },
+  "assistance": [
+    "Restored assumptions and two original method names, including their coverage references.",
+    "Fixed the malformed-JSON Python literal and added timeout cleanup.",
+    "Added five methods for observable CLI layout, mixed valid/invalid orders, partial deduction, missing/invalid field types, and empty orders."
+  ],
+  "first_implementation": {
+    "model": "Qwen3-Coder-Next UD-IQ1_M",
+    "model_call_seconds": 30.1,
+    "frozen_tests_passed": 23,
+    "heldout_inputs_passed": 31,
+    "mutation_summary": {
+      "applicable": 6,
+      "detected": 4,
+      "detected_timeout": 0,
+      "equivalent_reviewed": 0,
+      "inconclusive": 0,
+      "passed": false,
+      "sampled": 6,
+      "survived": 2
+    }
+  },
+  "boundary_repair": {
+    "model": "Qwen 27B MTP Q4_K_M, xhigh",
+    "model_call_seconds": 385.95,
+    "output_tokens_including_thinking": 21900,
+    "frozen_tests_passed": 26,
+    "heldout_inputs_passed": 31,
+    "mutation_summary": {
+      "applicable": 6,
+      "detected": 6,
+      "detected_timeout": 0,
+      "equivalent_reviewed": 0,
+      "inconclusive": 0,
+      "passed": true,
+      "sampled": 6,
+      "survived": 0
+    }
+  },
+  "sampled_mutations": {
+    "first_implementation": [
+      {
+        "id": 1,
+        "path": "solution.py",
+        "line": 35,
+        "family": "first_item",
+        "original": "stock.items()",
+        "replacement": "list(stock.items())[:1]",
+        "outcome": "survived"
+      },
+      {
+        "id": 2,
+        "path": "solution.py",
+        "line": 38,
+        "family": "boundary",
+        "original": "qty < 0",
+        "replacement": "qty <= 0",
+        "outcome": "detected"
+      },
+      {
+        "id": 3,
+        "path": "solution.py",
+        "line": 45,
+        "family": "first_item",
+        "original": "orders",
+        "replacement": "list(orders)[:1]",
+        "outcome": "detected"
+      },
+      {
+        "id": 4,
+        "path": "solution.py",
+        "line": 98,
+        "family": "boundary",
+        "original": "available < needed_qty",
+        "replacement": "available <= needed_qty",
+        "outcome": "detected"
+      },
+      {
+        "id": 5,
+        "path": "solution.py",
+        "line": 90,
+        "family": "first_item",
+        "original": "sorted_orders",
+        "replacement": "list(sorted_orders)[:1]",
+        "outcome": "detected"
+      },
+      {
+        "id": 6,
+        "path": "solution.py",
+        "line": 73,
+        "family": "boundary",
+        "original": "item_qty <= 0",
+        "replacement": "item_qty < 0",
+        "outcome": "survived"
+      }
+    ],
+    "repaired_implementation": [
+      {
+        "id": 1,
+        "path": "solution.py",
+        "line": 27,
+        "family": "first_item",
+        "original": "stock.items()",
+        "replacement": "list(stock.items())[:1]",
+        "outcome": "detected"
+      },
+      {
+        "id": 2,
+        "path": "solution.py",
+        "line": 30,
+        "family": "boundary",
+        "original": "qty < 0",
+        "replacement": "qty <= 0",
+        "outcome": "detected"
+      },
+      {
+        "id": 3,
+        "path": "solution.py",
+        "line": 39,
+        "family": "first_item",
+        "original": "orders",
+        "replacement": "list(orders)[:1]",
+        "outcome": "detected"
+      },
+      {
+        "id": 4,
+        "path": "solution.py",
+        "line": 62,
+        "family": "boundary",
+        "original": "qty <= 0",
+        "replacement": "qty < 0",
+        "outcome": "detected"
+      },
+      {
+        "id": 5,
+        "path": "solution.py",
+        "line": 88,
+        "family": "first_item",
+        "original": "sorted(orders, key=lambda o: (-o[\"priority\"], o[\"id\"]))",
+        "replacement": "list(sorted(orders, key=lambda o: (-o[\"priority\"], o[\"id\"])))[:1]",
+        "outcome": "detected"
+      },
+      {
+        "id": 6,
+        "path": "solution.py",
+        "line": 90,
+        "family": "boundary",
+        "original": "state.get(sku, 0) >= qty",
+        "replacement": "state.get(sku, 0) > qty",
+        "outcome": "detected"
+      }
+    ]
+  },
+  "limitations": [
+    "Assisted continuation, not a blind full-Build success or an untouched test-author score.",
+    "The exact initial failed author source is not available in this portable archive; no transcription is substituted.",
+    "The saved repaired implementation is solution.py.txt. Only materialized copies should be executed in an explicitly selected isolated container.",
+    "Mutation samples depend on implementation source and are not comparative model accuracy scores."
+  ]
+}

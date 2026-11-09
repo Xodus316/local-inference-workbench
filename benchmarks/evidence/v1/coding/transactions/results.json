@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "snapshot-transactions-original-20261029",
+  "protocol": {
+    "draws_per_model": 3,
+    "model_packages": 5,
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 40,
+    "context_tokens": 16384,
+    "output_limit": 8192,
+    "historical_histories": 202,
+    "historical_commands": 47020,
+    "history_categories": {
+      "handwritten": 18,
+      "seeded_interleavings": 180,
+      "scale": 4
+    },
+    "pass_rule": "Every output in a history, isolation, input preservation and mutable-output ownership must conform. Histories are not independent programming tasks.",
+    "control_qualification": "Two independent oracles agreed on all expected outputs; 16 handwritten checkpoint cases and eight defect controls were recorded.",
+    "grader_audit": "The final historical validator uniformly allowed legal object sentinels and calls to local helper functions, then regraded saved submissions without source repair.",
+    "automatic_retries": false,
+    "repairs": false
+  },
+  "availability": {
+    "original_grader": false,
+    "original_controls_and_expected_histories": false,
+    "limit": "Original Mac-held graders and expected histories are absent from the available checkout; archived grades cannot be recomputed here. The November 9 six-contract grader is unrelated and must not substitute for this suite."
+  },
+  "prompt_sha256": "832fe58269e0221e6cd4929e46b8ba14887650ed65e2a49ad77ea8f7d3a1aca1",
+  "response_schema_sha256": "306650bc44c72f6d3aceba58eb0c5e355a71dbe13e8d72470435a6b80adcf939",
+  "records": [
+    {
+      "model_package": "Qwen 27B MTP Q4_K_M",
+      "generation_mode": "direct",
+      "draw": 1,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 11,
+        "total": 202,
+        "execution_seconds": 0.08
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 20.832,
+      "usage": {
+        "prompt_tokens": 1124,
+        "completion_tokens": 1713,
+        "total_tokens": 2837
+      },
+      "provenance": {
+        "request_sha256": "69eda3552c676e7ee2e3ea3becf6ad7d957bdf4cef2c02dac93a2b8ad91f86f1",
+        "response_sha256": "cec1509a994f821a3d25725e4a7390ef4685b54171b3ed87e6500572562a609b",
+        "code_sha256": "528d99931b9f99006e9aec2cc22d4de863e62b38895272ecdccf010f0c97d5d8"
+      }
+    },
+    {
+      "model_package": "Qwen 27B MTP Q4_K_M",
+      "generation_mode": "direct",
+      "draw": 2,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 14,
+        "total": 202,
+        "execution_seconds": 0.071
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 16.866,
+      "usage": {
+        "prompt_tokens": 1124,
+        "completion_tokens": 1392,
+        "total_tokens": 2516
+      },
+      "provenance": {
+        "request_sha256": "69eda3552c676e7ee2e3ea3becf6ad7d957bdf4cef2c02dac93a2b8ad91f86f1",
+        "response_sha256": "fcc179a6e3956a294a02f42ae4435e90753ae364ef2eff360971ce0edb686381",
+        "code_sha256": "549052387856ab623168b616b15443f10419b42e73ebcbb77243f9ca7abf9600"
+      }
+    },
+    {
+      "model_package": "Qwen 27B MTP Q4_K_M",
+      "generation_mode": "direct",
+      "draw": 3,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {},
+      "rejected_before_grading": true,
+      "elapsed_seconds": 20.805,
+      "usage": {
+        "prompt_tokens": 1124,
+        "completion_tokens": 1353,
+        "total_tokens": 2477
+      },
+      "provenance": {
+        "request_sha256": "69eda3552c676e7ee2e3ea3becf6ad7d957bdf4cef2c02dac93a2b8ad91f86f1",
+        "response_sha256": "fe7c436eca571d81b17d969f410d7521425e044e520250ed4722a789c7fc9325",
+        "code_sha256": "d898703b4f081aab41e5f72a3f977188b2ce230dab27a63cb512319bfa61b0b9"
+      }
+    },
+    {
+      "model_package": "Gemma 12B Q4_K_M",
+      "generation_mode": "direct",
+      "draw": 1,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 13,
+        "total": 202,
+        "execution_seconds": 0.0721
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 27.033,
+      "usage": {
+        "prompt_tokens": 1140,
+        "completion_tokens": 1782,
+        "total_tokens": 2922
+      },
+      "provenance": {
+        "request_sha256": "624467ad0e8fd3e71c4b7747d22662dbfd3f38292ae923bca4b9f03ef1356d9e",
+        "response_sha256": "73854b986925bc8f52770bde235f966a5cf05719dd57d6e2e6c75cca24a18ceb",
+        "code_sha256": "14c60e2947bda20ea1a55cc0fb050663b15f1ec556d08a3e8fd6904ae0313785"
+      }
+    },
+    {
+      "model_package": "Gemma 12B Q4_K_M",
+      "generation_mode": "direct",
+      "draw": 2,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {},
+      "rejected_before_grading": true,
+      "elapsed_seconds": 26.501,
+      "usage": {
+        "prompt_tokens": 1140,
+        "completion_tokens": 1703,
+        "total_tokens": 2843
+      },
+      "provenance": {
+        "request_sha256": "624467ad0e8fd3e71c4b7747d22662dbfd3f38292ae923bca4b9f03ef1356d9e",
+        "response_sha256": "e524c378db6126a0580728309cec223430f4ce504ee8e0616f22798161bc4fc6",
+        "code_sha256": "df54bd891c486d0bc12b39211392b9ba2cfa58525ab93976b18b4d7be2cbc369"
+      }
+    },
+    {
+      "model_package": "Gemma 12B Q4_K_M",
+      "generation_mode": "direct",
+      "draw": 3,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 0,
+        "total": 202,
+        "execution_seconds": 0.0629
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 42.276,
+      "usage": {
+        "prompt_tokens": 1140,
+        "completion_tokens": 2748,
+        "total_tokens": 3888
+      },
+      "provenance": {
+        "request_sha256": "624467ad0e8fd3e71c4b7747d22662dbfd3f38292ae923bca4b9f03ef1356d9e",
+        "response_sha256": "f73e5c84a9f9857bca058923fe615de27bf84d97248d8ae300525bcd30c4a0fc",
+        "code_sha256": "ded75013ec4c0ce1ec522fcc1880dd81d83905ee8042801c268a9c039743ea9f"
+      }
+    },
+    {
+      "model_package": "Qwen3-Coder 30B A3B Q4_K_M",
+      "generation_mode": "native",
+      "draw": 1,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {},
+      "rejected_before_grading": true,
+      "elapsed_seconds": 11.024,
+      "usage": {
+        "prompt_tokens": 1101,
+        "completion_tokens": 1631,
+        "total_tokens": 2732
+      },
+      "provenance": {
+        "request_sha256": "5d4584ae3426617b34f56fd1ced1a3bfc8ff67fdad70a8980e45647c90e1d3db",
+        "response_sha256": "5fd2e286d03b1ddf239769474a6586edd288a305de071e5d9f31b9098cb5978e",
+        "code_sha256": "9db10b9ff1af46a11cda8281517e947147842e18c23dc2bc4a646addccaeefa5"
+      }
+    },
+    {
+      "model_package": "Qwen3-Coder 30B A3B Q4_K_M",
+      "generation_mode": "native",
+      "draw": 2,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {},
+      "rejected_before_grading": true,
+      "elapsed_seconds": 14.769,
+      "usage": {
+        "prompt_tokens": 1101,
+        "completion_tokens": 2045,
+        "total_tokens": 3146
+      },
+      "provenance": {
+        "request_sha256": "5d4584ae3426617b34f56fd1ced1a3bfc8ff67fdad70a8980e45647c90e1d3db",
+        "response_sha256": "97690465b8d1dfc012b141b8f03bd27166109e8ce2733b62e896785c79d152e9",
+        "code_sha256": "27ba729a3b28089af210e7d87c80046b2c0eafda70455b0d7b6953ca84024e7c"
+      }
+    },
+    {
+      "model_package": "Qwen3-Coder 30B A3B Q4_K_M",
+      "generation_mode": "native",
+      "draw": 3,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 2,
+        "total": 202,
+        "execution_seconds": 0.0013
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 13.685,
+      "usage": {
+        "prompt_tokens": 1101,
+        "completion_tokens": 1894,
+        "total_tokens": 2995
+      },
+      "provenance": {
+        "request_sha256": "5d4584ae3426617b34f56fd1ced1a3bfc8ff67fdad70a8980e45647c90e1d3db",
+        "response_sha256": "1b7c7d2ff89b390fa2e6b6102fe631ffe8bcfbbbea1b27df788b387ac1f4ae8e",
+        "code_sha256": "3f56c7fb36ac1a10698b06ec654907aaef41eef9197bee4bb2708ac2d892b4d0"
+      }
+    },
+    {
+      "model_package": "Qwen3-Coder-Next UD-IQ1_M",
+      "generation_mode": "native",
+      "draw": 1,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 1,
+        "total": 202,
+        "execution_seconds": 0.0005
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 19.396,
+      "usage": {
+        "prompt_tokens": 1101,
+        "completion_tokens": 2081,
+        "total_tokens": 3182
+      },
+      "provenance": {
+        "request_sha256": "7f50a22e8bbceaf8d8825f6d93e9cb2f22c8804c9a6a89e6211664c0117312dc",
+        "response_sha256": "29ae6d08131752bca6931b633d724f9c9cb2c45b850f90ccc3fa2194ac269971",
+        "code_sha256": "b242162ac3148d93643680a1a304d2805bb581a6eddd8f7e7cb7c7fe62d0adc3"
+      }
+    },
+    {
+      "model_package": "Qwen3-Coder-Next UD-IQ1_M",
+      "generation_mode": "native",
+      "draw": 2,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 12,
+        "total": 202,
+        "execution_seconds": 0.0778
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 21.183,
+      "usage": {
+        "prompt_tokens": 1101,
+        "completion_tokens": 2442,
+        "total_tokens": 3543
+      },
+      "provenance": {
+        "request_sha256": "7f50a22e8bbceaf8d8825f6d93e9cb2f22c8804c9a6a89e6211664c0117312dc",
+        "response_sha256": "f0847909ee46ab5ab3b46c8608ff52c3b086c49fcac4f124d1e9521d27dc1ce2",
+        "code_sha256": "1f27b0a101641a433811fa9f06ca36b0537f168e17c8db90729c860f4277c371"
+      }
+    },
+    {
+      "model_package": "Qwen3-Coder-Next UD-IQ1_M",
+      "generation_mode": "native",
+      "draw": 3,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {},
+      "rejected_before_grading": true,
+      "elapsed_seconds": 22.985,
+      "usage": {
+        "prompt_tokens": 1101,
+        "completion_tokens": 2618,
+        "total_tokens": 3719
+      },
+      "provenance": {
+        "request_sha256": "7f50a22e8bbceaf8d8825f6d93e9cb2f22c8804c9a6a89e6211664c0117312dc",
+        "response_sha256": "c0d9433a3499b5fae3435f61b150b76564779bb31edadac3fd4f8366caae4796",
+        "code_sha256": "15df2f48f05a1a6251c6cdf8e765ef0e3b51fa2e8c6265d3a9b315960a812960"
+      }
+    },
+    {
+      "model_package": "Qwen 27B GSQ IQ3_S",
+      "generation_mode": "direct",
+      "draw": 1,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {},
+      "rejected_before_grading": true,
+      "elapsed_seconds": 40.582,
+      "usage": {
+        "prompt_tokens": 1124,
+        "completion_tokens": 1751,
+        "total_tokens": 2875
+      },
+      "provenance": {
+        "request_sha256": "d5b0844a88fa0e39c0ac2a993eee600df84b921ec1c2e55350ab3c71a9ce1f83",
+        "response_sha256": "d70949c302e8fd563d9887294e093b47116552504db078767f7a1fca32364799",
+        "code_sha256": "1da087025ca4a4a7a891e8da04c5f862e34332699b026e3808886b995554eb13"
+      }
+    },
+    {
+      "model_package": "Qwen 27B GSQ IQ3_S",
+      "generation_mode": "direct",
+      "draw": 2,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 0,
+        "total": 202,
+        "execution_seconds": 0.0652
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 35.733,
+      "usage": {
+        "prompt_tokens": 1124,
+        "completion_tokens": 1557,
+        "total_tokens": 2681
+      },
+      "provenance": {
+        "request_sha256": "d5b0844a88fa0e39c0ac2a993eee600df84b921ec1c2e55350ab3c71a9ce1f83",
+        "response_sha256": "d50be0ba4a052510e7315854790b44392f92b1a94355c0330a04b59cf216e77d",
+        "code_sha256": "10e2ab2d23ca3b9f6c59a149506a2eacd257e74fdacca33455d0f9255f36af96"
+      }
+    },
+    {
+      "model_package": "Qwen 27B GSQ IQ3_S",
+      "generation_mode": "direct",
+      "draw": 3,
+      "finish_reason": "stop",
+      "complete_solution": false,
+      "historical_grade": {
+        "passed": 8,
+        "total": 202,
+        "execution_seconds": 0.0682
+      },
+      "rejected_before_grading": false,
+      "elapsed_seconds": 39.143,
+      "usage": {
+        "prompt_tokens": 1124,
+        "completion_tokens": 1708,
+        "total_tokens": 2832
+      },
+      "provenance": {
+        "request_sha256": "d5b0844a88fa0e39c0ac2a993eee600df84b921ec1c2e55350ab3c71a9ce1f83",
+        "response_sha256": "49fd40b9d2f5c507ecf8465deaa38d33b3575699483788e9d0759cf18d6b6fd7",
+        "code_sha256": "c29c3c8184ba20b41c5cac0430b9853eb6786140e13c51ff6efaa623f1b19f81"
+      }
+    }
+  ]
+}

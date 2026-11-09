@@ -1,0 +1,27 @@
+Implement run_transactions(operations) in Python 3 using builtins only. No imports, I/O, decorators, annotations, classes, or external/global state. Helper functions are allowed. Return a JSON object with exactly one key, "code", containing the complete implementation without Markdown fences, examples, or tests.
+
+Implement an in-memory key/value database with snapshot-isolated transactions and version cleanup. run_transactions receives a list of command dictionaries, starts with an empty database at version 0 on EVERY invocation, and returns a list containing exactly one result dictionary per command in input order. Execute commands sequentially; interleavings simulate concurrent transactions. Never mutate the input or return mutable objects that alias it. Earlier results must not change when later commands run, and mutable objects in distinct results must not alias each other.
+
+Input shape is guaranteed valid: operations is a list of at most 2,000 dictionaries with exactly the fields specified below. Transaction IDs and keys are nonempty ASCII strings. Values are JSON-compatible ordinary Python data: None, bool, int, str, and arbitrarily nested lists/dicts with string keys (nesting <= 10). No floats, custom classes, or self-referential objects. No extra type/shape validation is required. The logical transaction errors described below ARE part of the task. A value of None is distinct from a deleted or missing key. String ordering is Python lexical ordering. At most 100 transactions are active simultaneously.
+
+Commands and result shapes:
+- {"op":"begin","tx":ID}: if ID is already active, return {"error":"active_transaction"} without changing it. Otherwise start an active transaction at the current committed version and return {"ok":True,"snapshot":VERSION}. IDs may be reused after commit, failed commit, or rollback.
+- {"op":"get","tx":ID,"key":KEY}: return {"found":False} if absent, or {"found":True,"value":VALUE} if present.
+- {"op":"scan","tx":ID,"lo":LOW,"hi":HIGH}: return {"items":[{"key":KEY,"value":VALUE}, ...]} for all visible keys satisfying LOW <= key < HIGH, in ascending key order. Empty/reversed ranges return an empty list.
+- {"op":"put","tx":ID,"key":KEY,"value":VALUE}: stage the value and return {"ok":True}.
+- {"op":"delete","tx":ID,"key":KEY}: stage deletion, even if the key is absent, and return {"ok":True}.
+- {"op":"commit","tx":ID}: apply the commit rules below.
+- {"op":"rollback","tx":ID}: close the transaction, discard pending writes, and return {"ok":True}.
+- {"op":"gc"}: perform the precise cleanup below and return {"removed":COUNT,"retained":COUNT}.
+For get/scan/put/delete/commit/rollback with an inactive or unknown transaction ID, return {"error":"unknown_transaction"} with no state change. Errors never stop processing subsequent commands.
+
+Visibility and writes:
+Each transaction reads the committed state at its BEGIN snapshot version, overlaid with its own latest pending put/delete per key. Other transactions' later commits are invisible. Pending deletes hide keys from get and scan. Pending writes are private until commit. Multiple writes to one key collapse to the last operation, but the key remains in the write set even if the final value equals its old value, or the final delete targets an absent key. Reads and scans do not add keys to the write set.
+
+Commit:
+A transaction conflicts if ANY key in its write set has a committed version strictly newer than its begin snapshot, including committed tombstones and same-value writes. On conflict return {"committed":False}, close the transaction, and publish NONE of its writes; the global version does not change. Otherwise, if the write set is nonempty, increment the global version ONCE and append one committed version record for every key in the write set, using that same version number. A delete appends a tombstone even when the key was absent. Close the transaction and return {"committed":True,"version":CURRENT_GLOBAL_VERSION}. A successful read-only commit does not increment the version and reports the current global version, not its old snapshot. Read/write conflicts alone do not abort a transaction; this is snapshot isolation, not serializability.
+
+Version cleanup:
+Committed history starts empty. Each committed write adds one record; pending writes add no records. gc MUST remove exactly these obsolete records. If any transactions are active, let floor be the smallest begin snapshot among them. For each key retain every record with version > floor, PLUS the newest record with version <= floor if one exists. Remove all other records. If no transactions are active, retain exactly the newest record for each key. Tombstones count as records and must be retained under the same rule, even when no transaction is active. Never create records during cleanup. Return the number removed by this call and total committed records retained across all keys. gc does not increment the global version, close transactions, or change any visible value or future conflict outcome. Multiple gc calls can therefore return removed=0. Keys with no committed records contribute nothing.
+
+Support the stated 2,000-command limit without enumerating nonexistent keys or version numbers. The implementation may use any builtin-only data structures. Provide the complete implementation, not a sketch.

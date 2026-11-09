@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "interval-union-original-20261106",
+  "protocol": {
+    "function": "solution.merge_ranges",
+    "draws_per_model_per_role": 1,
+    "model_packages": 3,
+    "calls": 6,
+    "implementation_cases": {
+      "valid": 12,
+      "invalid": 17
+    },
+    "independent_test_controls": 2,
+    "seeded_faults": 7,
+    "evaluation_rule": "Score independent tests on both correct controls first. Score fault detection only if both controls pass; an assertion failure with clean execution is required.",
+    "timing_note": "Recorded stage times include model loading and transport; not controlled native throughput.",
+    "role_instructions": {
+      "implement": "Implement the public function in solution.py. Return its complete Python source in the requested JSON field. Use only the standard library.",
+      "tests": "Independently author executable Python unittest tests of the public contract. Import merge_ranges from solution. Return the complete source of test_solution.py in the requested JSON field. Discover tests with unittest. Include meaningful assertions that distinguish plausible failures. Do not implement the function or inspect its source."
+    },
+    "response_schema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "schedule": [
+      {
+        "model_id": "glm-flash-q4",
+        "role": "implement"
+      },
+      {
+        "model_id": "glm-flash-q5",
+        "role": "tests"
+      },
+      {
+        "model_id": "nemotron-lightning",
+        "role": "implement"
+      },
+      {
+        "model_id": "glm-flash-q4",
+        "role": "tests"
+      },
+      {
+        "model_id": "glm-flash-q5",
+        "role": "implement"
+      },
+      {
+        "model_id": "nemotron-lightning",
+        "role": "tests"
+      }
+    ]
+  },
+  "generation": {
+    "glm-flash-q4": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": null,
+      "think": true,
+      "output_tokens": null,
+      "context": 32768,
+      "repetition_guard": true
+    },
+    "glm-flash-q5": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": null,
+      "think": true,
+      "output_tokens": null,
+      "context": 32768,
+      "repetition_guard": true
+    },
+    "nemotron-lightning": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": null,
+      "think": true,
+      "output_tokens": null,
+      "context": 32768,
+      "repetition_guard": true
+    }
+  },
+  "historical_environment": {
+    "inference_gpu": "RTX 3090 24 GB",
+    "grading_architecture": null,
+    "grading_host": "ARM64 Mac",
+    "architecture_note": "The historical record identifies an ARM64 Mac grading host and an exact image ID, but retains no container-platform inspection. Host architecture must not be inferred to be container architecture.",
+    "timeout_seconds": 15,
+    "docker_image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+    "network": "disabled",
+    "read_only_root": true,
+    "read_only_project": true
+  },
+  "control_qualification": {
+    "reference.py": {
+      "heldout_passes": 29,
+      "cases": 29
+    },
+    "second_control.py": {
+      "heldout_passes": 29,
+      "cases": 29
+    },
+    "miss_adjacent": {
+      "heldout_passes": 24,
+      "cases": 29
+    },
+    "swallow_gap": {
+      "heldout_passes": 26,
+      "cases": 29
+    },
+    "shrink_containment": {
+      "heldout_passes": 28,
+      "cases": 29
+    },
+    "sort_input_in_place": {
+      "heldout_passes": 24,
+      "cases": 29
+    },
+    "allow_bool": {
+      "heldout_passes": 27,
+      "cases": 29
+    },
+    "allow_reversed": {
+      "heldout_passes": 28,
+      "cases": 29
+    },
+    "skip_singleton": {
+      "heldout_passes": 25,
+      "cases": 29
+    }
+  },
+  "fixture_sha256": {
+    "brief.txt": "d410e6417a9fd833049a8a5131f4829518d31c3a1110704d8397a71ebd80083b",
+    "mutations.json": "e264416a85638260ca8b213ea3dedf156e25d21c7e7f569bcef67927319a6fb3",
+    "reference.py": "3bdec3e4b0af4e1d7c5fb2710efe57009253f61d83ccb8fe424ffa0bd69231b9",
+    "heldout.py": "e9e497313182b11996565fa2289cc216635daf2af2e34b8921652b8dbe5a0160",
+    "second_control.py": "2c9c67b2808b99e52c44cd27d0c525bd3d64a62a688e205da62a490bbc1d79cc"
+  },
+  "records": [
+    {
+      "model": "hf.co/unsloth/GLM-4.7-Flash-GGUF:Q4_K_M",
+      "role": "implement",
+      "finish_reason": "stop",
+      "stage_seconds": 42.26,
+      "output_tokens": 3688,
+      "prompt_tokens": 186,
+      "message_schema_digest": "a807b6263dce220d1afaa11cac210138db0328829d30d52f9a2e04742b6e3e55",
+      "accepted_source_submission": true,
+      "source_sha256": "35f90f8d7f84f78b0cc36b175682957479bafccab1781a098385dee9a61a1849",
+      "valid_passed": 12,
+      "invalid_passed": 4,
+      "total_passed": 16,
+      "id": "glm-flash-q4-implement",
+      "model_id": "glm-flash-q4",
+      "source_path": "submitted/glm-flash-q4-implementation.py"
+    },
+    {
+      "model": "hf.co/unsloth/GLM-4.7-Flash-GGUF:Q5_K_S",
+      "role": "tests",
+      "finish_reason": "stop",
+      "stage_seconds": 52.37,
+      "output_tokens": 4421,
+      "prompt_tokens": 216,
+      "message_schema_digest": "3ed8a712dfc469cf282f9d47a0e2ec672821778fae2f8ed5237f12948139094b",
+      "accepted_source_submission": true,
+      "source_sha256": "b71abf575bd8ce232146339d95ba085e45ca225d954cea29a1b63984e550d7fe",
+      "control_passes": 0,
+      "mutation_detections": null,
+      "test_count": 12,
+      "mutations": {},
+      "id": "glm-flash-q5-tests",
+      "model_id": "glm-flash-q5",
+      "source_path": "submitted/glm-flash-q5-tests.py"
+    },
+    {
+      "model": "hf.co/bartowski/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF:IQ4_XS",
+      "role": "implement",
+      "finish_reason": "stop",
+      "stage_seconds": 33.78,
+      "output_tokens": 3401,
+      "prompt_tokens": 203,
+      "message_schema_digest": "a807b6263dce220d1afaa11cac210138db0328829d30d52f9a2e04742b6e3e55",
+      "accepted_source_submission": true,
+      "source_sha256": "966172a16694524be3025c6847c13ec3e7a0c6a2725d3918436accbdf600ec19",
+      "valid_passed": 12,
+      "invalid_passed": 17,
+      "total_passed": 29,
+      "id": "nemotron-lightning-implement",
+      "model_id": "nemotron-lightning",
+      "source_path": "submitted/nemotron-lightning-implementation.py"
+    },
+    {
+      "model": "hf.co/unsloth/GLM-4.7-Flash-GGUF:Q4_K_M",
+      "role": "tests",
+      "finish_reason": "stop",
+      "stage_seconds": 56.4,
+      "output_tokens": 4851,
+      "prompt_tokens": 216,
+      "message_schema_digest": "3ed8a712dfc469cf282f9d47a0e2ec672821778fae2f8ed5237f12948139094b",
+      "accepted_source_submission": true,
+      "source_sha256": "8f5cbd5ec6a81d0b6171055eb9e3baf7ac5755ede57e9994f3c3bef70d02975c",
+      "control_passes": 0,
+      "mutation_detections": null,
+      "test_count": 13,
+      "mutations": {},
+      "id": "glm-flash-q4-tests",
+      "model_id": "glm-flash-q4",
+      "source_path": "submitted/glm-flash-q4-tests.py"
+    },
+    {
+      "model": "hf.co/unsloth/GLM-4.7-Flash-GGUF:Q5_K_S",
+      "role": "implement",
+      "finish_reason": "stop",
+      "stage_seconds": 59.92,
+      "output_tokens": 5016,
+      "prompt_tokens": 186,
+      "message_schema_digest": "a807b6263dce220d1afaa11cac210138db0328829d30d52f9a2e04742b6e3e55",
+      "accepted_source_submission": true,
+      "source_sha256": "4f4de164da4b350cbe0e346107a52928188c491e9856fb10f99dbc1922718a0e",
+      "valid_passed": 12,
+      "invalid_passed": 17,
+      "total_passed": 29,
+      "id": "glm-flash-q5-implement",
+      "model_id": "glm-flash-q5",
+      "source_path": "submitted/glm-flash-q5-implementation.py"
+    },
+    {
+      "model": "hf.co/bartowski/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF:IQ4_XS",
+      "role": "tests",
+      "finish_reason": "stop",
+      "stage_seconds": 45.03,
+      "output_tokens": 5784,
+      "prompt_tokens": 234,
+      "message_schema_digest": "3ed8a712dfc469cf282f9d47a0e2ec672821778fae2f8ed5237f12948139094b",
+      "accepted_source_submission": true,
+      "source_sha256": "171b7c771d137b29e0d37843fcaf907e897eadf79988626c27368339f6bf8af9",
+      "control_passes": 2,
+      "mutation_detections": 6,
+      "test_count": 18,
+      "mutations": {
+        "miss_adjacent": "detected",
+        "swallow_gap": "detected",
+        "shrink_containment": "detected",
+        "sort_input_in_place": "survived",
+        "allow_bool": "detected",
+        "allow_reversed": "detected",
+        "skip_singleton": "detected"
+      },
+      "id": "nemotron-lightning-tests",
+      "model_id": "nemotron-lightning",
+      "source_path": "submitted/nemotron-lightning-tests.py"
+    }
+  ],
+  "limitations": [
+    "One small function and one submission per model/role.",
+    "Model weights and renderer fingerprints are not retained in the compact summary.",
+    "Nemotron tests miss in-place input sorting; both GLM suites incorrectly reject conforming adjacency.",
+    "These outcomes do not establish general repository-edit or verdict-review accuracy."
+  ]
+}

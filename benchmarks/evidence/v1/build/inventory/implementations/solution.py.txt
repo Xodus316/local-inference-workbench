@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Atomic inventory allocation CLI."""
+
+import json
+import re
+import sys
+
+NAME_RE = re.compile(r"[a-z]+")
+
+
+def fail():
+    sys.exit(1)
+
+
+def is_valid_name(value):
+    return isinstance(value, str) and NAME_RE.fullmatch(value) is not None
+
+
+def is_int(value):
+    return type(value) is int
+
+
+def validate_stock(stock):
+    if not isinstance(stock, dict):
+        fail()
+
+    for sku, qty in stock.items():
+        if not is_valid_name(sku):
+            fail()
+        if not is_int(qty) or qty < 0:
+            fail()
+
+
+def validate_orders(orders):
+    if not isinstance(orders, list):
+        fail()
+
+    seen_ids = set()
+    for order in orders:
+        if not isinstance(order, dict):
+            fail()
+
+        order_id = order.get("id")
+        priority = order.get("priority")
+        items = order.get("items")
+
+        if not is_valid_name(order_id):
+            fail()
+        if order_id in seen_ids:
+            fail()
+        seen_ids.add(order_id)
+
+        if not is_int(priority):
+            fail()
+
+        if not isinstance(items, dict) or not items:
+            fail()
+
+        for sku, qty in items.items():
+            if not is_valid_name(sku):
+                fail()
+            if not is_int(qty) or qty <= 0:
+                fail()
+
+
+def main():
+    try:
+        raw = sys.stdin.read()
+        data = json.loads(raw)
+    except Exception:
+        fail()
+
+    if not isinstance(data, dict):
+        fail()
+    if "stock" not in data or "orders" not in data:
+        fail()
+
+    stock = data["stock"]
+    orders = data["orders"]
+
+    validate_stock(stock)
+    validate_orders(orders)
+
+    state = dict(stock)
+    fulfilled = []
+    rejected = []
+
+    for order in sorted(orders, key=lambda o: (-o["priority"], o["id"])):
+        items = order["items"]
+        if all(state.get(sku, 0) >= qty for sku, qty in items.items()):
+            for sku, qty in items.items():
+                state[sku] -= qty
+            fulfilled.append(order["id"])
+        else:
+            rejected.append(order["id"])
+
+    result = {
+        "fulfilled": fulfilled,
+        "rejected": rejected,
+        "remaining": [[sku, state[sku]] for sku in sorted(state)],
+    }
+    print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()

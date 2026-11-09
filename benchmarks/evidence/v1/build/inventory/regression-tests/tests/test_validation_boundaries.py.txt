@@ -1,0 +1,22 @@
+import json
+import subprocess
+import unittest
+
+
+class InventoryValidationBoundaries(unittest.TestCase):
+    def invalid(self, stock, orders):
+        reply = subprocess.run(['python3', 'solution.py'], input=json.dumps({'stock': stock, 'orders': orders}),
+                               capture_output=True, text=True, timeout=5)
+        self.assertNotEqual(reply.returncode, 0)
+        self.assertEqual(reply.stdout, '')
+
+    def test_later_invalid_stock(self):
+        self.invalid({'good': 1, 'second': -1}, [])
+
+    def test_zero_quantity_for_existing_sku(self):
+        self.invalid({'part': 1}, [{'id': 'valid', 'priority': 0, 'items': {'part': 0}}])
+
+    def test_final_newline_in_name(self):
+        self.invalid({'part\n': 1}, [])
+        self.invalid({'part': 1}, [{'id': 'valid\n', 'priority': 0, 'items': {'part': 1}}])
+        self.invalid({'part': 1}, [{'id': 'valid', 'priority': 0, 'items': {'part\n': 1}}])

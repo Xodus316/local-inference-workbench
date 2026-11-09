@@ -1,0 +1,19 @@
+You are implementing a small Python 3.11+ project. Standard-library imports, classes and helpers are allowed. Do not use third-party packages or access the network. Return exactly one JSON object with key "code": its string value must be the complete replacement Python module specified below, without Markdown fences or explanatory text. This JSON wrapper is your RESPONSE format; the Python functions must return the values specified by their interfaces. Do not include tests in the module or run code at import time other than definitions and ordinary constants.
+
+Implement parse_query(text) in candidate.py, returning a nested TUPLE syntax tree for this grammar:
+expr := or_expr
+or_expr := and_expr ("or" and_expr)*
+and_expr := unary ("and" unary)*
+unary := "not" unary | "(" expr ")" | comparison
+comparison := IDENT OP LITERAL
+IDENT is [A-Za-z_][A-Za-z0-9_]* excluding reserved words and, or, not, true, false, null. Keywords are lowercase and case-sensitive. OP is one of = != < <= > >=. LITERAL is a signed integer (optional minus, then 0 or a nonzero digit followed by digits; no plus, decimals, or leading zeros), a double-quoted JSON string (standard escapes supported), or true/false/null mapped to Python True/False/None. Strings cannot contain raw control characters. Whitespace between tokens is optional when token boundaries remain unambiguous; use maximal tokens, so identifiers like notable are one identifier, not a not keyword plus another token. Only ASCII whitespace (space, tab, CR, LF) is accepted outside strings. Require complete input consumption; empty input, lexical errors, missing pieces, and trailing tokens raise ValueError. No need for an exact error message. Do not evaluate expressions or use eval/exec.
+AST forms: ('cmp', field, operator, literal), ('not', operand), ('and', left, right), ('or', left, right). Binary chains associate left. Support nesting up to 40 and 200 comparisons. text is always str.
+
+Visible smoke test (imports your module as candidate):
+from candidate import parse_query
+assert parse_query('age >= 18 and not name = "x"')==('and',('cmp','age','>=',18),('not',('cmp','name','=','x')))
+assert parse_query('active=true')==('cmp','active','=',True)
+try:parse_query('age =')
+except ValueError:pass
+else:raise AssertionError('must reject incomplete comparison')
+

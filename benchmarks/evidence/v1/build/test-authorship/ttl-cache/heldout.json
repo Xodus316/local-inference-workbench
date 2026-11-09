@@ -1,0 +1,438 @@
+{
+  "cases": {
+    "boundary": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": 2
+          },
+          {
+            "time": 2,
+            "key": "a",
+            "op": "get"
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            2,
+            "a",
+            null
+          ]
+        ],
+        "live": []
+      }
+    ],
+    "relative": [
+      {
+        "events": [
+          {
+            "time": 10,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": 5
+          },
+          {
+            "time": 12,
+            "key": "a",
+            "op": "get"
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            12,
+            "a",
+            7
+          ]
+        ],
+        "live": [
+          [
+            "a",
+            7
+          ]
+        ]
+      }
+    ],
+    "zero": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": 0
+          },
+          {
+            "time": 0,
+            "key": "a",
+            "op": "get"
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            0,
+            "a",
+            null
+          ]
+        ],
+        "live": []
+      }
+    ],
+    "stable": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": null
+          },
+          {
+            "time": 0,
+            "key": "a",
+            "op": "get"
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            0,
+            "a",
+            7
+          ]
+        ],
+        "live": [
+          [
+            "a",
+            7
+          ]
+        ]
+      }
+    ],
+    "unordered": [
+      {
+        "events": [
+          {
+            "time": 2,
+            "key": "a",
+            "op": "get"
+          },
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": null
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            2,
+            "a",
+            7
+          ]
+        ],
+        "live": [
+          [
+            "a",
+            7
+          ]
+        ]
+      }
+    ],
+    "delete": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": null
+          },
+          {
+            "time": 1,
+            "key": "a",
+            "op": "delete"
+          },
+          {
+            "time": 2,
+            "key": "a",
+            "op": "get"
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            2,
+            "a",
+            null
+          ]
+        ],
+        "live": []
+      }
+    ],
+    "overwrite": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": null
+          },
+          {
+            "time": 1,
+            "key": "a",
+            "op": "put",
+            "value": 0,
+            "ttl": 1
+          },
+          {
+            "time": 1,
+            "key": "a",
+            "op": "get"
+          },
+          {
+            "time": 2,
+            "key": "a",
+            "op": "get"
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            1,
+            "a",
+            0
+          ],
+          [
+            2,
+            "a",
+            null
+          ]
+        ],
+        "live": []
+      }
+    ],
+    "refresh": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 7,
+            "ttl": 2
+          },
+          {
+            "time": 1,
+            "key": "a",
+            "op": "get"
+          },
+          {
+            "time": 2,
+            "key": "a",
+            "op": "get"
+          }
+        ]
+      },
+      {
+        "reads": [
+          [
+            1,
+            "a",
+            7
+          ],
+          [
+            2,
+            "a",
+            null
+          ]
+        ],
+        "live": []
+      }
+    ],
+    "lexical": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "b",
+            "op": "put",
+            "value": -3,
+            "ttl": null
+          },
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 0,
+            "ttl": null
+          }
+        ]
+      },
+      {
+        "reads": [],
+        "live": [
+          [
+            "a",
+            0
+          ],
+          [
+            "b",
+            -3
+          ]
+        ]
+      }
+    ],
+    "boolean": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": true,
+            "ttl": null
+          }
+        ]
+      },
+      null
+    ],
+    "empty": [
+      {
+        "events": []
+      },
+      {
+        "reads": [],
+        "live": []
+      }
+    ],
+    "overwritten_invalid": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 1,
+            "ttl": -1
+          },
+          {
+            "time": 1,
+            "key": "a",
+            "op": "put",
+            "value": 2,
+            "ttl": null
+          }
+        ]
+      },
+      null
+    ],
+    "final_zero": [
+      {
+        "events": [
+          {
+            "time": 0,
+            "key": "a",
+            "op": "put",
+            "value": 1,
+            "ttl": null
+          },
+          {
+            "time": 1,
+            "key": "a",
+            "op": "put",
+            "value": 2,
+            "ttl": 0
+          }
+        ]
+      },
+      {
+        "reads": [],
+        "live": []
+      }
+    ]
+  },
+  "mutations": [
+    {
+      "id": "expiry_late",
+      "original": "store[key][1] <= t",
+      "replacement": "store[key][1] < t",
+      "witness": "boundary"
+    },
+    {
+      "id": "ttl_absolute",
+      "original": "else t + ttl",
+      "replacement": "else ttl",
+      "witness": "relative"
+    },
+    {
+      "id": "zero_immortal",
+      "original": "None if ttl is None else",
+      "replacement": "None if ttl in (None, 0) else",
+      "witness": "zero"
+    },
+    {
+      "id": "reverse_ties",
+      "original": "(pair[1]['time'], pair[0])",
+      "replacement": "(pair[1]['time'], -pair[0])",
+      "witness": "stable"
+    },
+    {
+      "id": "input_order",
+      "original": "sorted(enumerate(events), key=lambda pair: (pair[1]['time'], pair[0]))",
+      "replacement": "list(enumerate(events))",
+      "witness": "unordered"
+    },
+    {
+      "id": "ignore_delete",
+      "original": "store.pop(key, None)",
+      "replacement": "pass",
+      "witness": "delete"
+    },
+    {
+      "id": "first_put_wins",
+      "original": "store[key] = (event['value'], expiry)",
+      "replacement": "if key not in store:\n                store[key] = (event['value'], expiry)",
+      "witness": "overwrite"
+    },
+    {
+      "id": "get_refresh",
+      "original": "reads.append([t, key, store.get(key, (None, None))[0]])",
+      "replacement": "reads.append([t, key, store.get(key, (None, None))[0]])\n            if key in store and store[key][1] is not None:\n                store[key] = (store[key][0], store[key][1] + 1)",
+      "witness": "refresh"
+    },
+    {
+      "id": "reverse_live",
+      "original": "for key in sorted(store)]",
+      "replacement": "for key in sorted(store, reverse=True)]",
+      "witness": "lexical"
+    },
+    {
+      "id": "bool_integer",
+      "original": "type(value) is int",
+      "replacement": "isinstance(value, int)",
+      "witness": "boolean"
+    }
+  ]
+}

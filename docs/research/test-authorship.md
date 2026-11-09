@@ -6,6 +6,8 @@ For the timestamped cache, **Gemma 31B IQ4_XS wrote eight tests on its first att
 
 A **control** is an independently verified, correct implementation. A suite must discover real tests and pass every test on each required control before we credit it for exposing defects. A **mutation** is a deliberately faulty program with an input known to expose its fault. A 9/10 detection rate means one of those ten faults escaped. A missing score means the run could not establish a valid detection rate. For example, a suite that fails to import will fail on every mutant and every correct control.
 
+The [Build evidence archive](../../benchmarks/evidence/v1/build/README.md) includes available synthetic specifications, controls, fault definitions, saved suites and compact outcome records. Inference used the RTX 3090; cache and inventory scoring ran in Docker on an ARM64 Mac, with container architecture not separately recorded. A score replay records its own image and architecture instead of claiming an identical historical environment. First submissions, syntax-only corrections and guided or manual changes retain separate labels.
+
 The occupancy and cache comparisons used the same brief, output schema and grading corpus within each exercise. Only the public specification and test-writing instructions went to the author. Each first-pass row represents one generated suite. All used thinking, a 32,768-token context and no separate output cap. Times measure submission latency and can include loading. Docker execution and reviewer time are separate.
 
 ## Occupancy over a reporting window

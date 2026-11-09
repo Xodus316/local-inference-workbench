@@ -1,0 +1,22 @@
+import json, subprocess, sys, unittest
+
+def ship(hull, armed=True):
+  arcs = ('Front', 'Back', 'Left', 'Right')
+  guns = {a: [] for a in arcs}
+  if armed: guns['Front'] = [{'damage': 1, 'recharge': 2}]
+  return dict(hull=hull,shields=dict.fromkeys(arcs,0),weapons=guns)
+
+class BattleBoundaries(unittest.TestCase):
+  def check(self, a, b, want):
+    p = subprocess.run([sys.executable, 'solution.py'],
+      input=json.dumps(dict(ship1=a,ship2=b)), text=True, capture_output=True,timeout=5)
+    self.assertEqual(p.returncode,0,p.stderr)
+    self.assertEqual(p.stdout.strip(),want)
+
+  def test_initial_zero(self):
+    for a, b, want in ((0,0,'Draw'), (0,1,'Ship 2 Wins'), (1,0,'Ship 1 Wins')):
+      self.check(ship(a), ship(b), want)
+
+  def test_recharge_both_sides(self):
+    self.check(ship(2, False), ship(10), 'Ship 2 Wins')
+    self.check(ship(10), ship(2, False), 'Ship 1 Wins')

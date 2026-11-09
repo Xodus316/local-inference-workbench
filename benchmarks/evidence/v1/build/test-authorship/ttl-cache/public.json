@@ -1,0 +1,26 @@
+{
+  "task": "Implement solution.py, a Python CLI that replays timestamped cache operations with expiring values. Read a JSON object from stdin and emit query results and final live entries. Use only the Python standard library.",
+  "approved_plan": {
+    "goal": "Replay validated operations with stable event ordering and exact expiry boundaries.",
+    "acceptance_criteria": [
+      "Read one JSON object with an events array. Every event is an object with time, key and op. time is a nonnegative integer. key is a nonempty string of lowercase ASCII letters a-z. op is exactly put, get or delete. A put additionally requires value (any integer, including negative) and ttl (null or a nonnegative integer). Booleans and floats never qualify as integers. Ignore extra fields at root and event level. Validate ALL events before processing, even overwritten or ineffective ones.",
+      "Process events by ascending time, preserving input order for equal times. Input may be out of chronological order. Every get produces one read record in processing order.",
+      "A put replaces the entire previous entry for its key, including value and expiry. With ttl N it is live from its event time t up to but excluding t+N. ttl zero expires immediately. ttl null means no expiry. Expired older values never become visible again.",
+      "Before each operation, entries whose expiry is less than or equal to the current event time are absent. A get returns the live integer value or null if absent. Gets never change values or extend expiry.",
+      "A delete removes its key if present. Deleting an absent or expired key succeeds without output. A later put may recreate the key.",
+      "The output object has exactly reads and live. reads is an array of [time,key,value_or_null]. live is the array of [key,value] for entries live at the maximum event time after all events, sorted lexicographically by key. Empty events yields both arrays empty. JSON null denotes absence, not integer zero.",
+      "On success exit zero and print exactly one JSON object. Whitespace and object key order are immaterial. Malformed JSON or any invalid input must exit nonzero with empty stdout. Stderr is unspecified. Use only the standard library and the public CLI."
+    ],
+    "implementation_steps": [
+      "Validate the complete input.",
+      "Replay all operations according to the specified order and expiry rules.",
+      "Emit read records and the final sorted live entries."
+    ],
+    "test_strategy": [
+      "Use the public CLI to independently verify success outputs and input rejection."
+    ],
+    "assumptions": [],
+    "risks": []
+  },
+  "interface_contract": "Run python3 solution.py from the project root. The 7 numbered acceptance criteria are the complete public contract. No importable API is promised."
+}

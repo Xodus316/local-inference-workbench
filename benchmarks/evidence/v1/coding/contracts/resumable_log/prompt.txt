@@ -1,0 +1,17 @@
+You are implementing a small Python 3.11+ project. Standard-library imports, classes and helpers are allowed. Do not use third-party packages or access the network. Return exactly one JSON object with key "code": its string value must be the complete replacement Python module specified below, without Markdown fences or explanatory text. This JSON wrapper is your RESPONSE format; the Python functions must return the values specified by their interfaces. Do not include tests in the module or run code at import time other than definitions and ordinary constants.
+
+Implement process_log(log_path, state_path, limit=None) in candidate.py. Both paths are str or pathlib.Path, and their parent directories exist. The log is an append-only UTF-8 JSON Lines file; each COMPLETE newline-terminated line is an object with exactly id (nonempty str), account (nonempty str), delta (exact int, bool invalid). Reject malformed complete lines with ValueError. Empty/blank complete lines are malformed. A final line without its newline is incomplete: ignore it, even if its bytes look valid or invalid, until a later call appends the newline. Byte offsets must handle non-ASCII text correctly. No concurrent callers or file edits during a call.
+Persist a JSON checkpoint with exactly version:1, offset:integer byte offset, totals:dict account->int, seen:list of unique processed event IDs. A missing checkpoint means offset 0, empty totals/seen. Existing checkpoints are guaranteed to be valid outputs of earlier calls, unless log size is now smaller than offset; detect that truncation and raise ValueError without changing the checkpoint. Records before offset must not be reapplied. First occurrence of an event id wins globally; duplicate IDs are consumed but do not affect totals, even if payload differs. Keep zero totals in the dictionary.
+limit is None or an exact positive int; reject other values with ValueError before changing state. It caps the number of complete records consumed during THIS call, counting duplicates. Do not inspect records beyond that cap. Return a new dict {'processed': consumed_count, 'applied': new_unique_count, 'offset': byte_offset_after_last_consumed_newline, 'totals': current_totals}.
+Process a call atomically: if any line examined within the cap is malformed, raise ValueError and leave the original checkpoint byte-for-byte unchanged (or absent). Otherwise, when at least one line was consumed, write a complete new checkpoint using a temporary file in the checkpoint directory and atomic replacement; do not overwrite the existing checkpoint in place. No fsync/crash simulation beyond atomic replacement is required. With no complete records, leave the checkpoint unchanged. The log is read-only. Support 5,000 records without rereading the prefix before checkpoint offset. Standard-library file I/O is allowed and expected.
+
+Visible smoke test (imports your module as candidate):
+from candidate import process_log
+from pathlib import Path
+import tempfile,json
+with tempfile.TemporaryDirectory() as d:
+    log=Path(d)/"events.jsonl";state=Path(d)/"state.json"
+    log.write_text(json.dumps({"id":"e1","account":"a","delta":3})+"\n",encoding="utf-8")
+    assert process_log(log,state)["totals"]=={"a":3}
+    assert process_log(log,state)["processed"]==0
+

@@ -1,0 +1,266 @@
+{
+  "cases": {
+    "left": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": [
+          [
+            -4,
+            2
+          ]
+        ]
+      },
+      {
+        "covered": 2,
+        "peak": 1,
+        "first_peak": 0,
+        "alerts": []
+      }
+    ],
+    "right": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": [
+          [
+            3,
+            9
+          ]
+        ]
+      },
+      {
+        "covered": 2,
+        "peak": 1,
+        "first_peak": 3,
+        "alerts": []
+      }
+    ],
+    "adjacent": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": [
+          [
+            0,
+            2
+          ],
+          [
+            2,
+            4
+          ]
+        ]
+      },
+      {
+        "covered": 4,
+        "peak": 1,
+        "first_peak": 0,
+        "alerts": []
+      }
+    ],
+    "dup": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ]
+        ]
+      },
+      {
+        "covered": 3,
+        "peak": 2,
+        "first_peak": 1,
+        "alerts": [
+          [
+            1,
+            4
+          ]
+        ]
+      }
+    ],
+    "tie": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": [
+          [
+            0,
+            1
+          ],
+          [
+            3,
+            5
+          ]
+        ]
+      },
+      {
+        "covered": 3,
+        "peak": 1,
+        "first_peak": 0,
+        "alerts": []
+      }
+    ],
+    "merge": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 1,
+        "intervals": [
+          [
+            0,
+            4
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      {
+        "covered": 4,
+        "peak": 2,
+        "first_peak": 1,
+        "alerts": [
+          [
+            0,
+            4
+          ]
+        ]
+      }
+    ],
+    "empty": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": []
+      },
+      {
+        "covered": 0,
+        "peak": 0,
+        "first_peak": null,
+        "alerts": []
+      }
+    ],
+    "bool": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": [
+          [
+            false,
+            2
+          ]
+        ]
+      },
+      null
+    ],
+    "bad_outside": [
+      {
+        "window": [
+          0,
+          5
+        ],
+        "threshold": 2,
+        "intervals": [
+          [
+            9,
+            8
+          ]
+        ]
+      },
+      null
+    ]
+  },
+  "mutations": [
+    {
+      "id": "left_clip",
+      "original": "a = max(a, lo)",
+      "replacement": "a = a",
+      "witness": "left"
+    },
+    {
+      "id": "right_clip",
+      "original": "b = min(b, hi)",
+      "replacement": "b = b",
+      "witness": "right"
+    },
+    {
+      "id": "closed_end",
+      "original": "b = min(b, hi)",
+      "replacement": "b = min(b + 1, hi)",
+      "witness": "adjacent"
+    },
+    {
+      "id": "collapse_duplicates",
+      "original": "for original in items:",
+      "replacement": "for original in [list(row) for row in dict.fromkeys(tuple(row) for row in items)]:",
+      "witness": "dup"
+    },
+    {
+      "id": "sum_overlaps",
+      "original": "covered += b - a",
+      "replacement": "covered += depth * (b - a)",
+      "witness": "dup"
+    },
+    {
+      "id": "late_peak",
+      "original": "if depth > peak:",
+      "replacement": "if depth and depth >= peak:",
+      "witness": "tie"
+    },
+    {
+      "id": "strict_threshold",
+      "original": "if depth >= k:",
+      "replacement": "if depth > k:",
+      "witness": "dup"
+    },
+    {
+      "id": "split_alerts",
+      "original": "if alerts and alerts[-1][1] == a:",
+      "replacement": "if False:",
+      "witness": "merge"
+    },
+    {
+      "id": "bool_endpoint",
+      "original": "type(t) is int",
+      "replacement": "isinstance(t, int)",
+      "witness": "bool"
+    },
+    {
+      "id": "empty_peak",
+      "original": "first = None",
+      "replacement": "first = lo",
+      "witness": "empty"
+    }
+  ]
+}

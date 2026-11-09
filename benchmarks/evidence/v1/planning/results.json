@@ -1,0 +1,2749 @@
+{
+  "format_version": 1,
+  "synthetic_only": true,
+  "inference_hardware": "RTX 3090, 24 GiB VRAM",
+  "sample_count_per_model_brief_comparison": 1,
+  "comparisons": [
+    {
+      "experiment": "three-gemma-planning-pilot",
+      "records": [
+        {
+          "model": "gemma-26b-q4",
+          "case": "apportion",
+          "score": 10,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 59.90304732322693,
+            "generation_seconds": 43.178319,
+            "load_seconds": 16.3003195,
+            "native_total_seconds": 59.8785255,
+            "output_tokens": 4641,
+            "prompt_seconds": 0.391511,
+            "prompt_tokens": 556,
+            "total_tokens": 5197
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The CLI reads a single JSON object from stdin.",
+              "The CLI validates that 'credits' exists, is an integer (not float or boolean), and is non-negative.",
+              "The CLI validates that 'weights' exists, is a non-empty dictionary, and all its keys are lowercase ASCII letter-only strings.",
+              "The CLI validates that all values in 'weights' are non-negative integers (not floats or booleans).",
+              "The CLI validates that the sum of all values in 'weights' is strictly greater than zero.",
+              "The CLI ignores any top-level JSON keys other than 'credits' and 'weights'.",
+              "The CLI uses exact integer arithmetic (no floating point) to calculate proportional shares and remainders.",
+              "The CLI calculates the base share for each ID as `floor(credits * weight / total_weight)` using integer division.",
+              "The CLI calculates the remainder for each ID as `(credits * weight) % total_weight`.",
+              "The CLI distributes remaining credits to IDs with the highest remainders first.",
+              "In the event of a tie in remainder values, the credit is awarded to the ID that is lexicographically smaller (ascending order).",
+              "The CLI includes all IDs in the output, even if their allocated amount is zero.",
+              "The CLI output is a JSON array of `[ID, allocated_integer]` pairs, sorted by ID in ascending order.",
+              "On success, the CLI exits with status 0 and writes the JSON array to stdout.",
+              "On any invalid input (malformed JSON, type mismatches, invalid values, etc.), the CLI exits with a non-zero status and writes nothing to stdout.",
+              "The CLI handles arbitrarily large integers without precision loss."
+            ],
+            "assumptions": [
+              "An 'invalid integer' includes Python's `bool` type because `isinstance(True, int)` is true.",
+              "The 'highest remainder' is determined by the value `(credits * weight) % total_weight`.",
+              "If the input JSON is empty or missing 'credits'/'weights', it is treated as invalid input.",
+              "The IDs are strictly lowercase ASCII letters ('a'-'z')."
+            ],
+            "goal": "Implement a robust credit-splitting CLI that follows exact proportional distribution rules with specific tie-breaking logic and strict type validation.",
+            "implementation_steps": [
+              "1. Implement a parser that reads from `sys.stdin` and attempts to parse JSON.",
+              "2. Implement a validation layer that checks the presence, types, and constraints of 'credits' and 'weights'.",
+              "3. Implement the core logic: calculate `total_weight`, `shares`, `remainders`, and `leftover` credits.",
+              "4. Implement the distribution logic: sort IDs by `(-remainder, id)` and distribute leftover credits one by one.",
+              "5. Implement the final formatting: sort the list of `[ID, amount]` by ID and convert to JSON.",
+              "6. Wrap everything in a try-except block to ensure any error results in exit code 1 and empty stdout."
+            ],
+            "risks": [
+              "Floating point precision errors if `(credits * weight / total_weight)` is used instead of integer math.",
+              "Incorrectly identifying `True`/`False` as integers.",
+              "Incorrect tie-breaking order (must be highest remainder first, then ascending ID)."
+            ],
+            "test_strategy": [
+              "Test Case 1: Standard distribution. Input: `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 1, \"c\": 1}}`. Expected: `[[\"a\", 4], [\"b\", 3], [\"c\", 3]]` (Tie-break on 'a').",
+              "Test Case 2: Tie-break with multiple winners. Input: `{\"credits\": 2, \"weights\": {\"a\": 1, \"b\": 1, \"c\": 1}}`. Expected: `[[\"a\", 1], [\"b\", 1], [\"c\", 0]]` (Rem: 2, 2, 2; IDs 'a' and 'b' get it).",
+              "Test Case 3: Zero credits. Input: `{\"credits\": 0, \"weights\": {\"a\": 10, \"b\": 20}}`. Expected: `[[\"a\", 0], [\"b\", 0]]`.",
+              "Test Case 4: Large integers. Input: `{\"credits\": 1000000000000000000, \"weights\": {\"a\": 1, \"b\": 1}}`. Expected: `[[\"a\", 500000000000000000], [\"b\", 500000000000000000]]`.",
+              "Test Case 5: Invalid type (float). Input: `{\"credits\": 10.0, \"weights\": {\"a\": 1}}`. Expected: Exit 1, empty stdout.",
+              "Test Case 6: Invalid type (bool). Input: `{\"credits\": true, \"weights\": {\"a\": 1}}`. Expected: Exit 1, empty stdout.",
+              "Test Case 7: Invalid weight (sum zero). Input: `{\"credits\": 10, \"weights\": {\"a\": 0}}`. Expected: Exit 1, empty stdout.",
+              "Test Case 8: Malformed JSON. Input: `{\"credits\": 10,`. Expected: Exit 1, empty stdout."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "States the full validation and failure contract, including extra keys and integer/boolean distinctions for both credits and weights.",
+              "Integer division and modulo use a common positive denominator.",
+              "Sorts by descending remainder then ascending ID, and separately sorts output with zeros included.",
+              "Unconditional positive weight sum and a zero-credit fixture are consistent. No artificial maximum.",
+              "Equal weights and 10 credits produce 4,3,3; two credits produce 1,1,0. The equal-weight large split and invalid-input expectations also check out."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              2,
+              2
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "resident_before": false
+        },
+        {
+          "model": "gemma-12b-q8",
+          "case": "apportion",
+          "score": 7,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "One explicitly required test oracle rejects a conforming implementation."
+          ],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 68.21114349365234,
+            "generation_seconds": 60.335793,
+            "load_seconds": 7.6083455,
+            "native_total_seconds": 68.204056,
+            "output_tokens": 2892,
+            "prompt_seconds": 0.247299,
+            "prompt_tokens": 556,
+            "total_tokens": 3448
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The script must read a single JSON object from `stdin`.",
+              "The script must ignore any top-level keys other than `credits` and `weights`.",
+              "The `credits` value must be a non-negative integer. If it is a boolean, float, or negative, the script must exit with a non-zero code and print nothing to `stdout`.",
+              "The `weights` value must be a non-empty object (dictionary) mapping distinct lowercase ASCII letter-only IDs to non-negative integers.",
+              "If `weights` is missing, empty, contains non-ASCII/non-lowercase keys, or contains non-integer values, the script must exit with a non-zero code and print nothing to `stdout`.",
+              "The sum of all values in `weights` must be strictly positive. If the sum is zero, the script must exit with a non-zero code and print nothing to `stdout`.",
+              "The script must use exact integer arithmetic for all calculations.",
+              "Allocation Logic: For each ID, the base allocation is `floor((credits * weight) / total_weight)`. The remainder is `(credits * weight) % total_weight`.",
+              "Remaining credits (total credits minus the sum of base allocations) must be distributed one-by-one to IDs with the highest remainders.",
+              "In the event of a tie in remainders, the credit must be awarded to the ID that is alphabetically smaller (ascending order).",
+              "The final output must be a JSON array of `[ID, allocated_integer]` pairs, sorted alphabetically by ID.",
+              "On success, the script must exit with code 0. On any validation or parsing failure, it must exit with a non-zero code and provide no output on `stdout`."
+            ],
+            "assumptions": [
+              "If `credits` is 0, all IDs should receive 0 credits regardless of weights.",
+              "IDs are limited to lowercase ASCII letters ('a'-'z').",
+              "JSON integers are expected to be within standard Python `int` limits (arbitrary precision)."
+            ],
+            "goal": "Create a command-line tool that distributes a pool of credits to multiple entities based on weights, ensuring an exact integer distribution using the Largest Remainder Method with alphabetical tie-breaking.",
+            "implementation_steps": [
+              "Import `sys`, `json`.",
+              "Read from `sys.stdin` and parse JSON using `json.loads()`.",
+              "Implement a validation function to check `credits` and `weights` against the specified types and constraints.",
+              "Calculate the `total_weight` sum.",
+              "Iterate through the weights to calculate `base_allocation` and `remainder` for each ID.",
+              "Calculate `total_remaining_credits` as `credits - sum(base_allocations)`.",
+              "Create a list of tuples `(remainder, id, base_allocation)` and sort this list by `remainder` descending and then by `id` ascending.",
+              "Iterate through the sorted list and add 1 to the `base_allocation` for the first `total_remaining_credits` items.",
+              "Store results in a dictionary, sort the keys alphabetically, and format as a list of lists.",
+              "Print the final JSON array to `stdout` and exit 0.",
+              "Wrap logic in a try-except block to catch `json.JSONDecodeError` and other exceptions, exiting non-zero and printing nothing to `stdout` on failure."
+            ],
+            "risks": [
+              "Large integer products could potentially cause issues in other languages, but Python handles arbitrary precision integers automatically.",
+              "Strict type checking is needed for `credits` because `isinstance(True, int)` is true in Python."
+            ],
+            "test_strategy": [
+              "Test 1 (Standard distribution): Input `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 2}}`. Expected output: `[[\"a\", 4], [\"b\", 6]]`.",
+              "Test 2 (Remainder tie-break): Input `{\"credits\": 5, \"weights\": {\"x\": 1, \"y\": 1, \"z\": 1}}`. Expected output: `[[\"x\", 2], [\"y\", 2], [\"z\", 1]]`.",
+              "Test 3 (Zero credits): Input `{\"credits\": 0, \"weights\": {\"a\": 10}}`. Expected output: `[[\"a\", 0]]`.",
+              "Test 4 (No remainders): Input `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 1}}`. Expected output: `[[\"a\", 5], [\"b\", 5]]`.",
+              "Test 5 (Invalid input - Float): Input `{\"credits\": 10.5, \"weights\": {\"a\": 1}}`. Expected non-zero exit.",
+              "Test 6 (Invalid input - Sum zero): Input `{\"credits\": 10, \"weights\": {\"a\": 0}}`. Expected non-zero exit.",
+              "Test 7 (Malformed JSON): Input `{\"credits\": 10, \"weights\": {`. Expected non-zero exit."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Gives the shape, constraints, extra-key rule and error behavior.",
+              "Mandates exact integer arithmetic and the correct base and remainder formulas.",
+              "Explicitly allocates the first L ordered remainders and sorts all IDs for output.",
+              "Zero credits “regardless of weights” needs qualification by its own positive-sum validation. The implementation steps otherwise validate first.",
+              "The 5-credit tie and zero/no-remainder examples are correct. The first example expects 4,6 for weights 1:2 and 10 credits. Floors are 3,6; remainders are 1,2, so the required output is 3,7."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              1,
+              0
+            ],
+            "blockers": [
+              "One explicitly required test oracle rejects a conforming implementation."
+            ]
+          },
+          "assistance": "none; independently graded first submission",
+          "resident_before": false
+        },
+        {
+          "model": "gemma-31b-qat",
+          "case": "apportion",
+          "score": 8,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "Explicitly permits accepting the first object of a malformed multi-document input, contrary to the stated single-object CLI contract."
+          ],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 127.06583976745605,
+            "generation_seconds": 107.614062,
+            "load_seconds": 18.6854347,
+            "native_total_seconds": 127.0400541,
+            "output_tokens": 2095,
+            "prompt_seconds": 0.729652,
+            "prompt_tokens": 556,
+            "total_tokens": 2651
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program must read a single JSON object from stdin.",
+              "The program must validate that 'credits' is a non-negative integer (excluding booleans and floats).",
+              "The program must validate that 'weights' is a non-empty object.",
+              "The program must validate that all keys in 'weights' consist solely of lowercase ASCII letters.",
+              "The program must validate that all values in 'weights' are non-negative integers (excluding booleans and floats).",
+              "The program must validate that the sum of all weights is greater than zero.",
+              "The program must calculate the floor of the proportional share for each ID: floor(credits * weight / total_weight).",
+              "The program must allocate the remaining credits to the IDs with the highest remainders (credits * weight % total_weight).",
+              "Ties in remainders must be broken by choosing IDs in ascending alphabetical order.",
+              "The program must output a JSON array of [ID, allocation] pairs sorted by ascending ID.",
+              "The program must exit with status 0 on success and status non-zero on any invalid input (malformed JSON, invalid types, negative values, empty weights, or zero weight sum).",
+              "The program must produce empty stdout on any failure."
+            ],
+            "assumptions": [
+              "JSON 'integer' means the Python `int` type, specifically excluding `bool` as requested.",
+              "Lowercase ASCII letters are in the range 'a'-'z'.",
+              "Stdin will contain at most one JSON object; if multiple are present, only the first will be processed or it will be treated as malformed JSON depending on the parser."
+            ],
+            "goal": "Implement a credit splitting utility using the Largest Remainder Method with alphabetical tie-breaking.",
+            "implementation_steps": [
+              "Import `sys`, `json`, and `re`.",
+              "Implement a helper to strictly validate that a value is an integer (not a boolean or float).",
+              "Read stdin and attempt to parse as JSON; exit nonzero on failure.",
+              "Extract `credits` and `weights`. Validate presence, types, and constraints (non-negative, non-empty, lowercase ASCII IDs, positive sum of weights).",
+              "Calculate total weight $T$.",
+              "For each ID, calculate initial allocation $A_i = (credits \times weight_i) // T$ and remainder $R_i = (credits \times weight_i) \text{ mod } T$.",
+              "Calculate the remaining credits $L = credits - \\sum A_i$.",
+              "Create a list of (remainder, ID) pairs and sort them by remainder descending, then ID ascending.",
+              "Distribute $L$ remaining credits by incrementing $A_i$ for the first $L$ entries in the sorted list.",
+              "Format the results as a list of [ID, allocation] pairs sorted by ID.",
+              "Print the result as JSON and exit 0."
+            ],
+            "risks": [
+              "Integer overflow is not a concern in Python 3, but efficiency for extremely large numbers should be noted (though unlikely given the task).",
+              "JSON parsing of very large inputs could be a memory constraint."
+            ],
+            "test_strategy": [
+              "Test Case 1 (Basic Distribution): `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 1, \"c\": 1}}` -> ` [[\"a\", 4], [\"b\", 3], [\"c\", 3]]` (Tests remainder tie-breaking).",
+              "Test Case 2 (Standard Proportions): `{\"credits\": 5, \"weights\": {\"x\": 2, \"y\": 1}}` -> ` [[\"x\", 3], [\"y\", 2]]` (Tests remainder priority).",
+              "Test Case 3 (Zero Credits): `{\"credits\": 0, \"weights\": {\"a\": 10}}` -> ` [[\"a\", 0]]` (Tests zero credit allocation).",
+              "Test Case 4 (Invalid Type): `{\"credits\": 10.0, \"weights\": {\"a\": 1}}` -> Exit nonzero, empty stdout.",
+              "Test Case 5 (Invalid ID): `{\"credits\": 10, \"weights\": {\"A\": 1}}` -> Exit nonzero, empty stdout.",
+              "Test Case 6 (Sum of weights zero): `{\"credits\": 10, \"weights\": {\"a\": 0, \"b\": 0}}` -> Exit nonzero, empty stdout.",
+              "Test Case 7 (Malformed JSON): `{\"credits\": 10` -> Exit nonzero, empty stdout."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Validates integers, IDs, positive sum and failures. The extra-key rule is implicit in field extraction. Its assumption permits processing only the first of multiple concatenated objects.",
+              "Uses integer product, floor division and modulo.",
+              "Distributes the exact leftover count to the first L ranked pairs with lexical ties, then sorts output by ID.",
+              "Allocation handles zero and arbitrary-precision inputs; the acceptance rules and permissive multi-document assumption disagree on the input boundary.",
+              "The 10-credit equal-weight tie gives 4,3,3. For 5 credits at weights 2:1, floors 3,1 and remainders 1,2 yield 3,2. Zero and invalid cases are consistent."
+            ],
+            "points": [
+              1,
+              2,
+              2,
+              1,
+              2
+            ],
+            "blockers": [
+              "Explicitly permits accepting the first object of a malformed multi-document input, contrary to the stated single-object CLI contract."
+            ]
+          },
+          "assistance": "none; independently graded first submission",
+          "resident_before": false
+        },
+        {
+          "model": "gemma-12b-q8",
+          "case": "meter",
+          "score": 8,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 112.45286130905151,
+            "generation_seconds": 105.102868,
+            "load_seconds": 7.0815344,
+            "native_total_seconds": 112.4431187,
+            "output_tokens": 5085,
+            "prompt_seconds": 0.250083,
+            "prompt_tokens": 582,
+            "total_tokens": 5667
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The script reads a JSON array from stdin and parses it into a list of events.",
+              "The script validates that every event in the input array contains a 'meter' (non-empty string), 'time' (non-negative integer), and 'reading' (non-negative integer).",
+              "Strict type checking is applied: booleans and floats are rejected as valid integers even if they represent whole numbers (e.g., `True` or `1.0` are invalid).",
+              "Extra keys in the input JSON objects are ignored during processing.",
+              "Events with the same meter and time are resolved such that the last occurrence in the input array takes precedence.",
+              "Events are sorted chronologically by time for each meter before usage is computed.",
+              "Usage for each meter is calculated as the sum of differences between consecutive readings in increasing time order.",
+              "The first reading for any meter is treated as a baseline (usage starts at 0).",
+              "The chosen reset policy: If a reading at time $t_i$ is strictly less than the reading at time $t_{i-1}$, the usage increment for that interval is 0.",
+              "The script outputs a single JSON object where keys are meter names and values are integer usages.",
+              "Meters with only one reading result in a usage of 0.",
+              "An empty input array results in an empty JSON object output `{}`.",
+              "Any validation failure (missing keys, wrong types, negative values, malformed JSON) results in a non-zero exit code and no stdout.",
+              "A successful execution results in an exit code of 0.",
+              "The script uses only the Python standard library."
+            ],
+            "assumptions": [
+              "The chosen provisional policy for resets: If $reading_i < reading_{i-1}$, the usage for that specific interval $[t_{i-1}, t_i]$ is calculated as 0. This ensures that the cumulative usage never decreases and respects the 'avoid negative usage' constraint.",
+              "Validation is performed on all objects in the input array before any calculations occur. If any object in the array is invalid, the entire batch is rejected.",
+              "The 'time' and 'reading' must be of type `int`. `isinstance(x, int)` is insufficient because it returns `True` for `bool`; `type(x) is int` will be used."
+            ],
+            "goal": "Summarize cumulative meter readings into integer usage values per meter, handling out-of-order events, duplicates, and counter resets.",
+            "implementation_steps": [
+              "Import `sys`, `json`, and `typing`.",
+              "Define a validation function that checks the schema and strict types for each event object.",
+              "Read all input from `sys.stdin` and attempt to parse as a JSON list.",
+              "Iterate through the list to validate all events. If any fail, print nothing and exit with `sys.exit(1)`.",
+              "Construct a data structure: `Dict[str, Dict[int, int]]` where the outer key is the meter name and the inner dictionary maps time to the last-seen reading.",
+              "For each meter in the data structure:",
+              "    Sort the times in ascending order.",
+              "    Initialize `total_usage = 0`.",
+              "    Iterate through the sorted times, calculating `diff = current_reading - previous_reading`.",
+              "    Apply the reset policy: `total_usage += max(0, diff)`.",
+              "    Store the result in a final dictionary.",
+              "Print the final dictionary as a JSON object to stdout and exit with 0."
+            ],
+            "risks": [
+              "Large input arrays might consume significant memory, but the task doesn't specify streaming requirements.",
+              "Non-standard JSON inputs (like multiple JSON objects not in an array) should be handled as invalid by `json.load()`."
+            ],
+            "test_strategy": [
+              "Test with standard out-of-order events: Input `[{\"meter\": \"A\", \"time\": 20, \"reading\": 100}, {\"meter\": \"A\", \"time\": 10, \"reading\": 50}]` -> Output `{\"A\": 50}`.",
+              "Test with duplicate time entries: Input `[{\"meter\": \"A\", \"time\": 10, \"reading\": 100}, {\"meter\": \"A\", \"time\": 10, \"reading\": 200}]` -> Output `{\"A\": 0}`.",
+              "Test with reset policy: Input `[{\"meter\": \"A\", \"time\": 10, \"reading\": 100}, {\"meter\": \"A\", \"time\": 20, \"reading\": 150}, {\"meter\": \"A\", \"time\": 30, \"reading\": 80}]` -> Output `{\"A\": 50}`.",
+              "Test with invalid types (float): Input `[{\"meter\": \"A\", \"time\": 10.0, \"reading\": 100}]` -> Exit non-zero.",
+              "Test with invalid types (bool): Input `[{\"meter\": \"A\", \"time\": 10, \"reading\": True}]` -> Exit non-zero.",
+              "Test with empty input: Input `[]` -> Output `{}`.",
+              "Test with extra keys: Input `[{\"meter\": \"A\", \"time\": 10, \"reading\": 100, \"extra\": \"data\"}]` -> Output `{\"A\": 0}`."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Explicit validation pass over all original events, strict types, extra keys and error behavior.",
+              "Last-value dictionary per meter and time, followed by per-meter sorting.",
+              "Positive consecutive deltas and zero baseline cover equals, singleton and empty.",
+              "Clearly labels clamping the reset interval to zero as provisional, but does not explicitly frame the confirmation question for the product owner.",
+              "The reset example correctly totals 50. The out-of-order example also totals 50. The duplicate fixture retains only one timestamp and returns 0 with either first- or last-wins; it does not demonstrate an out-of-order duplicate. Its uppercase True is malformed JSON if sent literally."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              1,
+              1
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "resident_before": false
+        },
+        {
+          "model": "gemma-31b-qat",
+          "case": "meter",
+          "score": 9,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 186.99501132965088,
+            "generation_seconds": 175.1973,
+            "load_seconds": 11.0947654,
+            "native_total_seconds": 186.9876864,
+            "output_tokens": 3360,
+            "prompt_seconds": 0.686971,
+            "prompt_tokens": 582,
+            "total_tokens": 3942
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program reads a JSON array of events from stdin.",
+              "Each event must contain 'meter' (non-empty string), 'time' (non-negative integer), and 'reading' (non-negative integer).",
+              "Extra keys in event objects must be ignored.",
+              "Invalid types for 'time' and 'reading' (including booleans and floats) must trigger a nonzero exit with no stdout.",
+              "Invalid 'meter' values (non-strings or empty strings) must trigger a nonzero exit with no stdout.",
+              "Missing required keys must trigger a nonzero exit with no stdout.",
+              "Input that is not a JSON array must trigger a nonzero exit with no stdout.",
+              "For events with the same meter and time, only the last occurrence in the input array is retained.",
+              "Events are processed in increasing order of time, regardless of input order.",
+              "Usage is computed as the sum of differences between consecutive readings for each meter.",
+              "The first chronological reading for a meter acts as the baseline (0 usage).",
+              "Provisional Reset Policy: If a reading decreases relative to the previous reading (a reset), the usage for that specific interval is treated as 0.",
+              "The output must be a single JSON object mapping every seen meter to its total integer usage.",
+              "Meters with only one reading must be included in the output with a usage of 0.",
+              "An empty input array must result in an empty JSON object `{}` and exit zero.",
+              "On successful execution, the program must exit with code 0."
+            ],
+            "assumptions": [
+              "Input is provided as a single JSON array via stdin; if stdin is empty or not valid JSON, it is treated as invalid input.",
+              "The provisional reset policy chosen is to ignore negative differences (clamp to 0) rather than treating the reset reading as a new baseline of 0."
+            ],
+            "goal": "Implement a Python CLI in `solution.py` that calculates cumulative meter usage from JSON events, handling out-of-order data, duplicates, and device resets according to a specific provisional policy.",
+            "implementation_steps": [
+              "Import `sys`, `json`, and `collections`.",
+              "Read stdin and attempt to parse as a JSON array. Exit nonzero if parsing fails or if the result is not a list.",
+              "Initialize a data structure (e.g., `defaultdict(dict)`) to store the last-seen reading for each `(meter, time)` pair.",
+              "Iterate through the events array, performing strict type and value validation: check for key existence, ensure `meter` is a non-empty string, and ensure `time` and `reading` are strictly integers (using `type(val) is int`) and non-negative.",
+              "Store valid events in the data structure, allowing later events to overwrite earlier ones for the same meter/time.",
+              "Initialize an empty dictionary for the final results.",
+              "For each unique meter found:",
+              "  Retrieve the associated readings and sort them by time ascending.",
+              "  Iterate through the sorted readings, calculating the difference between the current and previous reading.",
+              "  If the difference is positive, add it to the meter's total usage; otherwise, add 0.",
+              "  Store the total usage in the results dictionary.",
+              "Serialize the results dictionary to JSON and print to stdout.",
+              "Exit with code 0."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` is `True`, so strict type checking via `type(x) is int` is necessary to satisfy the requirement that booleans are invalid integers."
+            ],
+            "test_strategy": [
+              "Test an empty array: `[]` -> `{}`",
+              "Test single reading: `[{\"meter\": \"A\", \"time\": 1, \"reading\": 100}]` -> `{\"A\": 0}`",
+              "Test out-of-order and duplicates: `[{\"meter\": \"A\", \"time\": 10, \"reading\": 100}, {\"meter\": \"A\", \"time\": 5, \"reading\": 50}, {\"meter\": \"A\", \"time\": 10, \"reading\": 110}]` -> `{\"A\": 60}` (Last wins for t=10, then 110-50=60)",
+              "Test reset policy: `[{\"meter\": \"A\", \"time\": 1, \"reading\": 10}, {\"meter\": \"A\", \"time\": 2, \"reading\": 5}, {\"meter\": \"A\", \"time\": 3, \"reading\": 15}]` -> `{\"A\": 10}` (Interval 1: 5-10=-5 -> 0; Interval 2: 15-5=10)",
+              "Test invalid types (float): `[{\"meter\": \"A\", \"time\": 1, \"reading\": 10.0}]` -> Exit 1, no output",
+              "Test invalid types (bool): `[{\"meter\": \"A\", \"time\": true, \"reading\": 10}]` -> Exit 1, no output",
+              "Test empty meter: `[{\"meter\": \"\", \"time\": 1, \"reading\": 10}]` -> Exit 1, no output",
+              "Test negative values: `[{\"meter\": \"A\", \"time\": -1, \"reading\": 10}]` -> Exit 1, no output",
+              "Test missing keys: `[{\"meter\": \"A\", \"time\": 1}]` -> Exit 1, no output"
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Per-event validation precedes overwriting; strict types, extra keys and input/output contract are specified.",
+              "Per-meter timestamp dictionary uses last input occurrence before sorting.",
+              "Baseline, equals, singleton, empty array and nonnegative deltas are covered.",
+              "The plan labels its reset rule provisional and applies it consistently. It stops short of explicitly asking which reset accounting convention the owner wants.",
+              "Last duplicate at time 10 changes the retained reading to 110, yielding 60. Readings 10,5,15 correctly give 10 under the skip-reset-interval policy; counting the reset reading would give 15. Empty, singleton and invalid cases are consistent."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              1,
+              2
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "resident_before": false
+        },
+        {
+          "model": "gemma-26b-q4",
+          "case": "meter",
+          "score": 9,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 78.71103620529175,
+            "generation_seconds": 61.229581,
+            "load_seconds": 16.9448111,
+            "native_total_seconds": 78.6832999,
+            "output_tokens": 6441,
+            "prompt_seconds": 0.496294,
+            "prompt_tokens": 582,
+            "total_tokens": 7023
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "Input is read from stdin as a JSON array of objects.",
+              "Each object is validated for: 'meter' (non-empty string), 'time' (non-negative integer, not boolean/float), and 'reading' (non-negative integer, not boolean/float).",
+              "Extra keys in input objects are ignored.",
+              "If any event in the input is invalid, the program exits with a non-zero status and produces no stdout.",
+              "For a specific meter and time, only the last occurrence in the input array is used (superseding previous ones).",
+              "Events are processed in increasing order of time for each meter.",
+              "Usage is calculated as the sum of differences between consecutive readings. If a reading is lower than the previous one (a reset), the usage for that interval is treated as 0 (provisional policy: usage = max(0, R_{i+1} - R_{i})).",
+              "Meters with only a single reading result in 0 usage.",
+              "The output is a single JSON object mapping every meter name to its total integer usage.",
+              "An empty input array results in an empty JSON object `{}` and exit status 0.",
+              "The program exits with status 0 on successful completion."
+            ],
+            "assumptions": [
+              "Provisional policy for resets: If a reading at time $T_{i+1}$ is less than the reading at $T_i$, the usage for that interval is 0. This avoids negative usage and allows the next reading to act as a new baseline for subsequent intervals.",
+              "The 'last occurrence wins' rule applies to the (meter, time) pair, but all input objects must still pass validation even if they are superseded."
+            ],
+            "goal": "Create a CLI tool that calculates cumulative meter usage from a JSON stream of events, handling out-of-order data, duplicates, and device resets.",
+            "implementation_steps": [
+              "1. Import `sys` and `json` modules.",
+              "2. Read the entire input from `sys.stdin` and attempt to parse it as JSON using `json.loads()`.",
+              "3. If parsing fails or the result is not a list, exit with status 1.",
+              "4. Initialize a dictionary `meter_data` to store `{meter_name: {time: reading}}`.",
+              "5. Iterate through every event in the input list to validate them and populate `meter_data`.",
+              "6. During iteration, for every event, check:\n    a. Is it a dictionary?\n    b. Is 'meter' a string and not empty?\n    c. Is 'time' an integer (and not a boolean) and >= 0?\n    d. Is 'reading' an integer (and not a boolean) and >= 0?\n    e. Are all three keys present?",
+              "7. If any validation fails, exit with status 1 immediately without printing anything.",
+              "8. If validation passes, for each event, update `meter_data[meter][time] = reading` (implementing the 'last wins' rule).",
+              "9. Create a `results` dictionary.",
+              "10. For each meter in `meter_data`:\n    a. Extract and sort the time-reading pairs by time.\n    b. Calculate total usage: `usage = sum(max(0, r_next - r_prev) for r_prev, r_next in consecutive_pairs)`.\n    c. Store `results[meter] = usage`.",
+              "11. Output the `results` dictionary as a JSON string using `json.dumps()` and exit with status 0."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` returns `True`, so explicit `bool` checks are required to satisfy the requirement that booleans are invalid.",
+              "Large inputs might require efficient processing, though the requirements suggest a standard-library implementation likely handling moderately sized batches."
+            ],
+            "test_strategy": [
+              "Test 1: Out-of-order duplicates. Input: `[{\"meter\": \"A\", \"time\": 2, \"reading\": 20}, {\"meter\": \"A\", \"time\": 1, \"reading\": 10}, {\"meter\": \"A\", \"time\": 2, \"reading\": 25}]`. Expected Output: `{\"A\": 15}` (Time 2 is 25, Time 1 is 10, usage 15).",
+              "Test 2: Reset policy. Input: `[{\"meter\": \"B\", \"time\": 10, \"reading\": 100}, {\"meter\": \"B\", \"time\": 20, \"reading\": 150}, {\"meter\": \"B\", \"time\": 30, \"reading\": 50}]`. Expected Output: `{\"B\": 50}` (150-100=50, 50-150=-100 -> 0).",
+              "Test 3: Validation failure. Input: `[{\"meter\": \"A\", \"time\": 1, \"reading\": 10}, {\"meter\": \"A\", \"time\": 2, \"reading\": 1.5}]`. Expected: No stdout, exit 1.",
+              "Test 4: Validation failure (bool). Input: `[{\"meter\": \"A\", \"time\": True, \"reading\": 10}]`. Expected: No stdout, exit 1.",
+              "Test 5: Empty input. Input: `[]`. Expected: `{}`.",
+              "Test 6: Single reading. Input: `[{\"meter\": \"C\", \"time\": 1, \"reading\": 10}]`. Expected: `{\"C\": 0}`."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Validates each input event even when superseded, including strict integer checks and required keys.",
+              "Validates then overwrites by meter/time and sorts retained times.",
+              "Positive deltas, zero baseline, equals, singleton and empty cases follow directly.",
+              "Labels zeroing the reset interval provisional and restarts the baseline at the decreased reading, but does not explicitly bring the reset-accounting choice back to the owner for confirmation.",
+              "Duplicate input gives 25-10=15. Reset input gives 50+0=50, distinguishable from 100 if the post-reset reading counts. Empty, singleton and float error cases agree. The uppercase True example only exercises malformed JSON as literally printed."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              1,
+              2
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "resident_before": false
+        }
+      ],
+      "aggregate": {
+        "gemma-26b-q4": {
+          "submissions": 2,
+          "ready": 2,
+          "points": 19,
+          "points_available": 20,
+          "elapsed_seconds": 138.61408352851868
+        },
+        "gemma-12b-q8": {
+          "submissions": 2,
+          "ready": 1,
+          "points": 15,
+          "points_available": 20,
+          "elapsed_seconds": 180.66400480270386
+        },
+        "gemma-31b-qat": {
+          "submissions": 2,
+          "ready": 1,
+          "points": 17,
+          "points_available": 20,
+          "elapsed_seconds": 314.06085109710693
+        }
+      },
+      "limits": [
+        "One independent submission per model and brief; the same two briefs recur across comparisons.",
+        "Plan readiness is human rubric scoring, not executed implementation correctness.",
+        "Wall time includes loading and transport; warm model residency can affect the comparison."
+      ]
+    },
+    {
+      "experiment": "gemma-26b-q4-versus-q5",
+      "records": [
+        {
+          "model": "gemma-26b-q4",
+          "case": "apportion",
+          "score": 10,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 111.10979461669922,
+            "generation_seconds": 94.016454,
+            "load_seconds": 16.6964884,
+            "native_total_seconds": 111.0812117,
+            "output_tokens": 9645,
+            "prompt_seconds": 0.359172,
+            "prompt_tokens": 556,
+            "total_tokens": 10201
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The CLI reads a single JSON object from stdin containing 'credits' and 'weights'.",
+              "The 'credits' value must be a non-negative integer (not a boolean or float).",
+              "The 'weights' value must be a non-empty dictionary mapping lowercase ASCII letter-only IDs (strings) to non-negative integers (not booleans or floats).",
+              "The sum of the values in 'weights' must be greater than zero.",
+              "Allocation follows the floor of the proportional share: floor(credits * weight / total_weight).",
+              "Remaining credits are distributed one by one to IDs with the highest remainders (calculated as (credits * weight) % total_weight).",
+              "In case of equal remainders, the additional credit is given to the ID that comes first alphabetically (ascending order).",
+              "The output is a JSON array of [ID, allocated_integer] pairs, sorted by ID in ascending order.",
+              "Zero allocations must be included in the output.",
+              "On any invalid input (malformed JSON, incorrect types, invalid weight sum, etc.), the program exits with a non-zero status and produces no output on stdout.",
+              "Extra top-level keys in the input JSON are ignored.",
+              "The implementation uses exact integer arithmetic throughout (no floating-point math)."
+            ],
+            "assumptions": [
+              "An 'ID' is a non-empty string consisting only of lowercase ASCII letters 'a'-'z'.",
+              "The term 'letter-only' implies no digits, underscores, or other characters are allowed in the ID string.",
+              "The term 'non-negative integer' strictly excludes booleans, as `isinstance(True, int)` is true in Python."
+            ],
+            "goal": "Implement a single-file Python CLI `solution.py` that distributes a pool of credits among IDs based on their relative weights using exact integer arithmetic, handling remainder ties via alphabetical sorting of IDs.",
+            "implementation_steps": [
+              "Import `json` and `sys` modules.",
+              "Define a main function to handle the program flow.",
+              "Inside a try-except block to capture all parsing and validation errors:",
+              "  Read the entire content from `sys.stdin`.",
+              "  Parse the content using `json.loads()`.",
+              "  Validate that the input is a dictionary.",
+              "  Validate `credits`: check `type(credits) is int`, `credits >= 0`.",
+              "  Validate `weights`: check `type(weights) is dict` and `len(weights) > 0`.",
+              "  Iterate through `weights` to validate keys and values:",
+              "    - Key must be a non-empty string containing only 'a'-'z'.",
+              "    - Value must be `type(v) is int` and `v >= 0`.",
+              "  Calculate `total_weight` and ensure it is $> 0$.",
+              "  For each ID, calculate the floor share: `(credits * weight) // total_weight`.",
+              "  For each ID, calculate the remainder: `(credits * weight) % total_weight`.",
+              "  Calculate total remaining credits to distribute: `credits - sum(floor_shares)`.",
+              "  Sort the IDs based on a primary key of `remainder` (descending) and a secondary key of `ID` (ascending).",
+              "  Distribute the remaining credits to the top sorted IDs.",
+              "  Prepare the final list of `[ID, allocated_amount]` pairs and sort them by ID ascending.",
+              "  Print the JSON-encoded result to `sys.stdout`.",
+              "  On error, exit with status 1 and ensure stdout is empty.",
+              "  On success, exit with status 0."
+            ],
+            "risks": [
+              "Using `isinstance(x, int)` instead of `type(x) is int` will incorrectly allow booleans.",
+              "Using floating-point division for proportional shares will cause precision errors with large integers.",
+              "Incorrect tie-breaking logic for remainders or incorrect final sorting."
+            ],
+            "test_strategy": [
+              "Test Case 1 (Standard/Tie-break): Input `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 1, \"c\": 1}}`. Expected: `[[\"a\", 4], [\"b\", 3], [\"c\", 3]]`.",
+              "Test Case 2 (Weight Mismatch/Tie-break): Input `{\"credits\": 1, \"weights\": {\"b\": 1, \"a\": 1}}`. Expected: `[[\"a\", 1], [\"b\", 0]]`.",
+              "Test Case 3 (Zero weight): Input `{\"credits\": 10, \"weights\": {\"a\": 0, \"b\": 1}}`. Expected: `[[\"a\", 0], [\"b\", 10]]`.",
+              "Test Case 4 (Invalid types): Input `{\"credits\": 10.0, \"weights\": {\"a\": 1}}`. Expected: exit non-zero, empty stdout.",
+              "Test Case 5 (Boolean error): Input `{\"credits\": true, \"weights\": {\"a\": 1}}`. Expected: exit non-zero, empty stdout.",
+              "Test Case 6 (Sum of weights zero): Input `{\"credits\": 10, \"weights\": {\"a\": 0}}`. Expected: exit non-zero, empty stdout.",
+              "Test Case 7 (Malformed JSON): Input `{\"credits\": 10,`. Expected: exit non-zero, empty stdout."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Names solution.py, stdin/stdout, ignored top-level fields, strict integer and ASCII ID checks, positive weight sum, zero exit on success and empty stdout on error.",
+              "Explicitly uses integer product, floor division and modulo against a positive denominator.",
+              "Computes the exact residual credit count, ranks by decreasing remainder then ascending ID, includes zeros and separately sorts output.",
+              "Unconditional validation and integer arithmetic handle zero credits, zero weights and large integers without a new limit.",
+              "The 10-credit equal split yields 4,3,3. Reversed input b,a at one credit yields a:1,b:0, exposing tie and ordering bugs. The zero-weight example gives 0,10. The error oracles agree with the brief."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              2,
+              2
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "loaded_before": false
+        },
+        {
+          "model": "gemma-26b-q5",
+          "case": "meter",
+          "score": 8,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 101.2506959438324,
+            "generation_seconds": 81.389969,
+            "load_seconds": 19.400584,
+            "native_total_seconds": 101.2214364,
+            "output_tokens": 6396,
+            "prompt_seconds": 0.420966,
+            "prompt_tokens": 582,
+            "total_tokens": 6978
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "Input is read from stdin as a JSON array.",
+              "Each event is validated for: 'meter' (non-empty string), 'time' (non-negative integer, not boolean/float), and 'reading' (non-negative integer, not boolean/float).",
+              "If any event in the array is invalid, the program exits with a non-zero status code and produces no stdout.",
+              "For any meter and time combination, the last occurrence in the input array takes precedence.",
+              "Usage is calculated per meter using sorted time order of the retained readings.",
+              "The first reading for any meter is treated as a baseline (usage = 0).",
+              "A reset policy is applied: If a reading is lower than the previous reading, usage for that interval is treated as equal to the current reading (assuming a reset to zero).",
+              "Meters with only one reading are included in the output with a usage of 0.",
+              "The output is a single JSON object mapping every seen meter to its total integer usage.",
+              "The program exits with status 0 on successful processing.",
+              "The program handles empty input arrays by outputting an empty JSON object: '{}'.",
+              "The program handles out-of-order event arrival by sorting readings by time before calculating usage."
+            ],
+            "assumptions": [
+              "The provisional policy for device resets (reading decreases) is: usage = current_reading (effectively assuming the meter reset to 0 at the moment of the drop).",
+              "Invalid input includes not being a JSON array, missing required keys, or keys having incorrect types/values (including booleans or floats as integers)."
+            ],
+            "goal": "Create a Python CLI that calculates cumulative meter usage from a JSON array of events, handling resets and out-of-order events, and outputting a JSON mapping of meter to usage.",
+            "implementation_steps": [
+              "Import `sys` and `json`.",
+              "Read all data from `sys.stdin`.",
+              "Attempt to parse JSON. If parsing fails or the result is not a list, exit with status 1.",
+              "Initialize a dictionary `meter_data` where `meter_data[meter]` is a dictionary mapping `time` to `reading`.",
+              "Iterate through the raw list of events to validate each one according to the specified rules (non-empty string for meter, non-negative integer for time/reading, no booleans/floats).",
+              "If validation fails for any event, exit with status 1 immediately without printing anything.",
+              "While validating, if an event is valid, store it in `meter_data` such that `meter_data[meter][time] = reading` (this naturally handles the 'last occurrence wins' rule).",
+              "Initialize `results` dictionary.",
+              "Iterate through each meter in `meter_data`:",
+              "  Sort the `time` keys for that meter.",
+              "  Initialize `total_usage = 0` and `last_reading = None`.",
+              "  Iterate through the sorted `time` keys:",
+              "    Get `current_reading`.",
+              "    If `last_reading` is `None`, set `last_reading = current_reading` (baseline).",
+              "    Else if `current_reading >= last_reading`, `total_usage += (current_reading - last_reading)`.",
+              "    Else (reset case), `total_usage += current_reading`.",
+              "    Set `last_reading = current_reading`.",
+              "  Set `results[meter] = total_usage`.",
+              "Print the `results` dictionary as a JSON string to stdout.",
+              "Exit with status 0."
+            ],
+            "risks": [
+              "Large input size: reading the entire `stdin` into memory might be an issue for extremely large datasets, but standard for this task's constraints.",
+              "Boolean/Integer confusion: `isinstance(True, int)` is `True` in Python, so explicit boolean check is necessary."
+            ],
+            "test_strategy": [
+              "Test 1 (Standard/Out-of-order/Duplicate): Input `[{\"meter\": \"A\", \"time\": 10, \"reading\": 10}, {\"meter\": \"A\", \"time\": 5, \"reading\": 5}, {\"meter\": \"A\", \"time\": 10, \"reading\": 20}]`. Expected: `{\"A\": 15}`.",
+              "Test 2 (Reset Policy): Input `[{\"meter\": \"B\", \"time\": 10, \"reading\": 100}, {\"meter\": \"B\", \"time\": 20, \"reading\": 30}]`. Expected: `{\"B\": 30}`.",
+              "Test 3 (Invalid Type): Input `[{\"meter\": \"C\", \"time\": 10, \"reading\": 10.5}]`. Expected: Exit 1, no stdout.",
+              "Test 4 (Invalid Bool): Input `[{\"meter\": \"D\", \"time\": True, \"reading\": 10}]`. Expected: Exit 1, no stdout.",
+              "Test 5 (Single Reading): Input `[{\"meter\": \"E\", \"time\": 5, \"reading\": 50}]`. Expected: `{\"E\": 0}`.",
+              "Test 6 (Empty Input): Input `[]`. Expected: `{}`."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Validates every raw event before storing it and specifies strict types, nonnegative values, malformed input, exit status and stdout. Ignoring extra event keys is implicit in field selection but never stated.",
+              "Assigns each valid event in input order to a per-meter time dictionary and sorts the retained keys.",
+              "First reading sets baseline, nondecreasing differences include zero for equals; singleton and empty outputs are specified.",
+              "States the provisional reset-to-zero assumption and adds the new reading on decreases, then updates the baseline. It does not explicitly identify the accounting choice for the product owner to confirm.",
+              "The duplicate changes retained readings to 5 then 20, giving 15. The reset 100 to 30 gives 30 under its stated policy versus zero if the interval is skipped. Singleton/empty/error oracles are consistent. Uppercase True would exercise malformed JSON rather than the boolean-type check."
+            ],
+            "points": [
+              1,
+              2,
+              2,
+              1,
+              2
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "loaded_before": false
+        },
+        {
+          "model": "gemma-26b-q4",
+          "case": "meter",
+          "score": 9,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 94.26494717597961,
+            "generation_seconds": 84.659448,
+            "load_seconds": 9.1284407,
+            "native_total_seconds": 94.2376317,
+            "output_tokens": 8736,
+            "prompt_seconds": 0.438695,
+            "prompt_tokens": 582,
+            "total_tokens": 9318
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "Input is read from stdin as a JSON array of objects.",
+              "Every event in the array is validated: `meter` must be a non-empty string, `time` must be a non-negative integer, and `reading` must be a non-negative integer.",
+              "Strict type validation: `time` and `reading` must be integers (rejecting floats and booleans).",
+              "Validation failure (any event invalid) results in exit code non-zero and no stdout.",
+              "Extra keys in event objects are ignored.",
+              "For events with identical `meter` and `time`, only the last occurrence in the array is retained.",
+              "Usage is calculated per meter based on chronological readings.",
+              "The first reading for each meter serves as the initial baseline.",
+              "Reset policy: When a reading decreases relative to the previous chronological reading, the usage for that specific interval is treated as 0. Total usage is the sum of all non-negative deltas ($\\sum \\max(0, r_{i+1} - r_i)$).",
+              "Meters with only a single reading report 0 usage.",
+              "Output is a single JSON object mapping every seen meter to its total integer usage.",
+              "Empty input array produces an empty JSON object `{}` and exit code 0.",
+              "Output is written to stdout and exit code is 0 on success."
+            ],
+            "assumptions": [
+              "The 'Reset Policy' decision: When $reading_{i+1} < reading_i$, the usage for that interval is 0. This avoids negative usage and treats the lower reading as a new baseline for subsequent intervals.",
+              "Validation happens on the raw input array before deduplication, ensuring even superseded events are checked for type and schema correctness."
+            ],
+            "goal": "Implement a Python CLI that processes cumulative meter readings from a JSON stdin stream, handling out-of-order events and device resets via a provisional 'zero-delta' policy, and outputs total usage per meter.",
+            "implementation_steps": [
+              "1. Read all input from `sys.stdin`.",
+              "2. Parse input using `json.loads`. If parsing fails, exit non-zero with no output.",
+              "3. Validate that the parsed JSON is a list.",
+              "4. Iterate through the list to validate each object: check for existence of keys, non-empty `meter` string, and strictly integer (not boolean/float) non-negative `time` and `reading`.",
+              "5. If any validation fails, exit non-zero immediately.",
+              "6. Deduplicate events using a dictionary keyed by `(meter, time)`, ensuring the last occurrence wins.",
+              "7. Group readings by meter and sort them by time.",
+              "8. For each meter, iterate through sorted readings and compute the sum of $\\max(0, r_{i+1} - r_i)$.",
+              "9. Construct a dictionary of `{meter: total_usage}`.",
+              "10. Print the dictionary as JSON to `sys.stdout` and exit 0."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` returns `True`, so strict type checking using `type(x) is int` or `not isinstance(x, bool)` is required to satisfy the requirement regarding booleans.",
+              "Large inputs could cause memory issues, but standard library `json` and dictionary storage are expected to handle reasonable CLI workloads."
+            ],
+            "test_strategy": [
+              "Test 1 (Out-of-order + Duplicate + Reset): Input `[{\"meter\": \"m1\", \"time\": 2, \"reading\": 20}, {\"meter\": \"m1\", \"time\": 1, \"reading\": 10}, {\"meter\": \"m1\", \"time\": 1, \"reading\": 15}, {\"meter\": \"m1\", \"time\": 3, \"reading\": 5}, {\"meter\": \"m1\", \"time\": 4, \"reading\": 10}]`. Expected: `{\"m1\": 10}` (Deduplicated `(m1, 1)` is `15`. Chronological: `(1, 15), (2, 20), (3, 5), (4, 10)`. Deltas: `5, -15 (reset), 5`. Total: `10`).",
+              "Test 2 (Equal readings/Single reading): Input `[{\"meter\": \"m2\", \"time\": 10, \"reading\": 100}, {\"meter\": \"m2\", \"time\": 20, \"reading\": 100}, {\"meter\": \"m3\", \"time\": 5, \"reading\": 50}]`. Expected: `{\"m2\": 0, \"m3\": 0}`.",
+              "Test 3 (Invalid types): Input `[{\"meter\": \"m1\", \"time\": 1, \"reading\": 10.5}]` or `[{\"meter\": \"m1\", \"time\": True, \"reading\": 10}]`. Expected: Exit non-zero, no stdout.",
+              "Test 4 (Empty input): Input `[]`. Expected: `{}`."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Explicitly checks every raw event before deduplication, rejects booleans/floats, ignores extra fields and supplies failure/success behavior.",
+              "Last write wins for (meter,time), then retained readings are grouped and sorted by time.",
+              "Positive deltas sum from the baseline; equal changes, singleton meters and empty batches are handled.",
+              "Calls zeroing a reset interval provisional and applies it consistently using the decreased value as the next baseline. It stops short of asking which accounting treatment the owner wants to confirm.",
+              "The combined duplicate/reset fixture retains 15,20,5,10, producing 5+0+5=10; counting the post-reset reading would give 15 instead. The separate equal/singleton fixture correctly gives zero for both meters. Uppercase True in the invalid example fails parsing rather than exercising boolean validation."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              1,
+              2
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "loaded_before": false
+        },
+        {
+          "model": "gemma-26b-q5",
+          "case": "apportion",
+          "score": 10,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": true,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 122.91413283348083,
+            "generation_seconds": 109.21554,
+            "load_seconds": 13.3189708,
+            "native_total_seconds": 122.9060781,
+            "output_tokens": 8557,
+            "prompt_seconds": 0.360481,
+            "prompt_tokens": 556,
+            "total_tokens": 9113
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program reads a single JSON object from `stdin`.",
+              "The program validates that `credits` is a non-negative integer (rejects floats and booleans).",
+              "The program validates that `weights` is a non-empty object mapping distinct lowercase ASCII letter-only IDs to non-negative integers (rejects floats and booleans).",
+              "The program validates that the sum of `weights` is greater than zero.",
+              "The program ignores any top-level JSON keys other than `credits` and `weights`.",
+              "The program uses exact integer arithmetic for proportional sharing and remainder calculation.",
+              "The program calculates the floor of the proportional share for each ID: `floor(credits * weight / total_weight)`.",
+              "The program distributes remaining credits (where `leftover = credits - sum(floors)`) to the IDs with the highest remainder.",
+              "If multiple IDs have the same remainder, the credit is given to the ID with the lowest ASCII value (ascending ID order).",
+              "The program outputs a JSON array of `[ID, allocated_integer]` pairs, sorted by ID in ascending order.",
+              "The program includes zero allocations in the output.",
+              "On successful execution, the program exits with code 0.",
+              "On any error (invalid JSON, invalid types, missing keys, invalid weight sum, invalid ID format), the program exits with a non-zero code and produces no output to `stdout`."
+            ],
+            "assumptions": [
+              "An 'ID' is a string containing one or more characters, and all characters must be in the range 'a'-'z'.",
+              "The 'non-negative integer' requirement for `credits` and `weights` values strictly excludes `bool` (since `isinstance(True, int)` is true in Python).",
+              "The 'sum of weights must be positive' constraint applies even if `credits` is 0."
+            ],
+            "goal": "Implement a CLI tool to split an indivisible pool of credits among weighted entities using a proportional floor-and-remainder distribution strategy, ensuring strict integer arithmetic and specific tie-breaking rules.",
+            "implementation_steps": [
+              "1. Read `stdin` entirely and attempt to parse with `json.loads`.",
+              "2. Validate the structure and data types of the parsed JSON: check for `credits` (non-negative `int`, not `bool`) and `weights` (non-empty `dict`, keys are `a-z` strings, values are non-negative `int`, not `bool`).",
+              "3. Calculate `total_weight = sum(weights.values())`. If `total_weight <= 0`, exit with error.",
+              "4. For each ID and weight: calculate `base_allocation = (credits * weight) // total_weight` and `remainder_numerator = (credits * weight) % total_weight`.",
+              "5. Calculate `leftover_credits = credits - sum(all base_allocations)`.",
+              "6. Sort the ID list by `(-remainder_numerator, id)` to handle the remainder distribution logic (highest remainder first, then ascending ID).",
+              "7. Increment the `base_allocation` for the first `leftover_credits` entries in the sorted list.",
+              "8. Sort the resulting `[ID, allocation]` pairs by `ID` ascending.",
+              "9. Output the final list as a JSON array to `stdout` and exit with 0.",
+              "10. Wrap the entire logic in a try-except block that catches all validation/parsing errors, printing nothing to `stdout` and exiting with code 1."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` returning `True` might bypass strict integer validation if not handled by `type(x) is int`.",
+              "Integer overflow is not a risk in Python, but the requirement for 'exact integer arithmetic' must be respected by avoiding floats in intermediate steps."
+            ],
+            "test_strategy": [
+              "Test Case 1: Standard distribution. Input: `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 1, \"c\": 1}}`. Expected: `[[\"a\", 4], [\"b\", 3], [\"c\", 3]]`.",
+              "Test Case 2: Remainder tie-break. Input: `{\"credits\": 1, \"weights\": {\"z\": 1, \"a\": 1}}`. Expected: `[[\"a\", 1], [\"z\", 0]]`.",
+              "Test Case 3: Zero credits. Input: `{\"credits\": 0, \"weights\": {\"a\": 10, \"b\": 20}}`. Expected: `[[\"a\", 0], [\"b\", 0]]`.",
+              "Test Case 4: Invalid types (float). Input: `{\"credits\": 10.5, \"weights\": {\"a\": 1}}`. Expected: Exit non-zero, empty stdout.",
+              "Test Case 5: Invalid types (bool). Input: `{\"credits\": True, \"weights\": {\"a\": 1}}`. Expected: Exit non-zero, empty stdout.",
+              "Test Case 6: Zero weight sum. Input: `{\"credits\": 10, \"weights\": {\"a\": 0, \"b\": 0}}`. Expected: Exit non-zero, empty stdout.",
+              "Test Case 7: Malformed JSON. Input: `{\"credits\": 10, \"weights\": {`. Expected: Exit non-zero, empty stdout."
+            ]
+          },
+          "human_review": {
+            "evidence": [
+              "Defines single-object input, required keys, strict types and ASCII IDs, extra-key handling, positive sum, output and failure behavior.",
+              "Uses integer product, // and % with the total weight as denominator.",
+              "Increments the first leftover entries in sorted (-remainder,ID) order, then emits all pairs in ID order.",
+              "Explicitly checks positive total even when credits is zero and avoids floats or fixed bounds.",
+              "Equal weights split 10 as 4,3,3. One credit at weights z:1,a:1 goes to a despite input order. Zero credits at 10:20 yields 0,0. Caveat: the proposed uppercase True literal is malformed JSON, so the error result is correct but it would not isolate rejection of a real JSON boolean."
+            ],
+            "points": [
+              2,
+              2,
+              2,
+              2,
+              2
+            ],
+            "blockers": []
+          },
+          "assistance": "none; independently graded first submission",
+          "loaded_before": false
+        }
+      ],
+      "aggregate": {
+        "gemma-26b-q4": {
+          "submissions": 2,
+          "ready": 2,
+          "points": 19,
+          "points_available": 20,
+          "elapsed_seconds": 205.37474179267883
+        },
+        "gemma-26b-q5": {
+          "submissions": 2,
+          "ready": 2,
+          "points": 18,
+          "points_available": 20,
+          "elapsed_seconds": 224.16482877731323
+        }
+      },
+      "limits": [
+        "One independent submission per model and brief; the same two briefs recur across comparisons.",
+        "Plan readiness is human rubric scoring, not executed implementation correctness.",
+        "Wall time includes loading and transport; warm model residency can affect the comparison.",
+        "The Q4 and Q5 deployable packages differ beyond quantization; precision is not isolated as the causal variable."
+      ]
+    },
+    {
+      "experiment": "gemma-26b-versus-31b-iq4-pilot",
+      "records": [
+        {
+          "model": "gemma-31b-iq4-xs",
+          "case": "apportion",
+          "score": 10,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 68.56938290596008,
+            "generation_seconds": 67.199257,
+            "load_seconds": 0.0038325,
+            "native_total_seconds": 68.5623471,
+            "output_tokens": 2347,
+            "prompt_seconds": 0.604401,
+            "prompt_tokens": 556,
+            "total_tokens": 2903
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program must read a single JSON object from stdin.",
+              "The program must validate that 'credits' is a non-negative integer (excluding booleans and floats).",
+              "The program must validate that 'weights' is a non-empty object mapping distinct lowercase ASCII letter-only IDs to non-negative integers (excluding booleans and floats).",
+              "The program must validate that the sum of all weights is strictly positive.",
+              "The program must ignore any top-level keys other than 'credits' and 'weights'.",
+              "The program must calculate the initial allocation for each ID as floor(credits * weight / total_weight) using exact integer arithmetic.",
+              "The program must calculate the remainder for each ID as (credits * weight) mod total_weight.",
+              "The program must distribute remaining credits (total_credits - sum of initial allocations) one-by-one to IDs with the highest remainders.",
+              "Ties in remainders must be broken by ascending ID (alphabetical order).",
+              "The program must output a JSON array of [ID, allocation] pairs, sorted by ascending ID.",
+              "The program must exit with a non-zero status and produce empty stdout if the input is malformed JSON, contains invalid types, invalid IDs, or if the weight sum is not positive.",
+              "The program must exit with status zero on success."
+            ],
+            "assumptions": [
+              "Lowercase ASCII letter-only IDs means characters in the range 'a'-'z' exclusively.",
+              "Empty stdout on error means no characters should be written to the standard output stream before exiting with a non-zero code."
+            ],
+            "goal": "Implement a CLI tool in `solution.py` to split credits among IDs based on the Highest Remainder Method.",
+            "implementation_steps": [
+              "Import `sys` and `json` modules.",
+              "Read stdin and attempt to parse as a JSON object. Catch `json.JSONDecodeError` and exit nonzero.",
+              "Implement a type-checking helper to ensure values are strictly `int` (not `bool` or `float`).",
+              "Validate the existence and types of 'credits' and 'weights'.",
+              "Validate that all keys in 'weights' consist only of lowercase ASCII letters and all values are non-negative integers.",
+              "Calculate the sum of weights; exit nonzero if sum is $\\le 0$.",
+              "Compute the initial allocation and remainder for each ID using integer division (`//`) and modulo (`%`).",
+              "Calculate the total number of remaining credits to be distributed.",
+              "Sort the IDs by remainder (descending) and then by ID (ascending) to determine the priority for additional credits.",
+              "Allocate the remaining credits to the top-priority IDs.",
+              "Construct the final list of `[ID, allocation]` pairs, sort them by ID ascending, and print as JSON.",
+              "Exit with 0."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` returns `True`, which violates the 'booleans are invalid integers' requirement. Use `type(x) is int` instead.",
+              "Large integers are handled natively by Python, but precision must be maintained using integer arithmetic rather than floating point division."
+            ],
+            "test_strategy": [
+              "Test Case 1 (Basic): `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 2}}` $\\rightarrow$ `[[\"a\", 3], [\"b\", 7]]` (Total weight 3; a: 3.33, b: 6.66; b gets the remainder).",
+              "Test Case 2 (Remainder Tie): `{\"credits\": 1, \"weights\": {\"a\": 1, \"b\": 1}}` $\\rightarrow$ `[[\"a\", 1], [\"b\", 0]]` (Tied remainders 0.5; 'a' wins by ascending ID).",
+              "Test Case 3 (Invalid Type): `{\"credits\": 10.0, \"weights\": {\"a\": 1}}` $\\rightarrow$ Non-zero exit, empty stdout.",
+              "Test Case 4 (Invalid ID): `{\"credits\": 10, \"weights\": {\"a1\": 1}}` $\\rightarrow$ Non-zero exit, empty stdout.",
+              "Test Case 5 (Zero Weight Sum): `{\"credits\": 10, \"weights\": {\"a\": 0, \"b\": 0}}` $\\rightarrow$ Non-zero exit, empty stdout.",
+              "Test Case 6 (Empty Weights): `{\"credits\": 10, \"weights\": {}}` $\\rightarrow$ Non-zero exit, empty stdout."
+            ]
+          },
+          "human_review": {
+            "total": 10,
+            "scores": [
+              2,
+              2,
+              2,
+              2,
+              2
+            ],
+            "ready": true,
+            "blocking_defects": [],
+            "evidence": [
+              "Defines single-object CLI, required keys, nonempty weights, lowercase ASCII IDs, exact integer validation, positive sum, extra-key handling and exit/stdout contract.",
+              "Explicit integer division and modulo of credits times weight by total, with no floating-point implementation.",
+              "Residual allocation sorted descending remainder then ascending ID, all IDs emitted in ascending order including zero allocations.",
+              "Steps are consistent; ordinary integer operations support zero credits and zero weights without introducing an application bound. Large-integer precision risk explicitly identified.",
+              "Six concrete cases have consistent expected results. Basic 10 over weights 1:2 produces 3:7; tie at one remaining credit produces a=1,b=0. Four invalid cases correctly require nonzero and empty stdout."
+            ],
+            "limitations": [
+              "No executed implementation; a plan score does not establish CLI correctness.",
+              "Python interpreter decimal-string limits are not discussed; no application-imposed cap is proposed."
+            ],
+            "grading": "Independent assessment before model identities/timings; frozen five-dimension rubric."
+          },
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "gemma-26b-q4",
+          "case": "meter",
+          "score": 9,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 72.82964825630188,
+            "generation_seconds": 62.993512,
+            "load_seconds": 9.443245,
+            "native_total_seconds": 72.796788,
+            "output_tokens": 6493,
+            "prompt_seconds": 0.350608,
+            "prompt_tokens": 582,
+            "total_tokens": 7075
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "Input is read from `stdin` as a JSON array.",
+              "Invalid JSON syntax or input that is not a JSON array results in a non-zero exit code and no `stdout`.",
+              "Every event is validated before processing: `meter` must be a non-empty string, `time` must be a non-negative integer, and `reading` must be a non-negative integer.",
+              "Booleans and floats are strictly rejected as invalid integers (e.g., `True` or `1.0` are invalid).",
+              "If any single event in the array is invalid, the program exits with a non-zero code and emits no `stdout`.",
+              "For any specific `(meter, time)` pair, if multiple events exist, the last occurrence in the input array is used.",
+              "Events for each meter are processed in increasing order of `time`.",
+              "Usage for a meter is the sum of non-negative differences between consecutive readings.",
+              "Provisional Reset Policy: If a reading is less than the previous reading (`reading[i] < reading[i-1]`), the usage for that interval is 0, and the current reading becomes the new baseline for the next interval.",
+              "Meters with only one reading result in a usage of 0.",
+              "The output is a single JSON object mapping each meter name to its total integer usage.",
+              "The program exits with code 0 on successful completion.",
+              "An empty input array `[]` results in an empty JSON object `{}` and exit code 0."
+            ],
+            "assumptions": [
+              "The 'last occurrence wins' rule for duplicates applies to the order of elements in the JSON array provided in `stdin`.",
+              "The 'provisional policy' for resets is: `usage_for_interval = max(0, current_reading - previous_reading)` and `previous_reading` is updated to `current_reading` regardless of whether a reset occurred.",
+              "A meter is identified by its string name; extra keys in the event objects are ignored during validation and processing."
+            ],
+            "goal": "Create a CLI tool that calculates cumulative meter usage from a sequence of events, handling duplicates, out-of-order arrivals, and device resets.",
+            "implementation_steps": [
+              "Implement a `validate_event(event)` function that strictly checks types using `type(x) is int` to exclude booleans and floats, and ensures strings are non-empty and numbers are non-negative.",
+              "Implement a `main()` function that reads `stdin`, parses the JSON array, and iterates through all events for validation first.",
+              "If validation passes, use a dictionary of dictionaries `data[meter][time] = reading` to handle the 'last occurrence wins' requirement.",
+              "For each meter in the dictionary, sort the keys (times) and iterate through the sorted readings to compute usage based on the chosen reset policy.",
+              "Output the resulting mapping as a JSON string using `json.dumps()` and exit with code 0.",
+              "Ensure any error (parsing or validation) results in `sys.exit(1)` without printing to `stdout`."
+            ],
+            "risks": [
+              "Strict type checking (avoiding `isinstance(True, int)`) is crucial to meet the 'no booleans' requirement.",
+              "The requirement to validate every event, including superseded ones, means validation must happen before any deduplication logic."
+            ],
+            "test_strategy": [
+              "Test Case 1 (Duplicates & Order): Input `[{\"meter\": \"m1\", \"time\": 20, \"reading\": 100}, {\"meter\": \"m1\", \"time\": 10, \"reading\": 50}, {\"meter\": \"m1\", \"time\": 20, \"reading\": 150}]`. Expected: `{\"m1\": 100}` (150 - 50).",
+              "Test Case 2 (Reset Policy): Input `[{\"meter\": \"m2\", \"time\": 10, \"reading\": 100}, {\"meter\": \"m2\", \"time\": 20, \"reading\": 50}, {\"meter\": \"m2\", \"time\": 30, \"reading\": 80}]`. Expected: `{\"m2\": 30}` (interval 1 is 0, interval 2 is 80 - 50).",
+              "Test Case 3 (Validation - Boolean): Input `[{\"meter\": \"m1\", \"time\": True, \"reading\": 10}]`. Expected: Exit 1, no stdout.",
+              "Test Case 4 (Validation - Float): Input `[{\"meter\": \"m1\", \"time\": 10, \"reading\": 10.5}]`. Expected: Exit 1, no stdout.",
+              "Test Case 5 (Validation - Empty Meter): Input `[{\"meter\": \"\", \"time\": 10, \"reading\": 10}]`. Expected: Exit 1, no stdout.",
+              "Test Case 6 (Empty Input): Input `[]`. Expected: `{}`, Exit 0."
+            ]
+          },
+          "human_review": {
+            "total": 9,
+            "scores": [
+              2,
+              2,
+              2,
+              1,
+              2
+            ],
+            "ready": true,
+            "blocking_defects": [],
+            "evidence": [
+              "Requires array parsing, validates every event before deduplication, excludes bool/float, ignores extra fields, and requires nonzero/empty stdout on errors.",
+              "Dictionary overwrite in input order implements last duplicate wins, followed by chronological per-meter processing.",
+              "Baseline/delta behavior, singletons, equal readings and empty input are covered with nonnegative integer totals.",
+              "Consistent provisional zero-on-reset policy and baseline update, but does not explicitly identify owner confirmation as a required next decision.",
+              "Out-of-order duplicate oracle 150-50=100 and reset oracle max(0,50-100)+(80-50)=30 are correct and discriminate alternate reset policies."
+            ],
+            "limitations": [
+              "Boolean-invalid example spells True rather than JSON true; it still fails parsing as expected but does not isolate boolean type rejection. Two required valid examples are JSON-compatible."
+            ],
+            "grading": "Independent assessment before model identities/timings; frozen five-dimension rubric."
+          },
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "gemma-31b-iq4-xs",
+          "case": "meter",
+          "score": 8,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 66.55556011199951,
+            "generation_seconds": 56.845554,
+            "load_seconds": 9.1066376,
+            "native_total_seconds": 66.5483753,
+            "output_tokens": 1988,
+            "prompt_seconds": 0.584331,
+            "prompt_tokens": 582,
+            "total_tokens": 2570
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program reads a JSON array from stdin.",
+              "Each event must contain 'meter' (non-empty string), 'time' (non-negative integer), and 'reading' (non-negative integer).",
+              "Events containing booleans or floats in 'time' or 'reading' fields must be treated as invalid.",
+              "Extra keys in event objects must be ignored.",
+              "If any event in the input array is invalid, the program must exit with a non-zero status and produce no stdout.",
+              "For a specific meter and time, only the last event appearing in the input array is retained.",
+              "Readings for each meter are processed in increasing order of time.",
+              "The first reading for a meter serves as the baseline (initial usage is 0).",
+              "Usage between two consecutive readings $R_{n-1}$ and $R_n$ is calculated as $max(0, R_n - R_{n-1})$.",
+              "A decrease in reading (reset) results in 0 usage for that specific interval (provisional policy).",
+              "The output is a single JSON object mapping every encountered meter to its total integer usage.",
+              "Meters with only one reading must be included in the output with a usage of 0.",
+              "An empty input array is valid and must output an empty JSON object '{}'.",
+              "On successful execution, the program must exit with status 0."
+            ],
+            "assumptions": [
+              "Provisional Reset Policy: Any interval where the reading decreases is treated as having 0 usage.",
+              "Invalid input includes non-array JSON at the root level or any object failing the validation criteria."
+            ],
+            "goal": "Create a CLI tool to calculate total usage from cumulative meter readings, handling out-of-order events and meter resets.",
+            "implementation_steps": [
+              "Implement a validation helper to ensure types are exactly `int` (excluding `bool`) and values are non-negative/non-empty.",
+              "Read and parse the JSON array from stdin.",
+              "Process the events into a data structure (e.g., a dictionary keyed by `(meter, time)`) to ensure the last occurrence for a meter/time pair wins.",
+              "Group the retained readings by meter.",
+              "For each meter, sort readings by time and iterate through them to calculate total usage based on the defined reset policy.",
+              "Construct the final results dictionary and print it as JSON.",
+              "Ensure strict exit code management (0 for success, non-zero for any validation failure)."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` returns `True`, so explicit boolean checks are required.",
+              "Large input arrays could lead to memory issues, though standard library JSON parsing is expected to be used."
+            ],
+            "test_strategy": [
+              "Test 1: Out-of-order duplicate. Input: `[{\"meter\": \"M1\", \"time\": 10, \"reading\": 100}, {\"meter\": \"M1\", \"time\": 5, \"reading\": 50}, {\"meter\": \"M1\", \"time\": 10, \"reading\": 110}]`. Expected output: `{\"M1\": 60}` (Time 5: 50, Time 10: 110 $\\rightarrow$ 110-50=60).",
+              "Test 2: Reset policy. Input: `[{\"meter\": \"M1\", \"time\": 1, \"reading\": 10}, {\"meter\": \"M1\", \"time\": 2, \"reading\": 5}, {\"meter\": \"M1\", \"time\": 3, \"reading\": 8}]`. Expected output: `{\"M1\": 3}` (10 $\\rightarrow$ 5 is 0 usage, 5 $\\rightarrow$ 8 is 3 usage).",
+              "Test 3: Invalid types. Input: `[{\"meter\": \"M1\", \"time\": 1, \"reading\": 10.5}]`. Expected: Exit non-zero, no stdout.",
+              "Test 4: Boolean check. Input: `[{\"meter\": \"M1\", \"time\": True, \"reading\": 10}]`. Expected: Exit non-zero, no stdout.",
+              "Test 5: Empty input. Input: `[]`. Expected output: `{}`."
+            ]
+          },
+          "human_review": {
+            "total": 8,
+            "scores": [
+              1,
+              2,
+              2,
+              1,
+              2
+            ],
+            "ready": true,
+            "blocking_defects": [],
+            "evidence": [
+              "Defines root/events/types, extra keys and any-invalid-event failure, but implementation steps do not explicitly validate every event before overwriting duplicates. The acceptance contract implies it; sequencing remains underspecified.",
+              "Input-order dictionary overwrite followed by chronological per-meter grouping implements required retained-reading order.",
+              "Baseline, equal deltas, singleton meters, empty batch and nonnegative totals are consistently described.",
+              "Zero-on-reset rule is labeled provisional and subsequent readings use consecutive values consistently, but owner confirmation is not explicitly identified as a next decision.",
+              "Duplicate example 110-50=60 and reset example max(0,5-10)+(8-5)=3 are correct, concrete and discriminate alternative reset handling."
+            ],
+            "limitations": [
+              "Uppercase True in boolean-invalid example is not JSON; it checks malformed syntax rather than isolated boolean type rejection.",
+              "Validation ordering is a plan omission, not an observed implementation failure."
+            ],
+            "grading": "Independent assessment before model identities/timings; frozen five-dimension rubric."
+          },
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "gemma-26b-q4",
+          "case": "apportion",
+          "score": 10,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 89.60649681091309,
+            "generation_seconds": 79.278629,
+            "load_seconds": 9.935489,
+            "native_total_seconds": 89.5757541,
+            "output_tokens": 8317,
+            "prompt_seconds": 0.352014,
+            "prompt_tokens": 556,
+            "total_tokens": 8873
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "Read a single JSON object from stdin containing 'credits' and 'weights'.",
+              "The 'credits' field must be a non-negative integer (not a boolean or float).",
+              "The 'weights' field must be a non-empty dictionary where keys are lowercase ASCII letter-only strings and values are non-negative integers (not booleans or floats).",
+              "The sum of all weights must be greater than zero.",
+              "Additional top-level keys in the JSON object must be ignored.",
+              "The allocation must use the Largest Remainder Method: calculate floor(credits * weight / total_weight), then distribute remaining credits to IDs with the highest remainders.",
+              "Tie-breaking for remainders must use ascending ID order (the ID with the smaller ASCII value gets priority).",
+              "The output must be a JSON array of [ID, allocated_integer] pairs, sorted by ID ascending.",
+              "On success, exit with code 0 and the JSON array on stdout.",
+              "On any invalid input (malformed JSON, type mismatch, invalid values, etc.), exit with a non-zero code and produce no output on stdout.",
+              "The implementation must use exact integer arithmetic (no floating-point precision issues)."
+            ],
+            "assumptions": [
+              "The term 'letter-only' means the ID string contains only characters from 'a' to 'z'.",
+              "The term 'highest remainder' refers to the remainder calculated via exact integer arithmetic: (credits * weight) % sum_of_weights.",
+              "If multiple IDs have the same remainder, they are prioritized by ascending ID order in the distribution step."
+            ],
+            "goal": "Create a CLI tool that performs fair credit distribution using the largest remainder method with strict input validation and exact integer math.",
+            "implementation_steps": [
+              "Implement a validation layer to strictly check types (specifically ensuring `int` is not `bool` or `float`) and values (non-negative, lowercase ASCII keys, positive weight sum).",
+              "Implement the allocation logic using integer arithmetic: `p = (credits * weight) // total_weight` and `r = (credits * weight) % total_weight`.",
+              "Calculate the number of leftover credits: `rem = credits - sum(p_i)`.",
+              "Sort the IDs by the tuple `(-remainder, ID)` to handle both the descending remainder requirement and the ascending ID tie-breaking.",
+              "Distribute the `rem` credits by incrementing the allocation of the top `rem` IDs from the sorted list.",
+              "Format the result as a sorted JSON array and handle all errors by exiting non-zero with empty stdout."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` is `True`, so `type(x) is int` must be used for strictness.",
+              "Floating point arithmetic could lead to incorrect remainders; must use `//` and `%` with large integers.",
+              "An empty weight sum or empty weights dictionary could cause division by zero or errors; must be validated."
+            ],
+            "test_strategy": [
+              "Test Case 1 (Basic): `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 2, \"c\": 3}}` -> `[[\"a\", 2], [\"b\", 3], [\"c\", 5]]`",
+              "Test Case 2 (Remainder Tie): `{\"credits\": 1, \"weights\": {\"z\": 1, \"a\": 1}}` -> `[[\"a\", 1], [\"z\", 0]]`",
+              "Test Case 3 (Zero Credits): `{\"credits\": 0, \"weights\": {\"a\": 5}}` -> `[[\"a\", 0]]`",
+              "Test Case 4 (Invalid Types): `{\"credits\": 10.5, \"weights\": {\"a\": 1}}` -> Exit non-zero, empty stdout.",
+              "Test Case 5 (Invalid Types): `{\"credits\": 10, \"weights\": {\"a\": true}}` -> Exit non-zero, empty stdout.",
+              "Test Case 6 (Empty/Invalid Weights): `{\"credits\": 10, \"weights\": {}}` -> Exit non-zero, empty stdout.",
+              "Test Case 7 (Large Integers): `{\"credits\": 1000000000000000000, \"weights\": {\"a\": 1, \"b\": 1}}` -> Verify exact math."
+            ]
+          },
+          "human_review": {
+            "total": 10,
+            "scores": [
+              2,
+              2,
+              2,
+              2,
+              2
+            ],
+            "ready": true,
+            "blocking_defects": [],
+            "evidence": [
+              "Defines CLI shape, required fields, strict integers, nonempty weights, lowercase ASCII keys, positive total, ignored extras and failure/success stdout and exit contracts.",
+              "Explicit integer products, floor division and remainder avoid floating-point allocation.",
+              "Correct residual count, tuple (-remainder,ID), increment top residual IDs once, output all IDs sorted.",
+              "Consistent implementable steps handle zero credits and zero weights without invented bounds; large-integer risks explicit.",
+              "Basic 10 across weights 1,2,3 yields 2,3,5; reversed-input one-credit tie yields a=1,z=0; zero-credit and invalid cases are correct."
+            ],
+            "limitations": [
+              "Large-integer example asks to verify exact math without spelling its expected output; required concrete examples already supplied elsewhere.",
+              "Interpreter decimal-string limits not discussed; no application-imposed bound proposed."
+            ],
+            "grading": "Independent assessment before model identities/timings; frozen five-dimension rubric."
+          },
+          "assistance": "none; independently graded first submission"
+        }
+      ],
+      "aggregate": {
+        "gemma-31b-iq4-xs": {
+          "submissions": 2,
+          "ready": 2,
+          "points": 18,
+          "points_available": 20,
+          "elapsed_seconds": 135.1249430179596
+        },
+        "gemma-26b-q4": {
+          "submissions": 2,
+          "ready": 2,
+          "points": 19,
+          "points_available": 20,
+          "elapsed_seconds": 162.43614506721497
+        }
+      },
+      "limits": [
+        "One independent submission per model and brief; the same two briefs recur across comparisons.",
+        "Plan readiness is human rubric scoring, not executed implementation correctness.",
+        "Wall time includes loading and transport; warm model residency can affect the comparison.",
+        "The deployed source revision for this pilot could not be retrieved for review. Recorded bundles/settings were checked, but source reproducibility is limited."
+      ]
+    },
+    {
+      "experiment": "gemma-26b-versus-31b-iq4-repeat",
+      "records": [
+        {
+          "model": "gemma-26b-q4",
+          "case": "apportion",
+          "score": 10,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 107.89271354675293,
+            "generation_seconds": 89.86941,
+            "load_seconds": 17.3696385,
+            "native_total_seconds": 107.8859513,
+            "output_tokens": 9055,
+            "prompt_seconds": 0.628079,
+            "prompt_tokens": 556,
+            "total_tokens": 9611
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The CLI reads a single JSON object from stdin.",
+              "The JSON object contains a 'credits' key with a non-negative integer and a 'weights' key with a non-empty object mapping lowercase ASCII letter-only IDs to non-negative integers.",
+              "Input validation: 'credits' must be a non-negative integer (not a boolean or float).",
+              "Input validation: 'weights' must be a non-empty dictionary with lowercase ASCII letter-only string keys.",
+              "Input validation: all weight values must be non-negative integers (not booleans or floats).",
+              "Input validation: the sum of weights must be greater than zero.",
+              "The application ignores extra top-level keys in the input JSON object.",
+              "The application uses exact integer arithmetic for all calculations.",
+              "The allocation logic: Each ID is assigned floor(credits * weight / sum_weights).",
+              "The distribution of remaining credits: One additional credit is given to each ID with the highest remainder (calculated as (credits * weight) % sum_weights) until all credits are allocated.",
+              "Tie-breaking: If remainders are equal, the additional credit is given based on ascending ID order.",
+              "The output is a JSON array of [ID, allocated_integer] pairs, sorted by ID in ascending order.",
+              "On error (malformed JSON, invalid types, invalid values, etc.), the program exits with a non-zero status and produces no output to stdout.",
+              "On success, the program exits with status zero."
+            ],
+            "assumptions": [
+              "A 'lowercase ASCII letter-only ID' is defined as a non-empty string where every character is in the range 'a'-'z'.",
+              "The remainder for each ID is the integer result of (credits * weight) modulo (sum of weights).",
+              "The term 'proportional share' refers to (credits * weight / sum_weights).",
+              "If multiple IDs have the same remainder, they are processed in ascending lexicographical order to determine who receives the extra credit."
+            ],
+            "goal": "Implement a single-file CLI tool that splits an integer number of credits among IDs based on their weights, using a specific remainder-based tie-breaking rule.",
+            "implementation_steps": [
+              "1. Use `sys.stdin` to read input and `json.load` to parse it.",
+              "2. Implement strict type checking using `type(x) is int` to distinguish integers from booleans and floats.",
+              "3. Implement string validation for keys using `all('a' <= c <= 'z' for c in k)` and `len(k) > 0`.",
+              "4. Perform the calculation: calculate total sum of weights, then for each ID, compute $A_i = (C \times W_i) // S$ and $R_i = (C \times W_i) \text{ mod } S$.",
+              "5. Calculate remaining credits $C_{rem} = C - \text{sum}(A_i)$.",
+              "6. Sort IDs by the tuple `(-remainder, id)` to find the order of receiving additional credits.",
+              "7. Distribute $C_{rem}$ credits by adding 1 to the $A_i$ of the first $C_{rem}$ IDs in the sorted list.",
+              "8. Sort the final result by ID ascending and print as JSON.",
+              "9. Wrap the entire execution in a try-except block to handle all errors by exiting with status 1 and suppressing stdout."
+            ],
+            "risks": [
+              "The precision of 'proportional share' must be handled using integer arithmetic to avoid float issues.",
+              "Ensuring booleans are not treated as integers is critical as Python's `isinstance(True, int)` is `True`."
+            ],
+            "test_strategy": [
+              "Test case 1 (Normal): Input `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 2}}` -> Expect `[[\"a\", 3], [\"b\", 7]]`.",
+              "Test case 2 (Remainder Tie): Input `{\"credits\": 1, \"weights\": {\"a\": 1, \"b\": 1}}` -> Expect `[[\"a\", 1], [\"b\", 0]]` (a gets the tie-break).",
+              "Test case 3 (Remainder Tie 2): Input `{\"credits\": 1, \"weights\": {\"b\": 1, \"a\": 1}}` -> Expect `[[\"a\", 1], [\"b\", 0]]` (independent of input order).",
+              "Test case 4 (Zero Credits): Input `{\"credits\": 0, \"weights\": {\"a\": 5, \"b\": 5}}` -> Expect `[[\"a\", 0], [\"b\", 0]]`.",
+              "Test case 5 (Invalid Type): Input `{\"credits\": 1.0, \"weights\": {\"a\": 1}}` -> Expect exit 1, empty stdout.",
+              "Test case 6 (Invalid Type): Input `{\"credits\": 1, \"weights\": {\"a\": True}}` -> Expect exit 1, empty stdout.",
+              "Test case 7 (Non-letter ID): Input `{\"credits\": 1, \"weights\": {\"a1\": 1}}` -> Expect exit 1, empty stdout.",
+              "Test case 8 (Zero weight sum): Input `{\"credits\": 1, \"weights\": {\"a\": 0, \"b\": 0}}` -> Expect exit 1, empty stdout.",
+              "Test case 9 (Extra keys): Input `{\"credits\": 10, \"weights\": {\"a\": 1}, \"extra\": 5}` -> Expect `[[\"a\", 10]]`."
+            ]
+          },
+          "human_review": {
+            "score": 10,
+            "dimensions": [
+              2,
+              2,
+              2,
+              2,
+              2
+            ],
+            "ready": true,
+            "blocking_defects": [],
+            "evidence": [
+              "Complete validation, extra keys and empty-stdout failure contract.",
+              "Exact product // total and product % total.",
+              "Residual count, (-remainder,id), full sorted output.",
+              "Zero credits explicit; every weight included, exact arithmetic without bounds.",
+              "10:1,2 ->3,7 correct; tie credit1 equal weights ->a1,b0; zero and invalid cases correct."
+            ],
+            "graded_without_identity_or_timing": true
+          },
+          "assistance": "none; independently graded first submission",
+          "all_observed_allocations_fully_in_vram": true,
+          "allocation_bytes": [
+            17922512648
+          ],
+          "in_call_samples": 18
+        },
+        {
+          "model": "gemma-31b-iq4-xs",
+          "case": "meter",
+          "score": 9,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 99.2891149520874,
+            "generation_seconds": 82.249624,
+            "load_seconds": 16.3639186,
+            "native_total_seconds": 99.2645018,
+            "output_tokens": 2909,
+            "prompt_seconds": 0.641008,
+            "prompt_tokens": 582,
+            "total_tokens": 3491
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program reads a JSON array of events from stdin.",
+              "Each event must contain 'meter' (non-empty string), 'time' (non-negative integer), and 'reading' (non-negative integer).",
+              "Validation must strictly reject booleans and floats as integers for 'time' and 'reading'.",
+              "Extra keys in event objects must be ignored.",
+              "If any event is invalid, the program must exit with a non-zero status code and produce no output to stdout.",
+              "For a specific meter at a specific time, only the last event appearing in the input array is retained (last-occurrence-wins).",
+              "Usage is calculated per meter based on readings sorted by time in increasing order.",
+              "The first reading for any meter serves as the baseline; usage starts counting from that point.",
+              "For consecutive readings R1 and R2 at times T1 and T2 (T1 < T2):",
+              "If R2 >= R1, the usage for the interval is R2 - R1.",
+              "If R2 < R1 (reset event), the usage for the interval is R2 (provisional policy: assume reset to zero).",
+              "The final output must be a single JSON object mapping each seen meter name to its total integer usage.",
+              "Meters with only one reading must be included in the output with a usage of 0.",
+              "An empty input array is valid and should result in an empty JSON object `{}`.",
+              "On successful execution, the program must exit with status code 0."
+            ],
+            "assumptions": [
+              "Provisional Reset Policy: If a reading decreases, the meter is assumed to have reset to 0, so the usage for that specific interval is equal to the value of the new reading.",
+              "Input is assumed to be a single JSON array; any other top-level JSON structure or non-JSON input is considered invalid."
+            ],
+            "goal": "Implement a CLI tool in `solution.py` that processes cumulative meter readings and calculates usage, handling out-of-order data, duplicates, and meter resets.",
+            "implementation_steps": [
+              "Import `sys` and `json` modules.",
+              "Read full input from `sys.stdin` and attempt to parse it as a JSON list.",
+              "Initialize a data structure (e.g., a dictionary of dictionaries) to store the most recent reading for each `(meter, time)` pair.",
+              "Iterate through the input list and validate each event: check that 'meter', 'time', and 'reading' exist and match the required types and constraints. Use `type(x) is int` to exclude booleans.",
+              "Apply the last-occurrence-wins rule by updating the data structure with the latest event for each `(meter, time)`.",
+              "For each meter in the dataset:",
+              "   Sort the associated readings by time.",
+              "   Iterate through the sorted sequence, applying the usage logic: baseline for the first, difference for increases, and the current value for resets.",
+              "Accumulate the total usage for each meter.",
+              "Print the final mapping as a JSON object to stdout.",
+              "Ensure the process exits with 0 on success and 1 on any validation or parsing failure."
+            ],
+            "risks": [
+              "Python's `isinstance(True, int)` returning `True` could lead to incorrect validation if not handled via `type()` checks.",
+              "Large inputs might cause memory issues if read entirely into memory, but given the 'standard-library CLI' context, `json.load(sys.stdin)` is generally expected."
+            ],
+            "test_strategy": [
+              "Test Case 1 (Duplicates & Ordering): Input `[{\"meter\": \"M1\", \"time\": 10, \"reading\": 100}, {\"meter\": \"M1\", \"time\": 5, \"reading\": 50}, {\"meter\": \"M1\", \"time\": 10, \"reading\": 110}]`. Expected: `{\"M1\": 60}`. (T=5: 50, T=10: 110 -> 110-50=60).",
+              "Test Case 2 (Reset Policy): Input `[{\"meter\": \"M2\", \"time\": 1, \"reading\": 100}, {\"meter\": \"M2\", \"time\": 2, \"reading\": 20}]`. Expected: `{\"M2\": 20}`. (T=1: 100, T=2: 20 -> Reset policy: 20).",
+              "Test Case 3 (Invalid Types): Input `[{\"meter\": \"M1\", \"time\": 1, \"reading\": 10.5}]` or `[{\"meter\": \"M1\", \"time\": true, \"reading\": 10}]`. Expected: Exit 1, no output.",
+              "Test Case 4 (Empty/Single): Input `[]` expected `{}`, Input `[{\"meter\": \"M3\", \"time\": 1, \"reading\": 100}]` expected `{\"M3\": 0}`.",
+              "Test Case 5 (Non-empty string validation): Input `[{\"meter\": \"\", \"time\": 1, \"reading\": 10}]`. Expected: Exit 1."
+            ]
+          },
+          "human_review": {
+            "score": 9,
+            "dimensions": [
+              2,
+              2,
+              2,
+              1,
+              2
+            ],
+            "ready": true,
+            "blocking_defects": [],
+            "evidence": [
+              "Each event validated before insertion/overwrite, booleans/floats excluded.",
+              "Last input occurrence then per-meter chronological order.",
+              "Baseline, equal difference0, singleton and empty outputs explicit.",
+              "Consistent provisional reset-to-zero rule, but does not explicitly call for product confirmation.",
+              "Out-of-order duplicate gives60; decrease100->20 gives20, discriminating reset; empty/single outputs correct."
+            ],
+            "graded_without_identity_or_timing": true
+          },
+          "assistance": "none; independently graded first submission",
+          "all_observed_allocations_fully_in_vram": true,
+          "allocation_bytes": [
+            18536097380
+          ],
+          "in_call_samples": 16
+        },
+        {
+          "model": "gemma-26b-q4",
+          "case": "meter",
+          "score": 8,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 85.24049115180969,
+            "generation_seconds": 74.747602,
+            "load_seconds": 10.1109308,
+            "native_total_seconds": 85.2343208,
+            "output_tokens": 7881,
+            "prompt_seconds": 0.364256,
+            "prompt_tokens": 582,
+            "total_tokens": 8463
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "Input is read from stdin as a JSON array.",
+              "Every event in the array is validated: 'meter' must be a non-empty string, 'time' must be a non-negative integer (not a boolean or float), and 'reading' must be a non-negative integer (not a boolean or float).",
+              "If any event fails validation, the program exits with a non-zero status and produces no stdout.",
+              "For events with the same meter and time, the last occurrence in the input array is used.",
+              "Usage is calculated per meter by sorting retained readings by time in ascending order.",
+              "The first reading for each meter serves as a baseline.",
+              "If a reading is less than the preceding reading (a reset), the usage for that interval is treated as 0 (provisional policy: usage = max(0, current_reading - previous_reading)).",
+              "Meters with only one reading result in 0 usage.",
+              "The output is a single JSON object mapping each meter string to its total integer usage.",
+              "An empty JSON array input results in an empty JSON object output `{}`.",
+              "The program exits with status 0 on successful processing."
+            ],
+            "assumptions": [
+              "The 'provisional policy' to avoid negative usage when a meter reset is detected (reading decreases) is to treat the usage for that specific interval as 0.",
+              "A non-empty string for 'meter' means `len(m) > 0` and `isinstance(m, str)`.",
+              "The term 'JSON array of events' implies that if the input is not a valid JSON array (e.g., a JSON object or a primitive), it is invalid input."
+            ],
+            "goal": "Create a Python CLI that calculates cumulative meter usage from JSON event data, handling out-of-order events, duplicates, and meter resets.",
+            "implementation_steps": [
+              "1. Implement a main function that reads all content from `sys.stdin`.",
+              "2. Use `json.loads` to parse the input. If parsing fails or the result is not a list, exit with status 1.",
+              "3. Initialize a dictionary of dictionaries `meter_data = defaultdict(dict)` to store readings by meter and time.",
+              "4. Iterate through the event list to validate each event. Use `type(x) is int` to strictly exclude booleans and floats. If any validation fails, exit with status 1.",
+              "5. During validation, populate `meter_data[meter][time] = reading`. This naturally ensures the last occurrence of a (meter, time) pair wins.",
+              "6. Create a results dictionary. Iterate through `meter_data` items.",
+              "7. For each meter, sort the collected times. Iterate through sorted times, calculating `total_usage += max(0, current_reading - previous_reading)`.",
+              "8. Handle the case where a meter has only one reading by assigning 0 usage.",
+              "9. Convert the results dictionary to a JSON string using `json.dumps` and print to stdout.",
+              "10. Exit with status 0."
+            ],
+            "risks": [
+              "Strict type checking (excluding booleans) is required because Python's `isinstance(True, int)` is `True`.",
+              "The requirement to validate 'every event' including superseded ones means validation must occur before deduplication."
+            ],
+            "test_strategy": [
+              "Test 1 (Out-of-order & Duplicate): Input `[{\"meter\": \"A\", \"time\": 10, \"reading\": 100}, {\"meter\": \"A\", \"time\": 5, \"reading\": 50}, {\"meter\": \"A\", \"time\": 10, \"reading\": 120}]`. Expected Output: `{\"A\": 70}` (Time 5 is 50, Time 10 is 120; usage 120-50=70).",
+              "Test 2 (Reset Policy): Input `[{\"meter\": \"B\", \"time\": 10, \"reading\": 100}, {\"meter\": \"B\", \"time\": 20, \"reading\": 50}, {\"meter\": \"B\", \"time\": 30, \"reading\": 70}]`. Expected Output: `{\"B\": 20}` (Interval 10-20: 0; Interval 20-30: 20).",
+              "Test 3 (Validation - Float): Input `[{\"meter\": \"C\", \"time\": 10, \"reading\": 10.5}]`. Expected: Exit non-zero, no stdout.",
+              "Test 4 (Validation - Boolean): Input `[{\"meter\": \"C\", \"time\": True, \"reading\": 10}]`. Expected: Exit non-zero, no stdout.",
+              "Test 5 (Single Reading): Input `[{\"meter\": \"D\", \"time\": 5, \"reading\": 100}]`. Expected: `{\"D\": 0}`.",
+              "Test 6 (Empty Input): Input `[]`. Expected: `{}`."
+            ]
+          },
+          "human_review": {
+            "score": 8,
+            "dimensions": [
+              1,
+              2,
+              2,
+              1,
+              2
+            ],
+            "ready": true,
+            "blocking_defects": [],
+            "evidence": [
+              "Validates all events before overwriting; types/root/failure defined, but ignoring extra event keys is unstated.",
+              "Last input occurrence then per-meter chronological sort explicit.",
+              "Baseline, singleton0, empty{}, all meters, max(0,delta) preserves nonnegative usage.",
+              "Specific provisional zero-at-reset rule consistent with next interval; no explicit product confirmation request.",
+              "Duplicate example120-50=70; reset100->50->70 yields20 under stated policy, distinguishes reset-to-zero accounting."
+            ],
+            "graded_without_identity_or_timing": true
+          },
+          "assistance": "none; independently graded first submission",
+          "all_observed_allocations_fully_in_vram": true,
+          "allocation_bytes": [
+            17922512648
+          ],
+          "in_call_samples": 14
+        },
+        {
+          "model": "gemma-31b-iq4-xs",
+          "case": "apportion",
+          "score": 7,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "Test Case4 gives successful allocation [[a,10]] for credits10,weights{a:0}; required result is nonzero exit and empty stdout. Its parenthetical acknowledges invalidity but leaves a contradictory explicit oracle."
+          ],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_k": 64,
+            "top_p": 0.95
+          },
+          "metrics": {
+            "elapsed_seconds": 75.90480208396912,
+            "generation_seconds": 65.979157999,
+            "load_seconds": 9.3409474,
+            "native_total_seconds": 75.8981441,
+            "output_tokens": 2391,
+            "prompt_seconds": 0.570436,
+            "prompt_tokens": 556,
+            "total_tokens": 2947
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program reads a single JSON object from stdin.",
+              "The program exits with a non-zero status and produces no stdout if: the input is malformed JSON, 'credits' or 'weights' keys are missing, 'credits' is not a non-negative integer, 'weights' is not a non-empty object, any 'weights' key contains characters other than lowercase ASCII letters, any 'weights' value is not a non-negative integer, or the sum of all 'weights' values is 0.",
+              "The program treats JSON booleans and floats as invalid integers (e.g., True, 1.0 are rejected).",
+              "Extra top-level keys in the JSON input are ignored.",
+              "The allocation logic uses exact integer arithmetic to calculate: Initial Share = floor((credits * weight) / total_weight).",
+              "Remaining credits (credits - sum of initial shares) are distributed one-by-one to the IDs with the largest remainders (where remainder = (credits * weight) % total_weight).",
+              "Tie-breaking for the distribution of remaining credits is performed by ascending ID (alphabetical order).",
+              "The output is a JSON array of [ID, allocated_integer] pairs, sorted by ID in ascending order.",
+              "The program exits with status 0 on success.",
+              "The program includes allocations of 0 if a weight is 0 or credits are insufficient."
+            ],
+            "assumptions": [
+              "The requirement 'lowercase ASCII letter-only IDs' means keys must match the regex `^[a-z]+$`. empty strings are not considered valid lowercase ASCII letter IDs.",
+              "The output JSON format is a list of lists (e.g., `[['a', 1], ['b', 2]]`).",
+              "The phrase 'indivisible pool of credits' implies credits are handled as discrete units (integers)."
+            ],
+            "goal": "Implement a CLI tool to split credits proportionally among weighted IDs with specific tie-breaking and validation rules.",
+            "implementation_steps": [
+              "Create `solution.py` using only the Python standard library (`sys`, `json`).",
+              "Implement a validation layer that checks types strictly using `type(x) is int` to exclude booleans and floats.",
+              "Implement the proportional allocation logic using integer division `//` for the floor and the modulo operator `%` for remainders.",
+              "Implement the remainder distribution logic by sorting IDs based on a key that prioritizes the remainder (descending) and then the ID (ascending).",
+              "Ensure the final output list is sorted by ID ascending and printed as a JSON array.",
+              "Wrap the process in a try-except block to catch JSON parsing errors and validation failures, ensuring nonzero exit and empty stdout."
+            ],
+            "risks": [
+              "Precision issues if floats are used instead of exact integer arithmetic (will be avoided by using `//` and `%`).",
+              "Incorrect type validation if `isinstance` is used (will be avoided by using `type() is int`)."
+            ],
+            "test_strategy": [
+              "Test Case 1 (Standard Proportional): `{\"credits\": 10, \"weights\": {\"a\": 1, \"b\": 1}}` -> `[['a', 5], ['b', 5]]`",
+              "Test Case 2 (Remainder Tie): `{\"credits\": 4, \"weights\": {\"a\": 1, \"b\": 1, \"c\": 1}}` -> `[['a', 2], ['b', 1], ['c', 1]]` (Remainder is 1 for all, 'a' wins tie-break).",
+              "Test Case 3 (Zero Credits): `{\"credits\": 0, \"weights\": {\"a\": 10}}` -> `[['a', 0]]`",
+              "Test Case 4 (Zero Weights): `{\"credits\": 10, \"weights\": {\"a\": 0}}` -> `[['a', 10]]` (Total weight is 0 is invalid, but a single 0 weight is valid if sum > 0; however, if only one ID has weight 0, sum is 0, which is invalid).",
+              "Test Case 5 (Invalid Input - Type): `{\"credits\": 10.0, \"weights\": {\"a\": 1}}` -> Exit non-zero, empty stdout.",
+              "Test Case 6 (Invalid Input - ID): `{\"credits\": 10, \"weights\": {\"A\": 1}}` -> Exit non-zero, empty stdout.",
+              "Test Case 7 (Invalid Input - Sum): `{\"credits\": 10, \"weights\": {\"a\": 0, \"b\": 0}}` -> Exit non-zero, empty stdout."
+            ]
+          },
+          "human_review": {
+            "score": 7,
+            "dimensions": [
+              2,
+              2,
+              2,
+              1,
+              0
+            ],
+            "ready": false,
+            "blocking_defects": [
+              "Test Case4 gives successful allocation [[a,10]] for credits10,weights{a:0}; required result is nonzero exit and empty stdout. Its parenthetical acknowledges invalidity but leaves a contradictory explicit oracle."
+            ],
+            "evidence": [
+              "Schema/type/nonempty-name/sum/extra-key/empty-stdout constraints defined.",
+              "Exact // and % on integer product.",
+              "Residual count descending remainder then ascending ID; full sorted zeros output.",
+              "Algorithm implementable and zero-credit case correct, but test strategy contradicts positive-sum contract.",
+              "Standard10 equalweights ->5,5 and cutoff4 equal3 ->2,1,1 correct. Case4 explicitly assigns a10 for zero total weight, then parenthetically calls the same input invalid; the submitted success oracle is inconsistent."
+            ],
+            "graded_without_identity_or_timing": true
+          },
+          "assistance": "none; independently graded first submission",
+          "all_observed_allocations_fully_in_vram": true,
+          "allocation_bytes": [
+            18536097380
+          ],
+          "in_call_samples": 13
+        }
+      ],
+      "aggregate": {
+        "gemma-26b-q4": {
+          "submissions": 2,
+          "ready": 2,
+          "points": 18,
+          "points_available": 20,
+          "elapsed_seconds": 193.13320469856262
+        },
+        "gemma-31b-iq4-xs": {
+          "submissions": 2,
+          "ready": 1,
+          "points": 16,
+          "points_available": 20,
+          "elapsed_seconds": 175.19391703605652
+        }
+      },
+      "limits": [
+        "One independent submission per model and brief; the same two briefs recur across comparisons.",
+        "Plan readiness is human rubric scoring, not executed implementation correctness.",
+        "Wall time includes loading and transport; warm model residency can affect the comparison."
+      ]
+    },
+    {
+      "experiment": "flash-and-lightning-alternative-planning-screen",
+      "sampling_amendment": "GLM and Nemotron leave top_k unset to use native package defaults; the four Gemma comparisons set top_k to 64. Other requested generation settings, briefs and rubric were held fixed.",
+      "records": [
+        {
+          "model": "nemotron-lightning-iq4-xs",
+          "case": "apportion",
+          "score": 5,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "Step 10 repeatedly picks the unchanged highest-remainder ID without consuming it, so multiple residual credits can go to the same ID. For credits=2 and three unit weights it would allocate both to the first ID instead of one each to the first two.",
+            "No concrete input/output oracle is actually supplied despite the test_strategy saying examples are below."
+          ],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "generation_provenance": "Cohort settings recorded by fit probes and frozen sampling amendment; per-trial full envelopes are excluded.",
+          "metrics": {
+            "elapsed_seconds": 28.522018671035767,
+            "generation_seconds": 28.01546,
+            "load_seconds": 0.0039538,
+            "native_total_seconds": 28.4923835,
+            "output_tokens": 5058,
+            "prompt_seconds": 0.398263,
+            "prompt_tokens": 559,
+            "total_tokens": 5617
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "1. Input parsing: reads exactly one JSON object from stdin. Extra top-level keys are silently ignored. Absence of `credits` or `weights` is invalid input.",
+              "2. Type validation: `credits` and all weight values must be exact JSON integers (not booleans, not floats). `true`/`false` or `1.0`/`1.5` for `credits` or any weight value causes exit nonzero with empty stdout.",
+              "3. Constraint validation: `weights` must be a nonempty object; IDs must be strings matching `[a-z]+` (distinct keys). Sum of all weight values must be ≥ 1, even when `credits` is 0. Violation exits nonzero with empty stdout.",
+              "4. Algorithm: compute floor share per ID = `credits * weight_id // sum_weights`. Compute remainder = `credits * weight_id % sum_weights`. Allocate remaining `credits - sum(floor_shares)` one credit at a time to IDs with the highest remainder, breaking ties by ascending ID (independent of input order).",
+              "5. Zero allocations included: IDs with weight 0 or `credits`=0 receive 0 and still appear in output.",
+              "6. Success output: exit 0, stdout contains a JSON array of `[ID, allocated_integer]` pairs sorted by ascending ID. Whitespace within JSON is unspecified but array must be valid JSON.",
+              "7. Invalid input output: exit nonzero (exit code ≥ 1), stdout is completely empty. Stderr content is unspecified.",
+              "8. Integer size: Python arbitrary‑precision integers used throughout; no artificial bounds."
+            ],
+            "assumptions": [
+              "IDs are non‑empty strings composed exclusively of lowercase ASCII letters (a–z). Distinctness is enforced by JSON key uniqueness.",
+              "The JSON `credits` field, if present, must map to a pure `int` value; Python’s `json` module parses `true`/`false` as `bool`, which is a subclass of `int`; these are rejected as invalid.",
+              "If `credits` or any weight value is a JSON float (e.g. `3.0`, `1.5`) or boolean, the input is invalid.",
+              "If the JSON object contains multiple keys mapping to `credits` or `weights`, the last encountered key is used (or any consistent choice); the task guarantees unique member names.",
+              "The algorithm’s tie‑breaking rule `ascending ID` refers to lexicographic order of the ID strings, which for single lowercase letters coincides with numeric order."
+            ],
+            "goal": "Plan a single‑file CLI `solution.py` using only the Python standard library that reads a JSON object from stdin, allocates indivisible credits per the largest‑remainder method with ascending‑ID tie‑breaking, and exits 0 with a sorted JSON array on success or exits nonzero with empty stdout on any invalid input.",
+            "implementation_steps": [
+              "1. Read stdin fully.",
+              "2. Parse JSON; if parsing fails → exit 1, stdout empty.",
+              "3. Validate that parsed object contains `credits` (pure `int`, ≥0) and `weights` (non‑empty dict). If missing or type‑wrong → exit 1, stdout empty.",
+              "4. Validate all weight values are pure `int` and ≥0. If any fail → exit 1, stdout empty.",
+              "5. Validate sum(weights.values()) ≥ 1. If 0 → exit 1, stdout empty.",
+              "6. Filter IDs to those matching `[a‑z]+`; ignore any non‑conforming keys in `weights` (or treat as invalid – choose minimal assumption: reject input if any ID fails the pattern).",
+              "7. Compute `sum_w = sum(weights.values())`. For each ID: `share = credits * weight // sum_w`; `rem = credits * weight % sum_w`.",
+              "8. Initial allocation = list of `[ID, share]` pairs.",
+              "9. Remaining credits = `credits - sum(share for all IDs)`.",
+              "10. While remaining > 0: find max remainder; among IDs sharing that max remainder, pick the smallest ID; add 1 to its allocation; decrement remaining.",
+              "11. Sort final `[ID, allocation]` pairs by ID ascending.",
+              "12. Output JSON array via `json.dumps` to stdout, exit 0.",
+              "13. All arithmetic uses Python `int` (arbitrary precision), `//` and `%`."
+            ],
+            "risks": [
+              "Bool/float confusion with Python's `json` loader.",
+              "ID pattern validation scope (single vs multi‑char lowercase).",
+              "Tie‑breaking order independence from input order."
+            ],
+            "test_strategy": [
+              "At least two concrete inputs with exact expected JSON output are provided below. One exercises a remainder tie.",
+              "Each test validates: the exact JSON input, the exact JSON output array (sorted by ID), and the exit code.",
+              "Additional edge cases (credits=0, single ID, large remainders) are implied by the criteria but not required to be hand‑crafted here."
+            ]
+          },
+          "human_review": {
+            "dimensions": [
+              2,
+              2,
+              0,
+              1,
+              0
+            ],
+            "score": 5,
+            "ready": false,
+            "blocking_defects": [
+              "Step 10 repeatedly picks the unchanged highest-remainder ID without consuming it, so multiple residual credits can go to the same ID. For credits=2 and three unit weights it would allocate both to the first ID instead of one each to the first two.",
+              "No concrete input/output oracle is actually supplied despite the test_strategy saying examples are below."
+            ],
+            "notes": [
+              "Type/range, exact integer products, tie direction and sorted output are stated.",
+              "ID validation step initially suggests filtering but ends by choosing rejection; it should state rejection unambiguously."
+            ],
+            "graded_before_unblinding": true
+          },
+          "in_call_samples": 5,
+          "all_observed_allocations_fully_in_vram": true,
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "glm-flash-q4",
+          "case": "apportion",
+          "score": 3,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "Remainder ranking uses (weight * remainder_credits) % total_weight rather than (weight * original_credits) % total_weight. For credits=5, weights a=1,b=2, it awards the residual to b, yielding a=1,b=4 instead of a=2,b=3.",
+            "No concrete input/output oracle is supplied."
+          ],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "generation_provenance": "Cohort settings recorded by fit probes and frozen sampling amendment; per-trial full envelopes are excluded.",
+          "metrics": {
+            "elapsed_seconds": 91.01879024505615,
+            "generation_seconds": 73.888956,
+            "load_seconds": 16.7412937,
+            "native_total_seconds": 90.996913,
+            "output_tokens": 8285,
+            "prompt_seconds": 0.358614,
+            "prompt_tokens": 534,
+            "total_tokens": 8819
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The file `solution.py` exists in the project root.",
+              "When valid JSON with `credits` (integer) and `weights` (object with valid keys/values) is piped to stdin, the program writes a JSON array of `[ID, integer]` pairs to stdout.",
+              "The JSON output sorts the pairs by ascending ID.",
+              "On success, the program exits with status 0.",
+              "The integer allocations are calculated using the floor of proportional share logic plus distribution of the remainder credits.",
+              "When `credits` is zero, all IDs receive a value of 0.",
+              "Invalid inputs (malformed JSON, float/bool for credits, invalid weights, empty weights, negative weights, invalid keys) cause the program to exit with non-zero status and write empty stdout.",
+              "Tie-breaking for remainder distribution is performed by ascending ID."
+            ],
+            "assumptions": [
+              "The script terminates immediately upon encountering any validation error.",
+              "The JSON input contains no nested objects.",
+              "The keys in `weights` are required to be strings of lowercase ASCII letters.",
+              "Standard library imports `json` and `sys` are sufficient.",
+              "Ties in remainder values are broken strictly by the lexicographic order of the ID string."
+            ],
+            "goal": "Implement `solution.py`, a CLI tool that allocates integer credits to weighted IDs based on exact integer arithmetic, handling edge cases like zero credits and remainder tie-breakers.",
+            "implementation_steps": [
+              "Import `json` and `sys`.",
+              "Create a `main()` entry point that reads from `sys.stdin`.",
+              "Implement `parse_json_input(data)` to validate types (dict, credits as int, weights as dict) and key contents (weights keys `a-z`, values `>= 0`). Return parsed data or exit on failure.",
+              "Implement the allocation logic: calculate base allocation per ID, determine remainder credits, and sort IDs to award the remaining credits based on `(weight * remainder_credits) % total_weight` and ID.",
+              "Serialize the result to JSON sorted by ID and print to `sys.stdout`.",
+              "Handle `ZeroDivisionError` for zero total weight."
+            ],
+            "risks": [
+              "JSON parsing might raise exceptions that need to be caught and handled as non-zero exits.",
+              "Python's `int` handles arbitrarily large sizes, but the division logic must use integer arithmetic to avoid floating point inaccuracies in remainder calculations."
+            ],
+            "test_strategy": [
+              "Unit tests for `parse_json_input` to verify behavior with valid and invalid inputs (types, keys, values).",
+              "Unit tests for the allocation logic specifically for the remainder tie-breaker scenario.",
+              "Integration test piping valid JSON into the CLI and asserting the output matches the expected JSON array.",
+              "Integration test piping invalid JSON to assert non-zero exit and empty stdout."
+            ]
+          },
+          "human_review": {
+            "dimensions": [
+              1,
+              1,
+              0,
+              1,
+              0
+            ],
+            "score": 3,
+            "ready": false,
+            "blocking_defects": [
+              "Remainder ranking uses (weight * remainder_credits) % total_weight rather than (weight * original_credits) % total_weight. For credits=5, weights a=1,b=2, it awards the residual to b, yielding a=1,b=4 instead of a=2,b=3.",
+              "No concrete input/output oracle is supplied."
+            ],
+            "notes": [
+              "Floor allocation is named and integer arithmetic warned about, but no exact floor formula is given.",
+              "Missing explicit nonnegative credits, exact weight integer/bool/float checks, ignore-extra policy and positive-sum validation; ZeroDivisionError handling is proposed instead.",
+              "Zero credits, sorted output and arbitrary-precision integers are mentioned."
+            ],
+            "graded_before_unblinding": true
+          },
+          "in_call_samples": 15,
+          "all_observed_allocations_fully_in_vram": true,
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "glm-flash-q5",
+          "case": "apportion",
+          "score": 3,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "Subtracting 1 from the awarded remainder does not remove that ID from eligibility. With credits=4 and weights a=1,b=1,c=5, original remainders are 4,4,6. The proposed loop awards both residuals to c, producing [0,0,4] instead of [1,0,3].",
+            "Test 2 expects a=2,z=0 for credits=2 and equal weights; correct result is a=1,z=1.",
+            "Test 4 labels a syntactically valid displayed JSON object malformed and expects rejection."
+          ],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "generation_provenance": "Cohort settings recorded by fit probes and frozen sampling amendment; per-trial full envelopes are excluded.",
+          "metrics": {
+            "elapsed_seconds": 46.11189651489258,
+            "generation_seconds": 30.541117,
+            "load_seconds": 15.2617859,
+            "native_total_seconds": 46.1048735,
+            "output_tokens": 3729,
+            "prompt_seconds": 0.293591,
+            "prompt_tokens": 534,
+            "total_tokens": 4263
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The script accepts a single JSON object from standard input.",
+              "The JSON object MUST contain top-level keys 'credits' and 'weights'. Any other top-level keys are ignored.",
+              "The value for 'credits' MUST be an integer (type is `int`). JSON booleans (`true`/`false`) and floats are invalid and trigger a non-zero exit.",
+              "The value for 'weights' MUST be a non-empty object (dict).",
+              "Keys in 'weights' MUST be strings consisting of distinct lowercase ASCII letters (a-z).",
+              "Values in 'weights' MUST be integers (type is `int`). JSON booleans and floats are invalid and trigger a non-zero exit.",
+              "The sum of all values in 'weights' MUST be strictly greater than zero.",
+              "The script allocates credits using integer arithmetic: Base allocation = floor((weight / total_weight) * credits).",
+              "The script then greedily distributes remaining credits, one per iteration, to the ID with the highest remainder. If remainders are equal, the ID with the smaller lexicographic value is chosen.",
+              "The script outputs a JSON array of two-element lists `[ID, allocated_int]` for all IDs in 'weights', sorted by ascending ID. IDs with a zero allocation must be included.",
+              "On valid input, the script exits with status code 0.",
+              "On invalid input (malformed JSON, missing keys, invalid types, empty weights, invalid weight keys, or zero sum of weights), the script exits with a non-zero status code and writes nothing to stdout.",
+              "The implementation must be a single Python file named solution.py."
+            ],
+            "assumptions": [
+              "When parsing JSON, the library `json` from the Python standard library is used.",
+              "Exit status code for failure is non-zero (any code is acceptable, but 1 is standard)."
+            ],
+            "goal": "Write a Python CLI script that performs an exact integer credit allocation to entities based on specified weights.",
+            "implementation_steps": [
+              "1. Import necessary modules (sys, json).",
+              "2. Read raw data from sys.stdin.",
+              "3. Attempt to parse JSON data using `json.loads`. If this fails (JSONDecodeError), exit with status 1 and empty stdout.",
+              "4. Validate the parsed dictionary structure:",
+              "   a. Ensure 'credits' and 'weights' keys exist in the dictionary.",
+              "   b. Verify 'credits' is an integer (type is `int`). Reject bool/float.",
+              "   c. Verify 'weights' is a dictionary and is not empty.",
+              "   d. Iterate over 'weights' items to validate keys and values:",
+              "      - Keys must be strings matching the regex `^[a-z]+$`.",
+              "      - Values must be integers (type is `int`). Reject bool/float.",
+              "5. Validate weights sum: sum(weights.values()) must be > 0.",
+              "6. If validation fails, exit with status 1 and empty stdout.",
+              "7. Perform allocation logic:",
+              "   a. Calculate total_weight = sum(weights.values()).",
+              "   b. Initialize result dict for allocations (default 0).",
+              "   c. Pre-calculate 'remainders' for each ID: `(weight * credits) % total_weight`.",
+              "   d. Calculate 'base' allocations for each ID: `(weight * credits) // total_weight`.",
+              "   e. Reduce credits by the sum of base allocations to get `remaining_credits`.",
+              "8. Loop `remaining_credits` times:",
+              "   a. Find the maximum remainder value among remaining credits (initially all 0, then updated).",
+              "   b. Collect all IDs with this max remainder.",
+              "   c. Sort this list of IDs lexicographically (ascending).",
+              "   d. Select the first ID, allocate +1 credit to it, and decrement `remaining_credits`.",
+              "   e. Update the remainder for this ID: `new_rem = old_rem - 1`. (Conceptually, the bucket that gets the credit is now the lowest non-zero bucket, effectively updating the 'max' for the next step. However, since we just allocated to the highest, the next highest is the next largest remainder. A simpler way: keep a counter of 'active' credits. When `counter > 0`, find max `rem`. If `rem_i` == max, give credit. Decrement `rem_i` by 1 (or increment counter). The 'counter' approach is easier to code: `counter = remaining_credits`. While `counter > 0`: find max `rem` (where `rem` is initially pre-calculated). If tie, min ID. Increment result[ID]. Decrement `counter`. Decrement `rem[ID]` by 1 (or effectively `rem` becomes max-1, but since we allocated the max, the next max is the next highest).",
+              "   *Better Implementation Logic:* Let `rem` array contain the initial remainders. While `credits > 0`: find `max(rem.values())`. If tie, `min(rem.keys())`. result[ID] += 1. `rem[ID] -= 1`. `credits -= 1`.",
+              "9. Prepare output list: `[[id, result[id]], ...]` sorted by `id`.",
+              "10. Dump the list to stdout as JSON.",
+              "11. Exit 0."
+            ],
+            "risks": [
+              "Parsing logic must strictly distinguish Python `bool` from `int`. Python's `isinstance(True, int)` returns True. Must use `type(val) is int`.",
+              "Tie-breaking for remainders must be consistent. The 'sort the candidate list lexicographically' approach handles this deterministically.",
+              "JSON parsing is the first step. Malformed JSON should be caught by `try-except` before any other logic checks."
+            ],
+            "test_strategy": [
+              "Test 1: Valid allocation with simple weights.",
+              "Input: {\"credits\": 5, \"weights\": {\"a\": 1, \"b\": 1}}",
+              "Logic: Total 2. Base: a(2), b(2). Rem: a(1), b(1). Tie: a < b. Give a 1. Remain: a(0), b(1). Give b 1.",
+              "Expected: [[\"a\", 3], [\"b\", 2]]",
+              "Test 2: Remainder tie breaking.",
+              "Input: {\"credits\": 2, \"weights\": {\"z\": 1, \"a\": 1}}",
+              "Logic: Total 2. Base: z(1), a(1). Rem: z(1), a(1). Tie: a < z. Give a 1. Rem: z(1), a(0). Give z 1.",
+              "Expected: [[\"a\", 2], [\"z\", 0]]",
+              "Test 3: Zero credits, valid weights.",
+              "Input: {\"credits\": 0, \"weights\": {\"c\": 10, \"d\": 20}}",
+              "Expected: [[\"c\", 0], [\"d\", 0]]",
+              "Test 4: Malformed JSON.",
+              "Input: {\"credits\": 5, \"weights\": {\"a\": 1}} (missing comma)",
+              "Expected: Exit code 1, stdout \"\"",
+              "Test 5: Float in credits.",
+              "Input: {\"credits\": 5.0, \"weights\": {\"a\": 1}}",
+              "Expected: Exit code 1, stdout \"\"",
+              "Test 6: Empty weights object.",
+              "Input: {\"credits\": 5, \"weights\": {}}",
+              "Expected: Exit code 1, stdout \"\""
+            ]
+          },
+          "human_review": {
+            "dimensions": [
+              1,
+              2,
+              0,
+              0,
+              0
+            ],
+            "score": 3,
+            "ready": false,
+            "blocking_defects": [
+              "Subtracting 1 from the awarded remainder does not remove that ID from eligibility. With credits=4 and weights a=1,b=1,c=5, original remainders are 4,4,6. The proposed loop awards both residuals to c, producing [0,0,4] instead of [1,0,3].",
+              "Test 2 expects a=2,z=0 for credits=2 and equal weights; correct result is a=1,z=1.",
+              "Test 4 labels a syntactically valid displayed JSON object malformed and expects rejection."
+            ],
+            "notes": [
+              "Nonnegative credits and individual weights are omitted.",
+              "Exact product // total and % total appear in the detailed steps, despite a less precise proportional formula in criteria.",
+              "Test 1 expected output is correct but its explanation incorrectly awards a second residual credit."
+            ],
+            "graded_before_unblinding": true
+          },
+          "in_call_samples": 6,
+          "all_observed_allocations_fully_in_vram": true,
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "glm-flash-q5",
+          "case": "meter",
+          "score": 6,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "The detailed loop uses one global prev_reading across all meters, mixing independent meters. usage starts empty without initializing per-meter totals or emitting singleton meters.",
+            "Clamp-to-zero reset accounting is selected without asking for confirmation or labeling it provisional as the brief requires."
+          ],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "generation_provenance": "Cohort settings recorded by fit probes and frozen sampling amendment; per-trial full envelopes are excluded.",
+          "metrics": {
+            "elapsed_seconds": 61.014995098114014,
+            "generation_seconds": 60.635209,
+            "load_seconds": 0.0038682,
+            "native_total_seconds": 61.0088941,
+            "output_tokens": 7075,
+            "prompt_seconds": 0.319514,
+            "prompt_tokens": 564,
+            "total_tokens": 7639
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program must implement a CLI in `solution.py` that reads a JSON array of events from stdin.",
+              "Each event object must contain exactly the keys 'meter', 'time', and 'reading'. Values must be integers (exclusive of booleans and floats). 'meter' must be a non-empty string. 'time' and 'reading' must be non-negative integers. Extra keys are ignored (do not cause invalidity).",
+              "Validation must occur for every event in the input stream immediately upon parsing. If any event fails validation (incorrect type, missing key, invalid value), the program must exit with a non-zero status code and write nothing to stdout.",
+              "Events are stored based on the unique identifier (meter, time). If multiple events exist for the same meter and time, the last occurrence in the input wins and supersedes all previous entries.",
+              "The program must sort the retained (unique) events by time in ascending order to calculate usage.",
+              "Usage calculation logic: For every pair of consecutive retained readings (t1, r1) followed by (t2, r2), the usage is calculated as `r2 - r1`.",
+              "Reset Policy: If `r2 < r1`, the resulting delta is negative. The selected policy is to clamp the delta to zero (effectively accounting for the reset as a period of zero usage). This ensures usage is never negative.",
+              "The program must output a single JSON object where keys are meter names (strings) and values are the total integer usage for that meter. The order of keys in the JSON output is irrelevant.",
+              "An empty input JSON array must produce an empty JSON object `{}` and exit with code 0.",
+              "A successful execution (valid input, valid calculations) must exit with code 0."
+            ],
+            "assumptions": [
+              "Input is valid UTF-8 text on stdin. If `json.load` fails, it is treated as invalid input, and the program exits non-zero.",
+              "Times are integers representing discrete moments or intervals.",
+              "Multiple meters can be processed simultaneously, accumulating usage independently.",
+              "The 'reading' value represents a cumulative total (e.g., odometer), not an increment."
+            ],
+            "goal": "Implement a meter reading summary CLI that validates input, merges duplicates using last-wins semantics, orders events chronologically, calculates net usage while handling resets, and outputs the result.",
+            "implementation_steps": [
+              "Parse the JSON array from stdin using `json.load(sys.stdin)`.",
+              "Iterate through the input list to validate and aggregate events:",
+              "Initialize a dictionary `event_store` keyed by `(meter, time)` tuples.",
+              "For each event dict:",
+              "Validate types: meter (str, len>0), time (int, >=0), reading (int, >=0).",
+              "If valid, store/update `event_store` with the event dict (overwrites previous).",
+              "If validation fails, exit(1) immediately.",
+              "Extract values from `event_store` to form the `events` list.",
+              "Sort `events` list by the integer value of the 'time' key in ascending order.",
+              "Initialize `usage = {}` dictionary to track per-meter totals.",
+              "Process sorted events to calculate usage:",
+              "Set `prev_reading = None`.",
+              "For each `event` in sorted list:",
+              "Check if `prev_reading` is None: Skip calculation (first reading is baseline).",
+              "Else, calculate `delta = current_reading - prev_reading`.",
+              "Apply reset policy: `usage_delta = max(0, delta)`.",
+              "Add `usage_delta` to `usage[event['meter']]`.",
+              "Update `prev_reading = current_reading`.",
+              "Serialize `usage` dictionary to JSON using `json.dumps`.",
+              "Write JSON string to stdout and exit(0)."
+            ],
+            "risks": [
+              "JSON decoding errors might occur if stdin contains non-JSON content. The plan treats this as a failure state (Exit 1).",
+              "Python's type checking for integers must be strict (e.g., `type(1) is int`) to reject floats like `1.0` which are valid JSON numbers.",
+              "The 'last occurrence' logic requires careful handling of the dictionary overwrite to ensure the most recent event is preserved."
+            ],
+            "test_strategy": [
+              "Test Case 1: Out-of-order events and duplicate time handling.",
+              "Input: `[{\"meter\": \"A\", \"time\": 2, \"reading\": 20}, {\"meter\": \"A\", \"time\": 1, \"reading\": 10}]`",
+              "Expected Behavior: The event at Time 2 overwrites Time 1. Sorted list is (Time 1, 10) then (Time 2, 20). Usage is 10.",
+              "Expected Output: `{\"A\": 10}`",
+              "Test Case 2: Reset Policy Application (Negative Delta).",
+              "Input: `[{\"meter\": \"B\", \"time\": 1, \"reading\": 100}, {\"meter\": \"B\", \"time\": 2, \"reading\": 50}]`",
+              "Expected Behavior: Time 2 is lower than Time 1. Delta is -50. Policy caps at 0.",
+              "Expected Output: `{\"B\": 0}`",
+              "Test Case 3: Mixed Scenario (Reset followed by valid usage).",
+              "Input: `[{\"meter\": \"C\", \"time\": 1, \"reading\": 0}, {\"meter\": \"C\", \"time\": 2, \"reading\": 20}, {\"meter\": \"C\", \"time\": 3, \"reading\": 15}]`",
+              "Expected Behavior: First step 0->20 (usage 20). Second step 20->15 (reset, usage 0). Total 20.",
+              "Expected Output: `{\"C\": 20}`",
+              "Test Case 4: Invalid Input (Type - Float).",
+              "Input: `[{\"meter\": \"X\", \"time\": 1, \"reading\": 1.5}]`",
+              "Expected Behavior: `reading` is float. Validation fails.",
+              "Expected Output: (No stdout), Exit Code 1",
+              "Test Case 5: Valid Input with Extra Keys (Should pass).",
+              "Input: `[{\"meter\": \"Y\", \"time\": 1, \"reading\": 5, \"extra\": 1}]`",
+              "Expected Behavior: Required keys present, types correct. Extra key ignored.",
+              "Expected Output: `{\"Y\": 0}`"
+            ]
+          },
+          "human_review": {
+            "dimensions": [
+              2,
+              2,
+              0,
+              1,
+              1
+            ],
+            "score": 6,
+            "ready": false,
+            "blocking_defects": [
+              "The detailed loop uses one global prev_reading across all meters, mixing independent meters. usage starts empty without initializing per-meter totals or emitting singleton meters.",
+              "Clamp-to-zero reset accounting is selected without asking for confirmation or labeling it provisional as the brief requires."
+            ],
+            "notes": [
+              "Validates each event before updating the deduplication dictionary; explicit bool/float exclusion and extra-key acceptance.",
+              "Concrete output oracles match the chosen clamp rule, including nonzero reset reading, but there is no actual duplicate-time test. Test 1 incorrectly says time 2 overwrites time 1 while listing both in the sorted sequence.",
+              "Exactly-keys wording conflicts with extra-keys-ignored; the explicit extra-key success test clarifies intended acceptance."
+            ],
+            "graded_before_unblinding": true
+          },
+          "in_call_samples": 12,
+          "all_observed_allocations_fully_in_vram": true,
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "glm-flash-q4",
+          "case": "meter",
+          "score": 9,
+          "score_maximum": 10,
+          "ready": true,
+          "blockers": [],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "generation_provenance": "Cohort settings recorded by fit probes and frozen sampling amendment; per-trial full envelopes are excluded.",
+          "metrics": {
+            "elapsed_seconds": 45.40715050697327,
+            "generation_seconds": 38.016206,
+            "load_seconds": 7.052993,
+            "native_total_seconds": 45.4007434,
+            "output_tokens": 4739,
+            "prompt_seconds": 0.324381,
+            "prompt_tokens": 564,
+            "total_tokens": 5303
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "The program reads a JSON array from stdin.",
+              "Root input must be a list. An empty list [] is valid. An empty object {} is invalid.",
+              "Each event must be a dictionary. Extra keys are ignored.",
+              "Required keys: 'meter', 'time', 'reading'.",
+              "Values must be valid integers. Booleans (even 'true') and floats (even '1.0') are invalid.",
+              "The 'meter' value must be a non-empty string.",
+              "The 'time' and 'reading' values must be non-negative integers.",
+              "For any given meter and time, only the last event read is retained (overrides previous).",
+              "Events are sorted globally by time to determine 'consecutive retained readings'.",
+              "Usage for a meter is calculated as the sum of differences between consecutive readings.",
+              "Reset Policy (Assumption): If a reading is lower than the previous reading, the usage for that interval is treated as 0 to avoid negative values.",
+              "Usage for a meter with a single reading is 0.",
+              "Valid input produces JSON output on stdout with exit code 0.",
+              "Invalid input produces no stdout and exit code 1."
+            ],
+            "assumptions": [
+              "The reset policy assumes that a drop in the cumulative reading implies a period of non-functionality or a reset where the meter did not accumulate usage. Thus, the calculated change (negative) is clamped to 0."
+            ],
+            "goal": "Implement solution.py as a CLI that performs the above validation, aggregation, and calculation logic.",
+            "implementation_steps": [
+              "Read stdin as a string and use json.loads to parse it.",
+              "Validate the parsed object is a list. Exit 1 if not.",
+              "Iterate through the list. For each item, validate type 'dict' and presence of keys.",
+              "Type check values: meter (str), time (int), reading (int). Reject bool/float. Reject out of range integers.",
+              "Store events in a dictionary keyed by (meter, time) string to handle overwrites (Last wins).",
+              "Extract unique events from the dictionary and sort them by the 'time' value.",
+              "Iterate through sorted events. Maintain a running total for each meter.",
+              "If it's the first event for a meter, set the previous reading to the current reading and usage to 0.",
+              "If it's not the first event: Calculate delta = current_reading - previous_reading. Apply reset policy: usage += max(0, delta). Update previous_reading to current_reading.",
+              "Collect all meters and their total usage into a dictionary.",
+              "Serialize the result dictionary to JSON and write to stdout.",
+              "Handle exceptions during parsing/validation to ensure exit code 1 is reached on failure."
+            ],
+            "risks": [
+              "JSON type confusion: Python's json module parses 'true' as bool and '1.0' as float. Explicit type checking is required."
+            ],
+            "test_strategy": [
+              "Test Case 1: Out-of-order duplicate (Valid Input).",
+              "Input: [{'meter':'k1','time':10,'reading':100}, {'meter':'k1','time':5,'reading':50}, {'meter':'k1','time':5,'reading':60}]",
+              "Expected Output: {'k1': 40}",
+              "Explanation: T=5 (60), T=10 (100). 100-60 = 40. Meter 'k1' only.",
+              "",
+              "Test Case 2: Reset Policy (Valid Input).",
+              "Input: [{'meter':'k2','time':1,'reading':10}, {'meter':'k2','time':2,'reading':5}]",
+              "Expected Output: {'k2': 0}",
+              "Explanation: T=1 (10), T=2 (5). 5-10 = -5. Reset policy sets this to 0.",
+              "",
+              "Test Case 3: Mixed meters and chronological order (Valid Input).",
+              "Input: [{'meter':'m1','time':1,'reading':10}, {'meter':'m2','time':1,'reading':5}, {'meter':'m1','time':2,'reading':20}, {'meter':'m2','time':3,'reading':10}]",
+              "Expected Output: {'m1': 10, 'm2': 5}",
+              "Explanation: m1: 10 -> 20 (diff 10). m2: 5 -> 10 (diff 5).",
+              "",
+              "Test Case 4: Invalid Input - Boolean/Float (Exit 1).",
+              "Input: [{'meter':'a','time':1,'reading':true}]",
+              "Expected Behavior: Exit code 1, no stdout."
+            ]
+          },
+          "human_review": {
+            "dimensions": [
+              2,
+              2,
+              2,
+              1,
+              2
+            ],
+            "score": 9,
+            "ready": true,
+            "blocking_defects": [],
+            "notes": [
+              "Per-event validation precedes overwrite; global time sorting is valid because previous readings and totals are maintained per meter.",
+              "Concrete duplicate, reset and mixed-meter oracles are correct: 40, 0, and m1=10/m2=5.",
+              "Reset accounting is explicitly an assumption and consistently clamps to zero, but the plan does not explicitly request product-owner confirmation. This is partial credit, not a missing reset rule.",
+              "Tuple-key description says (meter,time) string without an encoding; use a real tuple to avoid ambiguous concatenation."
+            ],
+            "graded_before_unblinding": true
+          },
+          "in_call_samples": 8,
+          "all_observed_allocations_fully_in_vram": true,
+          "assistance": "none; independently graded first submission"
+        },
+        {
+          "model": "nemotron-lightning-iq4-xs",
+          "case": "meter",
+          "score": 4,
+          "score_maximum": 10,
+          "ready": false,
+          "blockers": [
+            "Both principal concrete input strings are malformed/overquoted rather than JSON arrays of event objects, yet are assigned successful outputs. They cannot be used as written."
+          ],
+          "schema_valid": null,
+          "finish_reason": "stop",
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "generation_provenance": "Cohort settings recorded by fit probes and frozen sampling amendment; per-trial full envelopes are excluded.",
+          "metrics": {
+            "elapsed_seconds": 39.43169665336609,
+            "generation_seconds": 25.019655,
+            "load_seconds": 13.6196927,
+            "native_total_seconds": 39.3920503,
+            "output_tokens": 4883,
+            "prompt_seconds": 0.74064,
+            "prompt_tokens": 588,
+            "total_tokens": 5471
+          },
+          "final_plan": {
+            "acceptance_criteria": [
+              "idempotent_json_parse",
+              "event_type_validation",
+              "bool_and_float_rejection",
+              "extra_keys_ignored",
+              "last_occurrence_wins_dedup",
+              "per_meter_time_sort",
+              "usage_delta_computation",
+              "equal_readings_zero_delta",
+              "decrease_reset_policy",
+              "single_reading_zero_usage",
+              "empty_batch_valid",
+              "success_exit_zero",
+              "invalid_input_exit1_no_stdout",
+              "output_json_format",
+              "meter_nonempty_string",
+              "nonnegative_integer_time_reading"
+            ],
+            "assumptions": [
+              "provisional_reset_policy: when a retained reading decreases relative to the previous retained reading for the same meter, the usage delta for that interval is set to 0 and the new reading becomes the new baseline. this avoids negative usage and is applied consistently across all meters.",
+              "meter strings are taken as‑is; a non‑empty check is `meter != \"\"`. trailing/leading whitespace is not stripped unless the input contains it explicitly.",
+              "booleans are rejected for integer‑valued fields despite `isinstance(x, int)` being true for `True`/`False` in python."
+            ],
+            "goal": "plan only – no source produced",
+            "implementation_steps": [
+              "solution.py entry point that reads sys.stdin, validates, deduplicates, sorts per meter, computes usage per the defined policy, prints compact JSON to sys.stdout, and exits with appropriate code.",
+              "optional: expose `def compute_usage(events): ...` and `def parse_events(raw): ...` for independent test targeting, but the primary artifact is the CLI script."
+            ],
+            "risks": [
+              "if the decrease‑policy assumption later conflicts with owner intent, the plan notes it as an explicit assumption and can be swapped without restructuring the rest of the logic."
+            ],
+            "test_strategy": [
+              "two concrete stdin inputs with exact expected stdout JSON and exit codes:",
+              "  1. out‑of‑order duplicate:",
+              "    input: `[\"{\\\"meter\\\":\\\"A\\\",\\\"time\\\":5,\\\"reading\\\":10},{\\\"meter\\\":\\\"A\\\",\\\"time\\\":3,\\\"reading\\\":5},{\\\"meter\\\":\\\"A\\\",\\\"time\\\":5,\\\"reading\\\":12}]\"`,",
+              "    expected stdout: {\"A\":7}",
+              "    exit: 0",
+              "",
+              "  2. chosen reset policy (decrease):",
+              "    input: `[\"{\\\"meter\\\":\\\"B\\\",\\\"time\\\":1,\\\"reading\\\":100},{\\\"meter\\\":\\\"B\\\",\\\"time\\\":3,\\\"reading\\\":50}]\"`,",
+              "    expected stdout: {\"B\":0}",
+              "    exit: 0 (delta=0 policy applied; without it the mathematically correct -50 would violate the \"avoid negative usage\" mandate)",
+              "    exit: 0",
+              "",
+              "  (bonus empty batch) input: \"[]\", expected stdout: {}, exit: 0",
+              "  (bonus invalid input) input: \"{not_array}\", expected stdout: (empty), exit: 1"
+            ]
+          },
+          "human_review": {
+            "dimensions": [
+              1,
+              1,
+              1,
+              1,
+              0
+            ],
+            "score": 4,
+            "ready": false,
+            "blocking_defects": [
+              "Both principal concrete input strings are malformed/overquoted rather than JSON arrays of event objects, yet are assigned successful outputs. They cannot be used as written."
+            ],
+            "notes": [
+              "Most acceptance criteria are labels rather than implementable contracts. The plan does not explain the deduplication key or summation algorithm beyond generic labels.",
+              "Reset is explicitly provisional and consistently clamps to zero with a new baseline; owner intent is mentioned as a future risk, but confirmation is not requested.",
+              "Intended arithmetic is 12-5=7 and clamp(50-100)=0; the problem is the actual supplied input representation, not those totals."
+            ],
+            "graded_before_unblinding": true
+          },
+          "in_call_samples": 5,
+          "all_observed_allocations_fully_in_vram": true,
+          "assistance": "none; independently graded first submission"
+        }
+      ],
+      "aggregate": {
+        "nemotron-lightning-iq4-xs": {
+          "submissions": 2,
+          "ready": 0,
+          "points": 9,
+          "points_available": 20,
+          "elapsed_seconds": 67.95371532440186
+        },
+        "glm-flash-q4": {
+          "submissions": 2,
+          "ready": 1,
+          "points": 12,
+          "points_available": 20,
+          "elapsed_seconds": 136.42594075202942
+        },
+        "glm-flash-q5": {
+          "submissions": 2,
+          "ready": 0,
+          "points": 9,
+          "points_available": 20,
+          "elapsed_seconds": 107.12689161300659
+        }
+      },
+      "fit_probes": [
+        {
+          "model": "glm-flash-q4",
+          "purpose": "separate inference-fit probe; not one of the six scored plans",
+          "finish_reason": "stop",
+          "usable_plan": true,
+          "active_context": 32768,
+          "active_samples": 16,
+          "placement": "100% GPU",
+          "peak_model_bytes": 20217719683,
+          "peak_model_gpu_bytes": 20217719683,
+          "passed_full_gpu_fit": true,
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "metrics": [
+            {
+              "elapsed_seconds": 32.289570331573486,
+              "generation_seconds": 17.635402,
+              "load_seconds": 13.9913337,
+              "native_total_seconds": 32.2462379,
+              "output_tokens": 2180,
+              "prompt_seconds": 0.608095,
+              "prompt_tokens": 344,
+              "total_tokens": 2524
+            }
+          ]
+        },
+        {
+          "model": "glm-flash-q5",
+          "purpose": "separate inference-fit probe; not one of the six scored plans",
+          "finish_reason": "stop",
+          "usable_plan": true,
+          "active_context": 32768,
+          "active_samples": 18,
+          "placement": "100% GPU",
+          "peak_model_bytes": 22683551005,
+          "peak_model_gpu_bytes": 22683551005,
+          "passed_full_gpu_fit": true,
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "metrics": [
+            {
+              "elapsed_seconds": 35.92326998710632,
+              "generation_seconds": 19.173776,
+              "load_seconds": 16.3664538,
+              "native_total_seconds": 35.8866738,
+              "output_tokens": 2240,
+              "prompt_seconds": 0.340195,
+              "prompt_tokens": 344,
+              "total_tokens": 2584
+            }
+          ]
+        },
+        {
+          "model": "nemotron-lightning-iq4-xs",
+          "purpose": "separate inference-fit probe; not one of the six scored plans",
+          "finish_reason": "stop",
+          "usable_plan": true,
+          "active_context": 32768,
+          "active_samples": 16,
+          "placement": "100% GPU",
+          "peak_model_bytes": 18267588525,
+          "peak_model_gpu_bytes": 18267588525,
+          "passed_full_gpu_fit": true,
+          "generation": {
+            "context": 32768,
+            "output_tokens": null,
+            "repetition_guard": true,
+            "temperature": 1.0,
+            "think": true,
+            "top_p": 0.95,
+            "top_k_mode": "native-default-unset"
+          },
+          "metrics": [
+            {
+              "elapsed_seconds": 34.75894355773926,
+              "generation_seconds": 14.638234,
+              "load_seconds": 15.5849552,
+              "native_total_seconds": 34.7522676,
+              "output_tokens": 2677,
+              "prompt_seconds": 4.518406,
+              "prompt_tokens": 364,
+              "total_tokens": 3041
+            }
+          ]
+        }
+      ],
+      "selection": "No alternative candidate qualified on both briefs. All three allocation plans had blocking defects.",
+      "limits": [
+        "One fresh submission per model and brief, using the same two synthetic briefs as the earlier comparisons.",
+        "The top_k amendment means this is a separately labeled deployable-profile comparison, not a perfectly matched sampler experiment against Gemma.",
+        "Fully GPU-resident native model allocation does not establish whole-board memory peaks or plan correctness.",
+        "Three unscored fit probes are separate from six scored plans.",
+        "Exact immutable runtime/package identities were not retained in this selected export; public package tags are provided."
+      ]
+    }
+  ],
+  "model_identity_notes": {
+    "gemma-26b-q4": "Public package tag gemma4:26b-a4b-it-mtp-q4_K_M.",
+    "gemma-26b-q5": "Gemma 26B A4B UD-Q5_K_M; machine-local alias withheld, exact immutable artifact unavailable in this export.",
+    "gemma-31b-iq4-xs": "Gemma 31B IQ4_XS; machine-local alias withheld, exact immutable artifact unavailable in this export.",
+    "gemma-31b-qat": "Public package tag gemma4:31b-it-qat.",
+    "gemma-12b-q8": "Public package tag gemma4:12b-it-q8_0.",
+    "glm-flash-q4": "Public package tag hf.co/unsloth/GLM-4.7-Flash-GGUF:Q4_K_M. Exact immutable artifact identity unavailable in this export.",
+    "glm-flash-q5": "Public package tag hf.co/unsloth/GLM-4.7-Flash-GGUF:Q5_K_S. Exact immutable artifact identity unavailable in this export.",
+    "nemotron-lightning-iq4-xs": "Public package tag hf.co/bartowski/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF:IQ4_XS. Exact immutable artifact identity unavailable in this export."
+  },
+  "claim_check": {
+    "gemma_26b_q4_ready": 8,
+    "gemma_26b_q4_submissions": 8,
+    "distinct_synthetic_briefs": 2,
+    "gemma_26b_q4_comparisons": 4,
+    "alternative_planner_models": 3,
+    "alternative_models_ready_on_both_briefs": 0
+  },
+  "limits": [
+    "Complete historical prompt envelopes, raw reasoning and service state are not included.",
+    "The two briefs and rubric are available for independent regrading; reproducing historical model plans requires the original model/runtime package identities and harness, not all of which are available.",
+    "No private review-task or website comparison material is included."
+  ]
+}

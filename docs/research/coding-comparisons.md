@@ -29,6 +29,8 @@ Each model produced one plan per brief per comparison. Every plan in the table r
 
 **Gemma 26B Q4 and Q5** both handled the allocation and tie cases in their matched comparison. The Q5 meter plan left the extra-key rule implicit. Both quantizations gave a consistent reset example but omitted the requested confirmation of the reset policy. Q5 took about 19 seconds longer across the pair and yielded no additional ready plan. Across the two direct comparisons with 31B IQ4_XS, Q4 produced four ready plans in four submissions and IQ4_XS produced three in four. Those four submissions repeated the same two briefs. IQ4_XS was faster in both pairs and began the first pair already loaded.
 
+The [planning evidence](../../benchmarks/evidence/v1/planning/README.md) includes the two synthetic briefs, readiness rubric and archived outcomes. In the first Q4-versus-IQ4 pilot, live input bundles and settings were verified, but the deployed service revision could not be retrieved for source inspection. That limits source reproducibility for that pilot; the saved plans and grades remain historical observations.
+
 **GLM Q4** used a faulty remainder update and supplied an incorrect expected allocation. Its meter plan passed with correct examples. **GLM Q5** based its remainder ranking on credits left after the initial distribution. Proportional remainders depend on the original credit pool. Its meter plan also shared one previous-reading variable across meters, so a reading from one meter could affect another meter's usage. **Nemotron** could award multiple residual credits to the same ID and omitted exact allocation examples. Its meter plan left aggregation steps unspecified and included malformed input examples. All six model calls in this comparison finished normally, including the five plans that missed readiness. Nemotron started its first call resident after a fit probe, and GLM Q5's calls were adjacent.
 
 ## How much did more thinking help on the combat plan?
@@ -51,6 +53,8 @@ The original capped series returned five usable plans from seven attempts. In an
 ## First implementation versus repaired implementation
 
 The first matched combat comparison reused a plan and eight generated tests. Both models used a 98,304-token context and no output cap. Qwen3-Coder-Next UD-IQ1_M used its native generation mode, while Qwen 27B MTP Q4_K_M used xhigh. Each model submitted one implementation.
+
+Full-message equality was checked by reconstructing the requests from retained frozen bundles and the prompt builder. The original native request artifacts were not retrieved directly. The [Build evidence](../../benchmarks/evidence/v1/build/README.md) distinguishes available specifications, saved submissions and score records from missing historical artifacts. It preserves that provenance limit for both the initial and strengthened-suite comparisons.
 
 | Author | Frozen tests | Hand-calculated battles | Seeded reference matches | Additional invalid inputs | Implementation time |
 |---|---:|---:|---:|---:|---:|

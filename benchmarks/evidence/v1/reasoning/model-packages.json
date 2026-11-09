@@ -1,0 +1,95 @@
+{
+  "format_version": 1,
+  "runtime": {
+    "provider": "Ollama",
+    "recorded_version": "0.40.12"
+  },
+  "packages": [
+    {
+      "tag_digest": "56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90",
+      "package_bytes": 6550825550,
+      "quantization": "Q4_K_M",
+      "architecture": "qwen35",
+      "parameter_count": 8953803264,
+      "gguf_file_type": 15,
+      "weight_from_sha256": "02d45dc1cf451ba2475ac33b301c2dd8f985abe4c182ce04a1f2f5bf0260278d",
+      "template_source": "renderer_parser",
+      "renderer": "qwen3.5",
+      "parser": "qwen3.5",
+      "template_sha256": "b507b9c2f6ca642bffcd06665ea7c91f235fd32daeefdf875a0f938db05fb315",
+      "parameters_sha256": "6290a4f3b88445e37918439f7730e11dfb1e5f5012138755a4c705a4aebe3185",
+      "system_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "context_lengths": {
+        "qwen35.context_length": 262144
+      },
+      "model": "qwen-9b-q4",
+      "public_package_tag": "qwen3.5:9b-q4_K_M"
+    },
+    {
+      "tag_digest": "8facfbea34b1f6c2ec78e9d2f99a298aacd4e8005966bbd3f97bcf0b23da9543",
+      "package_bytes": 18842402817,
+      "quantization": "BF16",
+      "architecture": "qwen35",
+      "parameter_count": 8953803264,
+      "gguf_file_type": 32,
+      "weight_from_sha256": "daebe40eeea7057c1cdf35ac56d13f507d8bf12171bbb7a6b6b0d3f05439159a",
+      "template_source": "gguf_chat_template",
+      "renderer": null,
+      "parser": null,
+      "template_sha256": "7f0e529032c25183bcd66c7f238da2d377f43be754a94e2725a58c4e16d2ed67",
+      "parameters_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "system_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "context_lengths": {
+        "qwen35.context_length": 262144
+      },
+      "model": "qwen-9b-bf16",
+      "public_package_tag": "hf.co/unsloth/Qwen3.5-9B-GGUF:BF16"
+    },
+    {
+      "tag_digest": "6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
+      "package_bytes": 8021618941,
+      "quantization": "Q4_K_M",
+      "architecture": "gemma4",
+      "parameter_count": 11907350576,
+      "gguf_file_type": 15,
+      "weight_from_sha256": "bb722270d54346adc198f213851dbe0207e87c3ecf2a0aff4d92262726215391",
+      "template_source": "renderer_parser",
+      "renderer": "gemma4-large",
+      "parser": "gemma4",
+      "template_sha256": "b507b9c2f6ca642bffcd06665ea7c91f235fd32daeefdf875a0f938db05fb315",
+      "parameters_sha256": "9def52e59f675396bfd32c4b79bc0dda845ee4f18979b63099cc6e91e7badb43",
+      "system_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "context_lengths": {
+        "gemma4.context_length": 262144
+      },
+      "model": "gemma-12b-q4",
+      "public_package_tag": "gemma4:12b"
+    },
+    {
+      "tag_digest": "41c402fdddc2a87e40a4391caa400961e93786383fbb92a88fc764c333c25322",
+      "package_bytes": 12844772074,
+      "quantization": "Q8_0",
+      "architecture": "gemma4",
+      "parameter_count": 11907350576,
+      "gguf_file_type": 7,
+      "weight_from_sha256": "047dae1d7894b9de8f08141e841544e007243290c02df8b39872991d1940c795",
+      "template_source": "renderer_parser",
+      "renderer": "gemma4-large",
+      "parser": "gemma4",
+      "template_sha256": "b507b9c2f6ca642bffcd06665ea7c91f235fd32daeefdf875a0f938db05fb315",
+      "parameters_sha256": "7cf6d183c523e25856d599df53d25cf76917d5b2fbc3f95ec70838bb75e4bff1",
+      "system_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "context_lengths": {
+        "gemma4.context_length": 262144
+      },
+      "model": "gemma-12b-q8",
+      "public_package_tag": "gemma4:12b-it-q8_0"
+    }
+  ],
+  "notes": [
+    "Package metadata was captured without inference.",
+    "Qwen Q4 and BF16 template/parser paths differ: this is a deployable-package comparison, not a precision-only causal experiment.",
+    "The reader experiment explicitly set presence penalty to zero; the Qwen Q4 package's native default was 1.5.",
+    "Native model allocations describe individual models rather than total-board VRAM peaks."
+  ]
+}

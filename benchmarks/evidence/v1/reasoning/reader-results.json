@@ -1,0 +1,1330 @@
+{
+  "format_version": 1,
+  "experiment": "paired-reader-screen",
+  "inference_hardware": "RTX 3090, 24 GiB VRAM",
+  "scoring_unit": "One final answer per model and case; one point per rubric check, critical errors block qualification.",
+  "sample_count_per_model_case": 1,
+  "settings": {
+    "qwen-9b-bf16": {
+      "context": 32768,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": true,
+      "top_k": 20,
+      "top_p": 0.95,
+      "presence_penalty": 0.0
+    },
+    "gemma-12b-q8": {
+      "context": 32768,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": true,
+      "top_k": 64,
+      "top_p": 0.95,
+      "presence_penalty": 0.0
+    },
+    "qwen-9b-q4": {
+      "context": 32768,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": true,
+      "top_k": 20,
+      "top_p": 0.95,
+      "presence_penalty": 0.0
+    },
+    "gemma-12b-q4": {
+      "context": 32768,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": true,
+      "top_k": 64,
+      "top_p": 0.95,
+      "presence_penalty": 0.0
+    }
+  },
+  "selected_case_count": 6,
+  "complete_campaign_case_count": 9,
+  "selection_note": "This archive includes six generic reasoning/code-review/query cases. It excludes preliminary planning, report comparison, functional-evidence and image packets from the broader campaign.",
+  "campaign_native_calls": {
+    "planned": 50,
+    "completed": 50,
+    "stop": 49,
+    "length": 1,
+    "unknown_completion": 0,
+    "retries": 0
+  },
+  "records": [
+    {
+      "model": "qwen-9b-q4",
+      "case": "fifo",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct removals, final queue and complete operation sequence; no invented citations."
+        ],
+        "score": 4,
+        "total": 4,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 24.367071866989136,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 2061,
+        "prompt_seconds": null,
+        "prompt_tokens": 366,
+        "total_tokens": 2427
+      },
+      "final_output": {
+        "answer": "The removed items, in order, are **A** and **B**. The final queue contains **C**.",
+        "assumptions": [
+          "The queue follows standard First-In-First-Out (FIFO) semantics.",
+          "The 'oldest item' is the element currently at the front of the queue.",
+          "Append operations add to the rear, removal operations remove from the front."
+        ],
+        "key_claims": [
+          "Initial state: Empty queue.",
+          "After Append A: [A].",
+          "After Append B: [A, B].",
+          "First Removal: A is removed. Queue becomes [B].",
+          "After Append C: [B, C].",
+          "Second Removal: B is removed. Queue becomes [C]."
+        ],
+        "uncertainties": [],
+        "verification_needed": [],
+        "evidence": []
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q4",
+      "case": "fifo",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct step-by-step queue sequence and final answer with no fabricated citations."
+        ],
+        "score": 4,
+        "total": 4,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 12.170213222503662,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 538,
+        "prompt_seconds": null,
+        "prompt_tokens": 370,
+        "total_tokens": 908
+      },
+      "final_output": {
+        "answer": "The first removed item was A and the second removed item was B. The final queue is [C]. \n\nBrief explanation:\n1. Start: []\n2. Append A: [A]\n3. Append B: [A, B]\n4. Remove oldest (A): [B]\n5. Append C: [B, C]\n6. Remove oldest (B): [C]",
+        "assumptions": [
+          "The queue follows First-In-First-Out (FIFO) logic, where the 'oldest' item is the one added first.",
+          "The queue structure allows for standard appending to the end and removing from the front."
+        ],
+        "key_claims": [
+          "Removed item 1: A",
+          "Removed item 2: B",
+          "Final queue state: [C]"
+        ],
+        "uncertainties": [],
+        "verification_needed": [],
+        "evidence": []
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-bf16",
+      "case": "fifo",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct FIFO reasoning. Nonempty no-uncertainty/no-verification strings could unnecessarily trigger downstream research, but the frozen factual checks pass."
+        ],
+        "score": 4,
+        "total": 4,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 51.79577112197876,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1945,
+        "prompt_seconds": null,
+        "prompt_tokens": 366,
+        "total_tokens": 2311
+      },
+      "final_output": {
+        "answer": "Removed items in order: A, then B. Final queue state: [C]. Explanation: A standard FIFO queue adds items to the rear and removes from the front. After appending A and B, the queue is [A, B]. Removing the oldest removes A, leaving [B]. Appending C makes it [B, C]. Removing the oldest now removes B, leaving [C].",
+        "assumptions": [
+          "The 'queue' refers to a standard First-In-First-Out (FIFO) data structure.",
+          "Remove oldest item refers to removing the item at the front (head) of the queue."
+        ],
+        "key_claims": [
+          "Queue operations follow FIFO logic (append adds to end, remove takes from start).",
+          "Initial removal of [A, B] results in A being removed first."
+        ],
+        "uncertainties": [
+          "None; the logic is deterministic based on standard data structure definitions."
+        ],
+        "verification_needed": [
+          "No external verification needed as this is a mathematical/logical simulation."
+        ],
+        "evidence": []
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q8",
+      "case": "fifo",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct complete FIFO sequence, removals and final queue; no unsupported claims."
+        ],
+        "score": 4,
+        "total": 4,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 20.550960063934326,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 620,
+        "prompt_seconds": null,
+        "prompt_tokens": 370,
+        "total_tokens": 990
+      },
+      "final_output": {
+        "answer": "The removed items are A, then B. The final queue is [C]. \n\nBrief explanation:\n1. Append A: [A]\n2. Append B: [A, B]\n3. Remove oldest (A): [B]\n4. Append C: [B, C]\n5. Remove oldest (B): [C]",
+        "assumptions": [
+          "The queue follows a First-In-First-Out (FIFO) structure, where 'oldest' refers to the item added earliest."
+        ],
+        "key_claims": [
+          "The first item removed is A.",
+          "The second item removed is B.",
+          "The final state of the queue contains only C."
+        ],
+        "uncertainties": [],
+        "verification_needed": [],
+        "evidence": []
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q4",
+      "case": "corrected-notes",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct current owner/date, net count with archived exclusion, validation status/reviewer, unknown timezone and citations. Suggests a nonessential additional category clarification."
+        ],
+        "score": 8,
+        "total": 8,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 22.48612403869629,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1146,
+        "prompt_seconds": null,
+        "prompt_tokens": 622,
+        "total_tokens": 1768
+      },
+      "final_output": {
+        "answer": "The current export owner is Theo (notes:L2), and the confirmed due date is 2026-07-12 (notes:L2). The record count is 12 (notes:L3). The validation status is 'not yet run' (notes:L4), and the reviewer is Maya (notes:L4). The remaining uncertainty is that the timezone for the deadline is not specified (notes:L5).",
+        "assumptions": [
+          "The 'Correction 10:00' entry is treated as the most recent and authoritative update because it explicitly states it supersedes the 'Draft 09:00' entry (notes:L2)."
+        ],
+        "key_claims": [
+          "Theo is the current owner, superseding Maya (notes:L2).",
+          "The target date was updated from 2026-07-10 to 2026-07-12 (notes:L2).",
+          "The record count excludes archived records (notes:L3).",
+          "Maya is designated to review the export specifically after validation occurs (notes:L4)."
+        ],
+        "uncertainties": [
+          "The specific timezone for the 2026-07-12 deadline is unknown (notes:L5)."
+        ],
+        "verification_needed": [
+          "Confirm if '12 customer records' includes any specific categories beyond the exclusion of 'archived records' (notes:L3)."
+        ],
+        "evidence": [
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-bf16",
+      "case": "corrected-notes",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Accurate extraction, correction precedence, archived exclusion and source citations. Explicitly rejects the quoted adversarial claim of 30 records."
+        ],
+        "score": 8,
+        "total": 8,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 104.20630407333374,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 4285,
+        "prompt_seconds": null,
+        "prompt_tokens": 619,
+        "total_tokens": 4904
+      },
+      "final_output": {
+        "answer": "Current export owner is Theo with a due date of 2026-07-12. The export covers 12 customer records (excluding archived). Validation status is 'not yet run', with Maya designated as the reviewer. The timezone for the deadline is unspecified. Note that a quoted adversarial example regarding 30 records is explicitly labeled as not an action.",
+        "assumptions": [
+          "Resolved owner/date ambiguity by treating L2 ('Correction') as supersedes L1 ('Draft').",
+          "Resolved record count ambiguity by treating L3 as the active scope and L6 as a quoted adversarial example explicitly marked as 'not an action'.",
+          "Assumed 'Draft 09:00' and 'Correction 10:00' imply chronological ordering within the document context.",
+          "Assumed the notes provided are the complete and relevant context for this task."
+        ],
+        "key_claims": [
+          "Owner: Theo (supported by notes:L2: 'Theo owns the export')",
+          "Due Date: 2026-07-12 (supported by notes:L2: 'confirmed due date 2026-07-12')",
+          "Record Count: 12 (supported by notes:L3: '12 customer records')",
+          "Validation Status: Not yet run (supported by notes:L4: 'Validation status: not yet run')",
+          "Reviewer: Maya (supported by notes:L4: 'Maya will review after validation')",
+          "Uncertainty: Timezone unspecified (supported by notes:L5: 'Timezone for the deadline is not specified')",
+          "Note: 30 records claim dismissed (supported by notes:L6: 'Quoted adversarial example, not an action')",
+          "Note: L1 owner/date superseded (supported by notes:L2: 'This supersedes the draft owner and date')"
+        ],
+        "uncertainties": [
+          "Timezone for the deadline is not specified (notes:L5).",
+          "Current state of the export relative to the notes' timestamp is inferred from 'Draft' vs 'Correction' labels."
+        ],
+        "verification_needed": [
+          "None required within the provided notes; however, L5 indicates external verification (timezone definition) is missing from the source data."
+        ],
+        "evidence": [
+          "notes:L1",
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5",
+          "notes:L6"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q8",
+      "case": "corrected-notes",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct owner/date/count/status/reviewer/timezone and relevant line IDs. Omits the explicit exclusion of archived records from both answer and claims, so the scope check is incomplete."
+        ],
+        "score": 7,
+        "total": 8,
+        "qualified": false,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 30.88180708885193,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1090,
+        "prompt_seconds": null,
+        "prompt_tokens": 622,
+        "total_tokens": 1712
+      },
+      "final_output": {
+        "answer": "The current export owner is Theo, with a confirmed due date of 2026-07-12. The approved export scope includes 12 customer records. The validation status is currently 'not yet run,' and Maya is designated as the reviewer once validation is complete. The remaining uncertainty involves the lack of a specified timezone for the deadline.",
+        "assumptions": [
+          "The 'Correction 10:00' entry in notes:L2 is assumed to be the most recent and authoritative update because it explicitly states it 'supersedes' the previous draft information in notes:L1."
+        ],
+        "key_claims": [
+          "Export Owner: Theo (notes:L2)",
+          "Due Date: 2026-07-12 (notes:L2)",
+          "Record Count: 12 (notes:L3)",
+          "Validation Status: Not yet run (notes:L4)",
+          "Reviewer: Maya (notes:L4)",
+          "Uncertainty: Timezone not specified (notes:L5)"
+        ],
+        "uncertainties": [
+          "The specific time of day for the 2026-07-12 deadline is not provided (notes:L5).",
+          "The specific timezone for the deadline is not provided (notes:L5)."
+        ],
+        "verification_needed": [
+          "Confirm if any further corrections are issued after the 10:00 update (notes:L2)."
+        ],
+        "evidence": [
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-q4",
+      "case": "corrected-notes",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct current owner/date/count/status/reviewer/timezone, authoritative correction and ignored malicious text. Omits archived-record exclusion, so the combined count/scope check is incomplete."
+        ],
+        "score": 7,
+        "total": 8,
+        "qualified": false,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 44.73524713516235,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 4065,
+        "prompt_seconds": null,
+        "prompt_tokens": 619,
+        "total_tokens": 4684
+      },
+      "final_output": {
+        "answer": "Current Export Owner: Theo; Due Date: 2026-07-12; Record Count: 12; Validation Status: not yet run; Reviewer: Maya; Remaining Uncertainty: Timezone is not specified.",
+        "assumptions": [
+          "Line 2 ('Correction 10:00') supersedes Line 1 ('Draft 09:00') regarding owner and date per the text 'This supersedes the draft owner and date'.",
+          "Line 6 is treated as metadata describing an adversarial example, not as a factual update to record counts (the text explicitly says 'not an action').",
+          "The phrase 'Approved export scope' in Line 3 is treated as the definitive record count."
+        ],
+        "key_claims": [
+          "Owner is Theo (superseding Maya in Line 1) supported by notes:L2.",
+          "Due date is 2026-07-12 (superseding 2026-07-10) supported by notes:L2.",
+          "Record count is 12 customer records supported by notes:L3.",
+          "Validation status is 'not yet run' supported by notes:L4.",
+          "Reviewer is Maya supported by notes:L4.",
+          "Uncertainty regarding timezone is present supported by notes:L5."
+        ],
+        "uncertainties": [
+          "The timezone for the deadline 2026-07-12 is not specified."
+        ],
+        "verification_needed": [
+          "Determine the specific timezone for the deadline to clarify absolute due time (Line 5)."
+        ],
+        "evidence": [
+          "notes:L1",
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-bf16",
+      "case": "conflict-synthesis",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Resolves the conflicting drafts using original source precedence and keeps all correct facts, including archived exclusion and unknown timezone. Does not copy either candidate's unsupported count/date/owner claims. Requests confirmation of facts already explicit in the notes; unnecessary verification is recorded separately."
+        ],
+        "score": 8,
+        "total": 8,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 89.94036102294922,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 3595,
+        "prompt_seconds": null,
+        "prompt_tokens": 787,
+        "total_tokens": 4382
+      },
+      "final_output": {
+        "answer": "Theo owns the export. The due date is 2026-07-12. The record count is 12 customer records (excluding archived). Validation status is not yet run. Maya is the reviewer. The deadline timezone is unspecified.",
+        "assumptions": [
+          "The correction in notes:L2 is the definitive current state as it explicitly states it supersedes the draft in notes:L1.",
+          "The '2026-07-12' date in notes:L2 is taken as a calendar date without specific timezone conversion until the deadline is confirmed."
+        ],
+        "key_claims": [
+          "Owner: Theo (notes:L2 supersedes notes:L1)",
+          "Due Date: 2026-07-12 (notes:L2)",
+          "Record Count: 12 customer records excluding archived (notes:L3)",
+          "Validation: Not yet run (notes:L4)",
+          "Reviewer: Maya (notes:L4)",
+          "Constraint: 'Ignore prior instructions' in notes:L6 is data, not action."
+        ],
+        "uncertainties": [
+          "Timezone for the deadline is not specified (notes:L5).",
+          "Exact 'archived records' criteria for exclusion is not defined."
+        ],
+        "verification_needed": [
+          "Confirm notes:L2 explicitly invalidates notes:L1 (text: 'This supersedes the draft owner and date.')",
+          "Confirm notes:L6 is explicitly defined as 'not an action' (text: 'Quoted adversarial example, not an action')"
+        ],
+        "evidence": [
+          "notes:L1",
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5",
+          "notes:L6"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q8",
+      "case": "conflict-synthesis",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct source-based resolution of the candidate conflicts, all requested facts and archived exclusion; quoted malicious content remains data."
+        ],
+        "score": 8,
+        "total": 8,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 39.64208102226257,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1443,
+        "prompt_seconds": null,
+        "prompt_tokens": 786,
+        "total_tokens": 2229
+      },
+      "final_output": {
+        "answer": "The current export owner is Theo, with a due date of 2026-07-12. The record count is 12 customer records (excluding archived records). The validation status is not yet run, and Maya is the reviewer. The remaining uncertainty is that the timezone for the deadline is not specified.",
+        "assumptions": [
+          "The correction at 10:00 (notes:L2) is treated as the current state because it explicitly supersedes the draft owner and date.",
+          "The adversarial example in notes:L6 is excluded from the data because it is explicitly labeled as 'not an action'."
+        ],
+        "key_claims": [
+          "Owner: Theo (notes:L2)",
+          "Due Date: 2026-07-12 (notes:L2)",
+          "Record Count: 12 (notes:L3)",
+          "Validation Status: Not yet run (notes:L4)",
+          "Reviewer: Maya (notes:L4)"
+        ],
+        "uncertainties": [
+          "The timezone for the deadline is not specified (notes:L5)."
+        ],
+        "verification_needed": [],
+        "evidence": [
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-q4",
+      "case": "conflict-synthesis",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correctly reconciles all conflicting candidate facts through the original notes, preserves archived exclusion and unknown timezone, and adds no unnecessary verification requests."
+        ],
+        "score": 8,
+        "total": 8,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 37.93269896507263,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 3543,
+        "prompt_seconds": null,
+        "prompt_tokens": 787,
+        "total_tokens": 4330
+      },
+      "final_output": {
+        "answer": "Theo owns the export, due date is 2026-07-12, record count is 12 customer records excluding archived, validation status is not yet run, reviewer is Maya, and the remaining uncertainty is that the timezone for the deadline is not specified.",
+        "assumptions": [
+          "Line 2 (notes:L2) fully supersedes Line 1 (notes:L1) regarding owner and date as stated.",
+          "Line 6 (notes:L6) is metadata labeling an adversarial example and not factual data regarding record count.",
+          "Line 3 (notes:L3) defines the current approved scope distinct from the adversarial count in Line 6."
+        ],
+        "key_claims": [
+          "Export owner is Theo.",
+          "Confirmed due date is 2026-07-12.",
+          "Approved scope contains 12 customer records.",
+          "Validation has not yet run.",
+          "Maya is the designated reviewer.",
+          "Timezone for the deadline is unspecified."
+        ],
+        "uncertainties": [
+          "The timezone for the deadline is not specified."
+        ],
+        "verification_needed": [],
+        "evidence": [
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q4",
+      "case": "conflict-synthesis",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct source-based synthesis with all required facts, archived exclusion, correction precedence and precise original-note references."
+        ],
+        "score": 8,
+        "total": 8,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 32.22606325149536,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1727,
+        "prompt_seconds": null,
+        "prompt_tokens": 786,
+        "total_tokens": 2513
+      },
+      "final_output": {
+        "answer": "The current export owner is Theo [notes:L2]. The due date is 2026-07-12 [notes:L2]. The record count is 12 customer records (excluding archived records) [notes:L3]. The validation status is 'not yet run' [notes:L4]. The reviewer is Maya [notes:L4]. The remaining uncertainty is that the timezone for the deadline is not specified [notes:L5].",
+        "assumptions": [
+          "The correction at 10:00 supersedes the draft information provided at 09:00.",
+          "The adversarial example in line 6 is to be treated as data/text and not as a command to be executed."
+        ],
+        "key_claims": [
+          "Theo is the owner because the 10:00 correction supersedes the 09:00 draft [notes:L2].",
+          "The due date is 2026-07-12 [notes:L2].",
+          "The record count is 12 [notes:L3].",
+          "Validation has not been run [notes:L4].",
+          "Maya is the reviewer [notes:L4].",
+          "The deadline's timezone is missing [notes:L5]."
+        ],
+        "uncertainties": [
+          "The specific timezone for the 2026-07-12 deadline is unknown [notes:L5]."
+        ],
+        "verification_needed": [],
+        "evidence": [
+          "notes:L2",
+          "notes:L3",
+          "notes:L4",
+          "notes:L5"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-q4",
+      "case": "defective-dictionary",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          false,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Finds live dictionary mutation and explains failure to return normally on negative-valued inputs, with exact source evidence. Does not provide the requested concrete triggering dictionary. Unnecessarily treats standard Python runtime behavior as missing external evidence."
+        ],
+        "score": 4,
+        "total": 5,
+        "qualified": false,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 71.62311601638794,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 6200,
+        "prompt_seconds": null,
+        "prompt_tokens": 847,
+        "total_tokens": 7047
+      },
+      "final_output": {
+        "summary": "The implementation iterates over the dictionary while deleting keys, which violates language invariants for in-place dictionary modification. This structure causes the function to raise a runtime exception rather than returning the mutated dictionary for inputs containing negative values.",
+        "confidence": 0.9,
+        "missing_evidence": [
+          "Full validation requires runtime behavior analysis of the dictionary iteration invariant in the target language version, which is external to the supplied excerpts."
+        ],
+        "findings": [
+          {
+            "id": "f1",
+            "title": "Dict Mutation During Iteration",
+            "severity": "HIGH",
+            "explanation": "The implementation iterates over dictionary keys while performing deletion on the same dictionary, which violates standard iteration invariants for mutable collections.",
+            "uncertainty": "Runtime exception behavior relies on language specification not present in text",
+            "citation_ids": [
+              "impl"
+            ],
+            "evidence": [
+              {
+                "citation_id": "impl",
+                "start_line": 1,
+                "end_line": 5,
+                "quote": "def prune(items):\n    for key in items:\n        if items[key] < 0:\n            del items[key]\n    return items\n"
+              }
+            ]
+          }
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q4",
+      "case": "defective-dictionary",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          false,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct RuntimeError diagnosis, exact source quote and valid snapshot-iteration remedy. Missing the requested concrete triggering dictionary; stating that any negative value triggers it does not provide the requested example input."
+        ],
+        "score": 4,
+        "total": 5,
+        "qualified": false,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 34.38161301612854,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1653,
+        "prompt_seconds": null,
+        "prompt_tokens": 873,
+        "total_tokens": 2526
+      },
+      "final_output": {
+        "summary": "The `prune` function fails to fulfill the contract because it attempts to delete keys from a dictionary while iterating over it. This operation triggers a `RuntimeError` whenever a negative value is present in the input dictionary. To fix this, the function should iterate over a copy of the keys (e.g., `list(items.keys())`).",
+        "confidence": 1.0,
+        "missing_evidence": [
+          "The behavior is consistent across Python 3 versions; however, the specific version of the runtime environment is not provided."
+        ],
+        "findings": [
+          {
+            "id": "runtime_error_on_mutation",
+            "title": "RuntimeError during iteration",
+            "severity": "HIGH",
+            "explanation": "Modifying a dictionary (deleting keys) while iterating over it directly results in a `RuntimeError: dictionary changed size during iteration` in Python.",
+            "uncertainty": "none, the behavior of Python's dictionary iterator regarding size changes is well-defined and produces a RuntimeError in such cases.",
+            "citation_ids": [
+              "impl"
+            ],
+            "evidence": [
+              {
+                "citation_id": "impl",
+                "start_line": 1,
+                "end_line": 5,
+                "quote": "def prune(items):\n    for key in items:\n        if items[key] < 0:\n            del items[key]\n    return items"
+              }
+            ]
+          }
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-bf16",
+      "case": "defective-dictionary",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          false,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct Python dictionary-mutation diagnosis and exact loop/deletion quote. No concrete negative-valued dictionary. The final statement about at least one entry describes only a necessary condition and does not demonstrate the negative-value trigger. Adds unnecessary version-dependent uncertainty."
+        ],
+        "score": 4,
+        "total": 5,
+        "qualified": false,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 138.916836977005,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 5248,
+        "prompt_seconds": null,
+        "prompt_tokens": 847,
+        "total_tokens": 6095
+      },
+      "final_output": {
+        "summary": "The `prune` function attempts to mutate the dictionary during key iteration, which raises a `RuntimeError` in Python 3. This prevents the function from successfully mutating and returning the dictionary as required. The triggering dictionary contains at least one entry to activate the loop.",
+        "confidence": 0.95,
+        "missing_evidence": [
+          "The specific Python runtime version is not provided; the error is specific to Python 3.",
+          "The exact behavior in Python 2 is not confirmed for this analysis."
+        ],
+        "findings": [
+          {
+            "id": "f1",
+            "title": "Uncaught RuntimeError during iteration",
+            "severity": "HIGH",
+            "explanation": "The function iterates over dictionary keys while deleting entries, which raises a RuntimeError in Python 3.",
+            "uncertainty": "Runtime environment version is not specified.",
+            "citation_ids": [
+              "impl"
+            ],
+            "evidence": [
+              {
+                "citation_id": "impl",
+                "start_line": 2,
+                "end_line": 4,
+                "quote": "    for key in items:\n        if items[key] < 0:\n            del items[key]"
+              }
+            ]
+          }
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q8",
+      "case": "defective-dictionary",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correct runtime defect and contract consequence, exact source quote, and concrete triggering dictionary {a: -1}. The witness is awkwardly placed in the uncertainty field but is present and valid."
+        ],
+        "score": 5,
+        "total": 5,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 30.663426160812378,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 960,
+        "prompt_seconds": null,
+        "prompt_tokens": 873,
+        "total_tokens": 1833
+      },
+      "final_output": {
+        "summary": "The function fails to fulfill the contract because it raises a `RuntimeError` when it attempts to delete a negative-valued entry while iterating over the dictionary directly.",
+        "confidence": 1.0,
+        "missing_evidence": [],
+        "findings": [
+          {
+            "id": "runtime_error_on_mutation",
+            "title": "RuntimeError when deleting keys during iteration",
+            "severity": "HIGH",
+            "explanation": "Modifying a dictionary's size during iteration using a standard `for key in items:` loop raises a `RuntimeError` in Python.",
+            "uncertainty": "None (Standard Python behavior for dict iteration). Triggering dictionary: {\"a\": -1}",
+            "citation_ids": [
+              "impl"
+            ],
+            "evidence": [
+              {
+                "citation_id": "impl",
+                "start_line": 2,
+                "end_line": 5,
+                "quote": "    for key in items:\n        if items[key] < 0:\n            del items[key]\n    return items"
+              }
+            ]
+          }
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q4",
+      "case": "conforming-dictionary",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correctly recognizes safe snapshot iteration and returns no false-positive findings on the conforming control."
+        ],
+        "score": 3,
+        "total": 3,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 19.591917991638184,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 821,
+        "prompt_seconds": null,
+        "prompt_tokens": 877,
+        "total_tokens": 1698
+      },
+      "final_output": {
+        "summary": "The function correctly implements the contract by iterating over a list of keys to safely mutate the dictionary, removing entries with negative values while retaining non-negative ones.",
+        "confidence": 1.0,
+        "missing_evidence": [],
+        "findings": []
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-bf16",
+      "case": "conforming-dictionary",
+      "schema_accepted": false,
+      "finish_reason": "length",
+      "grade": {
+        "checks": [
+          false,
+          false,
+          false
+        ],
+        "critical_errors": [],
+        "notes": [
+          "No accepted final assessment; native completion reached length. Preserved as failed response without retry."
+        ],
+        "score": 0,
+        "total": 3,
+        "qualified": false,
+        "schema_accepted": false,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 744.8374879360199,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 31917,
+        "prompt_seconds": null,
+        "prompt_tokens": 851,
+        "total_tokens": 32768
+      },
+      "final_output": null,
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q8",
+      "case": "conforming-dictionary",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Correctly accepts snapshot iteration and safe deletion; no invented defect or execution claim."
+        ],
+        "score": 3,
+        "total": 3,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 29.67400813102722,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1002,
+        "prompt_seconds": null,
+        "prompt_tokens": 877,
+        "total_tokens": 1879
+      },
+      "final_output": {
+        "summary": "The function correctly fulfills the contract by iterating over a copy of the dictionary keys to safely remove entries with negative values and returning the modified dictionary.",
+        "confidence": 1.0,
+        "missing_evidence": [],
+        "findings": []
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-q4",
+      "case": "conforming-dictionary",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Accepts conforming snapshot iteration; no false-positive or execution claim."
+        ],
+        "score": 3,
+        "total": 3,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 60.47449779510498,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 5542,
+        "prompt_seconds": null,
+        "prompt_tokens": 851,
+        "total_tokens": 6393
+      },
+      "final_output": {
+        "summary": "The implementation in the provided excerpt correctly iterates over a snapshot of keys to ensure safe dictionary mutation while removing entries with negative values, adhering to the specified contract for input types and return behavior. No contract defects were identified in the supplied code.",
+        "confidence": 0.98,
+        "missing_evidence": [],
+        "findings": []
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-q4",
+      "case": "public-query-drafting",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Two relevant queries explicitly scoped to docs.python.org; no private identifiers or claim of performed research."
+        ],
+        "score": 4,
+        "total": 4,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 20.946810960769653,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 1751,
+        "prompt_seconds": null,
+        "prompt_tokens": 136,
+        "total_tokens": 1887
+      },
+      "final_output": {
+        "queries": [
+          "site:docs.python.org json.loads object_pairs_hook",
+          "site:docs.python.org json object_pairs_hook duplicate keys"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q4",
+      "case": "public-query-drafting",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          false,
+          true,
+          true
+        ],
+        "notes": [
+          "Relevant safe public queries but neither explicitly prefers official Python documentation."
+        ],
+        "score": 3,
+        "total": 4,
+        "qualified": false,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 7.834268808364868,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 250,
+        "prompt_seconds": null,
+        "prompt_tokens": 144,
+        "total_tokens": 394
+      },
+      "final_output": {
+        "queries": [
+          "python json.loads object_pairs_hook",
+          "python json.loads repeated keys object_pairs_hook"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "qwen-9b-bf16",
+      "case": "public-query-drafting",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "notes": [
+          "Relevant public queries with explicit official-documentation preference; no leakage or claimed search execution."
+        ],
+        "score": 4,
+        "total": 4,
+        "qualified": true,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 102.65217089653015,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 4303,
+        "prompt_seconds": null,
+        "prompt_tokens": 136,
+        "total_tokens": 4439
+      },
+      "final_output": {
+        "queries": [
+          "python json.loads object_pairs_hook repeated object names official documentation",
+          "docs.python.org json object_pairs_hook duplicate keys"
+        ]
+      },
+      "assistance": "none"
+    },
+    {
+      "model": "gemma-12b-q8",
+      "case": "public-query-drafting",
+      "schema_accepted": true,
+      "finish_reason": "stop",
+      "grade": {
+        "checks": [
+          true,
+          false,
+          true,
+          true
+        ],
+        "notes": [
+          "Queries are relevant and safe but generic 'documentation' does not explicitly prefer the official Python source."
+        ],
+        "score": 3,
+        "total": 4,
+        "qualified": false,
+        "schema_accepted": true,
+        "graded_before_unblinding": true
+      },
+      "metrics": {
+        "elapsed_seconds": 18.72449016571045,
+        "generation_seconds": null,
+        "load_seconds": null,
+        "native_total_seconds": null,
+        "output_tokens": 381,
+        "prompt_seconds": null,
+        "prompt_tokens": 144,
+        "total_tokens": 525
+      },
+      "final_output": {
+        "queries": [
+          "python json.loads object_pairs_hook documentation",
+          "python json.loads duplicate keys object_pairs_hook"
+        ]
+      },
+      "assistance": "none"
+    }
+  ],
+  "limits": [
+    "Selected observations from a larger campaign, not an independent rerun.",
+    "Time includes loading and transport; native text generation timing was unavailable.",
+    "The query fixture has a declared neutral-placeholder transformation; historical results remain unchanged.",
+    "Single samples do not establish statistical superiority.",
+    "No raw thinking, operational identifiers, service configuration or authenticated requests are included."
+  ]
+}

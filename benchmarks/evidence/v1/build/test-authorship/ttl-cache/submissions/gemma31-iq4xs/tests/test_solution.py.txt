@@ -1,0 +1,172 @@
+import unittest
+import subprocess
+import json
+import sys
+
+class TestCacheCLI(unittest.TestCase):
+    def run_cli(self, input_data):
+        """Helper to run the solution.py CLI with given input."""
+        process = subprocess.Popen(
+            [sys.executable, "solution.py"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = process.communicate(input=input_data, timeout=5)
+        return process.returncode, stdout, stderr
+
+    def test_validation(self):
+        """AC 1: Validate input types and constraints."""
+        invalid_cases = [
+            # Time is not an integer
+            {"events": [{"time": 1.5, "key": "a", "op": "put", "value": 1, "ttl": 1}]},
+            # Key is empty
+            {"events": [{"time": 1, "key": "", "op": "put", "value": 1, "ttl": 1}]},
+            # Key contains uppercase
+            {"events": [{"time": 1, "key": "A", "op": "put", "value": 1, "ttl": 1}]},
+            # Key contains non-ASCII
+            {"events": [{"time": 1, "key": "a1", "op": "put", "value": 1, "ttl": 1}]},
+            # Invalid op
+            {"events": [{"time": 1, "key": "a", "op": "update", "value": 1, "ttl": 1}]},
+            # Put missing value
+            {"events": [{"time": 1, "key": "a", "op": "put", "ttl": 1}]},
+            # Put missing ttl
+            {"events": [{"time": 1, "key": "a", "op": "put", "value": 1}]},
+            # Value is boolean
+            {"events": [{"time": 1, "key": "a", "op": "put", "value": True, "ttl": 1}]},
+            # TTL is float
+            {"events": [{"time": 1, "key": "a", "op": "put", "value": 1, "ttl": 1.0}]},
+            # Time is negative
+            {"events": [{"time": -1, "key": "a", "op": "put", "value": 1, "ttl": 1}]},
+        ]
+        for case in invalid_cases:
+            rc, out, _ = self.run_cli(json.dumps(case))
+            self.assertNotEqual(rc, 0, f"Should fail for input: {case}")
+            self.assertEqual(out.strip(), "", f"Stdout should be empty for invalid input: {case}")
+
+    def test_ordering(self):
+        """AC 2: Stable sorting by time."""
+        # Put a at t=2, get a at t=1, put a at t=1. 
+        # Order should be: put a(t=1) -> get a(t=1) -> put a(t=2)
+        data = {
+            "events": [
+                {"time": 2, "key": "a", "op": "put", "value": 20, "ttl": 10},
+                {"time": 1, "key": "a", "op": "get"},
+                {"time": 1, "key": "a", "op": "put", "value": 10, "ttl": 10},
+            ]
+        }
+        # Note: Stable sort means if times are equal, order of appearance in list is kept.
+        # Event list: [Put(t=2), Get(t=1), Put(t=1)]
+        # Sorted: Get(t=1), Put(t=1), Put(t=2)
+        rc, out, _ = self.run_cli(json.dumps(data))
+        self.assertEqual(rc, 0)
+        res = json.loads(out)
+        # Get(t=1) happens first -> returns null
+        # Put(t=1) happens -> value 10
+        # Put(t=2) happens -> value 20
+        self.assertEqual(res["reads"], [[1, "a", None]])
+        self.assertEqual(res["live"], [["a", 20]])
+
+    def test_put_and_expiry(self):
+        """AC 3: Put replaces entries and handles TTL boundaries."""
+        data = {
+            "events": [
+                {"time": 1, "key": "a", "op": "put", "value": 10, "ttl": 2}, # expires at 3
+                {"time": 2, "key": "a", "op": "get"}, # live (t < 3)
+                {"time": 3, "key": "a", "op": "get"}, # expired (t >= 3)
+                {"time": 4, "key": "b", "op": "put", "value": 20, "ttl": 0}, # expires immediately
+                {"time": 4, "key": "b", "op": "get"}, # absent
+                {"time": 5, "key": "c", "op": "put", "value": 30, "ttl": None}, # never expires
+                {"time": 10, "key": "c", "op": "get"}, # live
+            ]
+        }
+        rc, out, _ = self.run_cli(json.dumps(data))
+        self.assertEqual(rc, 0)
+        res = json.loads(out)
+        self.assertEqual(res["reads"], [
+            [2, "a", 10],
+            [3, "a", None],
+            [4, "b", None],
+            [10, "c", 30]
+        ])
+        self.assertEqual(res["live"], [["c", 30]])
+
+    def test_get_logic(self):
+        """AC 4: Get operations and absence."""
+        data = {
+            "events": [
+                {"time": 1, "key": "a", "op": "put", "value": 100, "ttl": 5},
+                {"time": 2, "key": "b", "op": "get"}, # absent
+                {"time": 3, "key": "a", "op": "get"}, # live
+                {"time": 6, "key": "a", "op": "get"}, # expired
+            ]
+        }
+        rc, out, _ = self.run_cli(json.dumps(data))
+        self.assertEqual(rc, 0)
+        res = json.loads(out)
+        self.assertEqual(res["reads"], [
+            [2, "b", None],
+            [3, "a", 100],
+            [6, "a", None]
+        ])
+        self.assertEqual(res["live"], [])
+
+    def test_delete_logic(self):
+        """AC 5: Delete operations."""
+        data = {
+            "events": [
+                {"time": 1, "key": "a", "op": "put", "value": 10, "ttl": 10},
+                {"time": 2, "key": "a", "op": "delete"},
+                {"time": 3, "key": "a", "op": "get"}, # absent
+                {"time": 4, "key": "b", "op": "delete"}, # delete absent
+                {"time": 5, "key": "c", "op": "put", "value": 30, "ttl": 1},
+                {"time": 6, "key": "c", "op": "delete"}, # delete expired
+            ]
+        }
+        rc, out, _ = self.run_cli(json.dumps(data))
+        self.assertEqual(rc, 0)
+        res = json.loads(out)
+        self.assertEqual(res["reads"], [[3, "a", None]])
+        self.assertEqual(res["live"], [])
+
+    def test_output_format(self):
+        """AC 6: Final output structure and lexicographical sort."""
+        data = {
+            "events": [
+                {"time": 1, "key": "z", "op": "put", "value": 1, "ttl": None},
+                {"time": 1, "key": "a", "op": "put", "value": 2, "ttl": None},
+                {"time": 1, "key": "m", "op": "put", "value": 3, "ttl": None},
+                {"time": 2, "key": "a", "op": "get"},
+            ]
+        }
+        rc, out, _ = self.run_cli(json.dumps(data))
+        self.assertEqual(rc, 0)
+        res = json.loads(out)
+        self.assertEqual(res["reads"], [[2, "a", 2]])
+        # Sorted lexicographically by key: a, m, z
+        self.assertEqual(res["live"], [["a", 2], ["m", 3], ["z", 1]])
+
+    def test_cli_contract(self):
+        """AC 7: Non-zero exit for malformed JSON."""
+        malformed = [
+            "not a json",
+            '{"events": [{"time": 1, "key": "a", "op": "put" ', # truncated
+            '{"events": "not an array"}',
+            '[]' # Not an object
+        ]
+        for case in malformed:
+            rc, out, _ = self.run_cli(case)
+            self.assertNotEqual(rc, 0, f"Should fail for malformed: {case}")
+            self.assertEqual(out.strip(), "", f"Stdout should be empty for malformed: {case}")
+
+    def test_empty_events(self):
+        """Test empty event list case."""
+        data = {"events": []}
+        rc, out, _ = self.run_cli(json.dumps(data))
+        self.assertEqual(rc, 0)
+        res = json.loads(out)
+        self.assertEqual(res, {"reads": [], "live": []})
+
+if __name__ == "__main__":
+    unittest.main()

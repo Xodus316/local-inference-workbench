@@ -1,0 +1,9 @@
+{
+ "miss_adjacent":["start <= result[-1][1] + 1","start <= result[-1][1]"],
+ "swallow_gap":["start <= result[-1][1] + 1","start <= result[-1][1] + 2"],
+ "shrink_containment":["max(result[-1][1], end)","end"],
+ "sort_input_in_place":["    result = []","    rows.sort()\n    result = []"],
+ "allow_bool":["type(n) is int","isinstance(n, int)"],
+ "allow_reversed":[" or p[0] > p[1]",""],
+ "skip_singleton":["        if result and start","        if start == end:\n            continue\n        if result and start"]
+}

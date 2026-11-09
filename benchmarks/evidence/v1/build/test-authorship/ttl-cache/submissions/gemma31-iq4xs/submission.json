@@ -1,0 +1,81 @@
+{
+  "assumptions": [
+    "The 'live' entries are determined at the time of the very last event's timestamp, regardless of whether that last event was a put, get, or delete.",
+    "Lexicographical sorting of the 'live' array refers to the 'key' strings.",
+    "If the events array is empty, the maximum event time is effectively undefined, but since no entries exist, the output is simply empty arrays."
+  ],
+  "commands": [
+    "python3 -m unittest discover -s tests -v"
+  ],
+  "coverage": [
+    {
+      "catches": "Invalid types for time, key, op, value, ttl; missing put fields; non-lowercase keys; non-integer types (floats/booleans).",
+      "criterion": 1,
+      "expected_result": "Non-zero exit code and empty stdout.",
+      "scenario": "Input validation checks for schema and type constraints.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestCacheCLI.test_validation"
+    },
+    {
+      "catches": "Out-of-order timestamps and stable sorting for equal timestamps.",
+      "criterion": 2,
+      "expected_result": "Operations executed in sorted order by time, then input order.",
+      "scenario": "Events are provided out of order or with duplicate timestamps.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestCacheCLI.test_ordering"
+    },
+    {
+      "catches": "TTL logic, immediate expiry (ttl=0), and no expiry (ttl=null).",
+      "criterion": 3,
+      "expected_result": "Values are replaced and expire exactly at time + ttl.",
+      "scenario": "Testing put operations with various TTL values.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestCacheCLI.test_put_and_expiry"
+    },
+    {
+      "catches": "Get returning null for absent or expired keys; get not extending expiry.",
+      "criterion": 4,
+      "expected_result": "Correct read records produced based on current live state.",
+      "scenario": "Performing gets on existing, missing, and expired keys.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestCacheCLI.test_get_logic"
+    },
+    {
+      "catches": "Deletion of present, absent, and expired keys.",
+      "criterion": 5,
+      "expected_result": "Keys are removed from the cache; no output for delete.",
+      "scenario": "Using delete operation in various states.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestCacheCLI.test_delete_logic"
+    },
+    {
+      "catches": "Lexicographical sorting of live entries, correct structure of reads array.",
+      "criterion": 6,
+      "expected_result": "JSON output with 'reads' and 'live' arrays.",
+      "scenario": "Verifying final output format and content.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestCacheCLI.test_output_format"
+    },
+    {
+      "catches": "Malformed JSON strings, non-object root.",
+      "criterion": 7,
+      "expected_result": "Non-zero exit code and empty stdout.",
+      "scenario": "Passing invalid JSON to the CLI.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestCacheCLI.test_cli_contract"
+    }
+  ],
+  "implementation_files": [
+    "solution.py"
+  ],
+  "files": [
+    {
+      "path": "tests/test_solution.py",
+      "content": "import unittest\nimport subprocess\nimport json\nimport sys\n\nclass TestCacheCLI(unittest.TestCase):\n    def run_cli(self, input_data):\n        \"\"\"Helper to run the solution.py CLI with given input.\"\"\"\n        process = subprocess.Popen(\n            [sys.executable, \"solution.py\"],\n            stdin=subprocess.PIPE,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            text=True\n        )\n        stdout, stderr = process.communicate(input=input_data, timeout=5)\n        return process.returncode, stdout, stderr\n\n    def test_validation(self):\n        \"\"\"AC 1: Validate input types and constraints.\"\"\"\n        invalid_cases = [\n            # Time is not an integer\n            {\"events\": [{\"time\": 1.5, \"key\": \"a\", \"op\": \"put\", \"value\": 1, \"ttl\": 1}]},\n            # Key is empty\n            {\"events\": [{\"time\": 1, \"key\": \"\", \"op\": \"put\", \"value\": 1, \"ttl\": 1}]},\n            # Key contains uppercase\n            {\"events\": [{\"time\": 1, \"key\": \"A\", \"op\": \"put\", \"value\": 1, \"ttl\": 1}]},\n            # Key contains non-ASCII\n            {\"events\": [{\"time\": 1, \"key\": \"a1\", \"op\": \"put\", \"value\": 1, \"ttl\": 1}]},\n            # Invalid op\n            {\"events\": [{\"time\": 1, \"key\": \"a\", \"op\": \"update\", \"value\": 1, \"ttl\": 1}]},\n            # Put missing value\n            {\"events\": [{\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"ttl\": 1}]},\n            # Put missing ttl\n            {\"events\": [{\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": 1}]},\n            # Value is boolean\n            {\"events\": [{\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": True, \"ttl\": 1}]},\n            # TTL is float\n            {\"events\": [{\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": 1, \"ttl\": 1.0}]},\n            # Time is negative\n            {\"events\": [{\"time\": -1, \"key\": \"a\", \"op\": \"put\", \"value\": 1, \"ttl\": 1}]},\n        ]\n        for case in invalid_cases:\n            rc, out, _ = self.run_cli(json.dumps(case))\n            self.assertNotEqual(rc, 0, f\"Should fail for input: {case}\")\n            self.assertEqual(out.strip(), \"\", f\"Stdout should be empty for invalid input: {case}\")\n\n    def test_ordering(self):\n        \"\"\"AC 2: Stable sorting by time.\"\"\"\n        # Put a at t=2, get a at t=1, put a at t=1. \n        # Order should be: put a(t=1) -> get a(t=1) -> put a(t=2)\n        data = {\n            \"events\": [\n                {\"time\": 2, \"key\": \"a\", \"op\": \"put\", \"value\": 20, \"ttl\": 10},\n                {\"time\": 1, \"key\": \"a\", \"op\": \"get\"},\n                {\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": 10, \"ttl\": 10},\n            ]\n        }\n        # Note: Stable sort means if times are equal, order of appearance in list is kept.\n        # Event list: [Put(t=2), Get(t=1), Put(t=1)]\n        # Sorted: Get(t=1), Put(t=1), Put(t=2)\n        rc, out, _ = self.run_cli(json.dumps(data))\n        self.assertEqual(rc, 0)\n        res = json.loads(out)\n        # Get(t=1) happens first -> returns null\n        # Put(t=1) happens -> value 10\n        # Put(t=2) happens -> value 20\n        self.assertEqual(res[\"reads\"], [[1, \"a\", None]])\n        self.assertEqual(res[\"live\"], [[\"a\", 20]])\n\n    def test_put_and_expiry(self):\n        \"\"\"AC 3: Put replaces entries and handles TTL boundaries.\"\"\"\n        data = {\n            \"events\": [\n                {\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": 10, \"ttl\": 2}, # expires at 3\n                {\"time\": 2, \"key\": \"a\", \"op\": \"get\"}, # live (t < 3)\n                {\"time\": 3, \"key\": \"a\", \"op\": \"get\"}, # expired (t >= 3)\n                {\"time\": 4, \"key\": \"b\", \"op\": \"put\", \"value\": 20, \"ttl\": 0}, # expires immediately\n                {\"time\": 4, \"key\": \"b\", \"op\": \"get\"}, # absent\n                {\"time\": 5, \"key\": \"c\", \"op\": \"put\", \"value\": 30, \"ttl\": None}, # never expires\n                {\"time\": 10, \"key\": \"c\", \"op\": \"get\"}, # live\n            ]\n        }\n        rc, out, _ = self.run_cli(json.dumps(data))\n        self.assertEqual(rc, 0)\n        res = json.loads(out)\n        self.assertEqual(res[\"reads\"], [\n            [2, \"a\", 10],\n            [3, \"a\", None],\n            [4, \"b\", None],\n            [10, \"c\", 30]\n        ])\n        self.assertEqual(res[\"live\"], [[\"c\", 30]])\n\n    def test_get_logic(self):\n        \"\"\"AC 4: Get operations and absence.\"\"\"\n        data = {\n            \"events\": [\n                {\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": 100, \"ttl\": 5},\n                {\"time\": 2, \"key\": \"b\", \"op\": \"get\"}, # absent\n                {\"time\": 3, \"key\": \"a\", \"op\": \"get\"}, # live\n                {\"time\": 6, \"key\": \"a\", \"op\": \"get\"}, # expired\n            ]\n        }\n        rc, out, _ = self.run_cli(json.dumps(data))\n        self.assertEqual(rc, 0)\n        res = json.loads(out)\n        self.assertEqual(res[\"reads\"], [\n            [2, \"b\", None],\n            [3, \"a\", 100],\n            [6, \"a\", None]\n        ])\n        self.assertEqual(res[\"live\"], [])\n\n    def test_delete_logic(self):\n        \"\"\"AC 5: Delete operations.\"\"\"\n        data = {\n            \"events\": [\n                {\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": 10, \"ttl\": 10},\n                {\"time\": 2, \"key\": \"a\", \"op\": \"delete\"},\n                {\"time\": 3, \"key\": \"a\", \"op\": \"get\"}, # absent\n                {\"time\": 4, \"key\": \"b\", \"op\": \"delete\"}, # delete absent\n                {\"time\": 5, \"key\": \"c\", \"op\": \"put\", \"value\": 30, \"ttl\": 1},\n                {\"time\": 6, \"key\": \"c\", \"op\": \"delete\"}, # delete expired\n            ]\n        }\n        rc, out, _ = self.run_cli(json.dumps(data))\n        self.assertEqual(rc, 0)\n        res = json.loads(out)\n        self.assertEqual(res[\"reads\"], [[3, \"a\", None]])\n        self.assertEqual(res[\"live\"], [])\n\n    def test_output_format(self):\n        \"\"\"AC 6: Final output structure and lexicographical sort.\"\"\"\n        data = {\n            \"events\": [\n                {\"time\": 1, \"key\": \"z\", \"op\": \"put\", \"value\": 1, \"ttl\": None},\n                {\"time\": 1, \"key\": \"a\", \"op\": \"put\", \"value\": 2, \"ttl\": None},\n                {\"time\": 1, \"key\": \"m\", \"op\": \"put\", \"value\": 3, \"ttl\": None},\n                {\"time\": 2, \"key\": \"a\", \"op\": \"get\"},\n            ]\n        }\n        rc, out, _ = self.run_cli(json.dumps(data))\n        self.assertEqual(rc, 0)\n        res = json.loads(out)\n        self.assertEqual(res[\"reads\"], [[2, \"a\", 2]])\n        # Sorted lexicographically by key: a, m, z\n        self.assertEqual(res[\"live\"], [[\"a\", 2], [\"m\", 3], [\"z\", 1]])\n\n    def test_cli_contract(self):\n        \"\"\"AC 7: Non-zero exit for malformed JSON.\"\"\"\n        malformed = [\n            \"not a json\",\n            '{\"events\": [{\"time\": 1, \"key\": \"a\", \"op\": \"put\" ', # truncated\n            '{\"events\": \"not an array\"}',\n            '[]' # Not an object\n        ]\n        for case in malformed:\n            rc, out, _ = self.run_cli(case)\n            self.assertNotEqual(rc, 0, f\"Should fail for malformed: {case}\")\n            self.assertEqual(out.strip(), \"\", f\"Stdout should be empty for malformed: {case}\")\n\n    def test_empty_events(self):\n        \"\"\"Test empty event list case.\"\"\"\n        data = {\"events\": []}\n        rc, out, _ = self.run_cli(json.dumps(data))\n        self.assertEqual(rc, 0)\n        res = json.loads(out)\n        self.assertEqual(res, {\"reads\": [], \"live\": []})\n\nif __name__ == \"__main__\":\n    unittest.main()"
+    }
+  ],
+  "source_text_sha256": {
+    "tests/test_solution.py": "4921d664c4aa2b3a57e4de6a6d378253a8798626223080f5262fb11c1ee77c21"
+  },
+  "archive_note": "Final submitted source only. Source text is UTF-8 with LF newlines; raw reasoning and transport envelopes are excluded."
+}

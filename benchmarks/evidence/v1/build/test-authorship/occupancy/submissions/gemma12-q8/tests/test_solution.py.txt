@@ -1,0 +1,97 @@
+import unittest
+import json
+import sys
+import subprocess
+from io import StringIO
+
+class TestClass(unittest.TestCase):
+    def run_solution(self, input_str):
+        process = subprocess.Popen(
+            ['python3', 'solution.py'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = process.communicate(input=input_str)
+        return process.returncode, stdout, stderr
+
+    def test_invalid_json(self):
+        code, stdout, _ = self.run_solution('{"window": [0, 10], "threshold": 1, "intervals": [[0, 5]}')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(stdout, "")
+
+    def test_invalid_types(self):
+        # Test float for threshold
+        code, stdout, _ = self.run_solution('{"window": [0, 10], "threshold": 1.0, "intervals": [[0, 5]]}')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(stdout, "")
+        # Test boolean for window
+        code, stdout, _ = self.run_solution('{"window": [True, 10], "threshold": 1, "intervals": [[0, 5]]}')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(stdout, "")
+
+    def test_invalid_ranges(self):
+        # window start >= end
+        code, stdout, _ = self.run_solution('{"window": [10, 0], "threshold": 1, "intervals": [[0, 5]]}')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(stdout, "")
+        # interval start >= end
+        code, stdout, _ = self.run_solution('{"window": [0, 10], "threshold": 1, "intervals": [[5, 2]]}')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(stdout, "")
+
+    def test_basic_success(self):
+        input_str = '{"window": [0, 10], "threshold": 2, "intervals": [[0, 5], [2, 7], [5, 10]]}'
+        code, stdout, _ = self.run_solution(input_str)
+        self.assertEqual(code, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result, {"covered": 10, "peak": 2, "first_peak": 2, "alerts": [[2, 7]]})
+
+    def test_peak_zero(self):
+        input_str = '{"window": [0, 10], "threshold": 1, "intervals": [[15, 20]]}'
+        code, stdout, _ = self.run_solution(input_str)
+        self.assertEqual(code, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result, {"covered": 0, "peak": 0, "first_peak": None, "alerts": []})
+
+    def test_clipping(self):
+        # Interval [-5, 5] -> [0, 5], [5, 15] -> [5, 10]
+        input_str = '{"window": [0, 10], "threshold": 1, "intervals": [[-5, 5], [5, 15]]}'
+        code, stdout, _ = self.run_solution(input_str)
+        self.assertEqual(code, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result, {"covered": 10, "peak": 1, "first_peak": 0, "alerts": [[0, 10]]})
+
+    def test_merging_alerts(self):
+        # threshold 2, counts [2, 2] across [0, 5] and [5, 10]
+        input_str = '{"window": [0, 10], "threshold": 2, "intervals": [[0, 5], [0, 5], [5, 10], [5, 10]]}'
+        code, stdout, _ = self.run_solution(input_str)
+        self.assertEqual(code, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result, {"covered": 10, "peak": 2, "first_peak": 0, "alerts": [[0, 10]]})
+
+    def test_non_merging_alerts(self):
+        # threshold 2, counts [2, 0, 2] across [0, 5], [5, 6], [6, 10]
+        input_str = '{"window": [0, 10], "threshold": 2, "intervals": [[0, 5], [0, 5], [6, 10], [6, 10]]}'
+        code, stdout, _ = self.run_solution(input_str)
+        self.assertEqual(code, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result, {"covered": 9, "peak": 2, "first_peak": 0, "alerts": [[0, 5], [6, 10]]})
+
+    def test_duplicates(self):
+        input_str = '{"window": [0, 10], "threshold": 2, "intervals": [[0, 5], [0, 5]]}'
+        code, stdout, _ = self.run_solution(input_str)
+        self.assertEqual(code, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result, {"covered": 5, "peak": 2, "first_peak": 0, "alerts": [[0, 5]]})
+
+    def test_extra_keys(self):
+        input_str = '{"window": [0, 10], "threshold": 1, "intervals": [[0, 5]], "extra": "data"}'
+        code, stdout, _ = self.run_solution(input_str)
+        self.assertEqual(code, 0)
+        result = json.loads(stdout)
+        self.assertEqual(result, {"covered": 5, "peak": 1, "first_peak": 0, "alerts": [[0, 5]]})
+
+if __name__ == '__main__':
+    unittest.main()

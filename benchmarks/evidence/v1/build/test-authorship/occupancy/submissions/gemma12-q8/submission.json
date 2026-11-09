@@ -1,0 +1,101 @@
+{
+  "assumptions": [],
+  "commands": [
+    "python3 -m unittest discover -s tests -v"
+  ],
+  "coverage": [
+    {
+      "catches": "::test_invalid_json",
+      "criterion": 7,
+      "expected_result": "Exit non-zero with no stdout.",
+      "scenario": "Submit malformed JSON string.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_invalid_json"
+    },
+    {
+      "catches": "::test_invalid_types",
+      "criterion": 1,
+      "expected_result": "Exit non-zero with no stdout.",
+      "scenario": "Submit JSON with float/boolean values for integers.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_invalid_types"
+    },
+    {
+      "catches": "::test_invalid_ranges",
+      "criterion": 1,
+      "expected_result": "Exit non-zero with no stdout.",
+      "scenario": "Submit JSON where start >= end in window or intervals.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_invalid_ranges"
+    },
+    {
+      "catches": "::test_basic_success",
+      "criterion": 4,
+      "expected_result": "{\"covered\": 10, \"peak\": 2, \"first_peak\": 2, \"alerts\": [[2, 7]]}",
+      "scenario": "Basic overlap and alert calculation.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_basic_success"
+    },
+    {
+      "catches": "::test_peak_zero",
+      "criterion": 5,
+      "expected_result": "{\"covered\": 0, \"peak\": 0, \"first_peak\": null, \"alerts\": []}",
+      "scenario": "No intervals within the window.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_peak_zero"
+    },
+    {
+      "catches": "::test_clipping",
+      "criterion": 2,
+      "expected_result": "{\"covered\": 10, \"peak\": 1, \"first_peak\": 0, \"alerts\": [[0, 10]]}",
+      "scenario": "Intervals crossing window boundaries.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_clipping"
+    },
+    {
+      "catches": "::test_merging_alerts",
+      "criterion": 6,
+      "expected_result": "{\"covered\": 10, \"peak\": 1, \"first_peak\": 0, \"alerts\": [[0, 10]]}",
+      "scenario": "Merge adjacent qualifying spans.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_merging_alerts"
+    },
+    {
+      "catches": "::test_non_merging_alerts",
+      "criterion": 6,
+      "expected_result": "{\"covered\": 9, \"peak\": 1, \"first_peak\": 0, \"alerts\": [[0, 5], [6, 10]]}",
+      "scenario": "Non-adjacent qualifying spans should not merge.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_non_merging_alerts"
+    },
+    {
+      "catches": "::test_duplicates",
+      "criterion": 3,
+      "expected_result": "{\"covered\": 5, \"peak\": 2, \"first_peak\": 0, \"alerts\": [[0, 5]]}",
+      "scenario": "Input with duplicate intervals.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_duplicates"
+    },
+    {
+      "catches": "::test_extra_keys",
+      "criterion": 1,
+      "expected_result": "{\"covered\": 5, \"peak\": 1, \"first_peak\": 0, \"alerts\": [[0, 5]]}",
+      "scenario": "Input with extra irrelevant object keys.",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestClass.test_extra_keys"
+    }
+  ],
+  "implementation_files": [
+    "solution.py"
+  ],
+  "files": [
+    {
+      "path": "tests/test_solution.py",
+      "content": "import unittest\nimport json\nimport sys\nimport subprocess\nfrom io import StringIO\n\nclass TestClass(unittest.TestCase):\n    def run_solution(self, input_str):\n        process = subprocess.Popen(\n            ['python3', 'solution.py'],\n            stdin=subprocess.PIPE,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            text=True\n        )\n        stdout, stderr = process.communicate(input=input_str)\n        return process.returncode, stdout, stderr\n\n    def test_invalid_json(self):\n        code, stdout, _ = self.run_solution('{\"window\": [0, 10], \"threshold\": 1, \"intervals\": [[0, 5]}')\n        self.assertNotEqual(code, 0)\n        self.assertEqual(stdout, \"\")\n\n    def test_invalid_types(self):\n        # Test float for threshold\n        code, stdout, _ = self.run_solution('{\"window\": [0, 10], \"threshold\": 1.0, \"intervals\": [[0, 5]]}')\n        self.assertNotEqual(code, 0)\n        self.assertEqual(stdout, \"\")\n        # Test boolean for window\n        code, stdout, _ = self.run_solution('{\"window\": [True, 10], \"threshold\": 1, \"intervals\": [[0, 5]]}')\n        self.assertNotEqual(code, 0)\n        self.assertEqual(stdout, \"\")\n\n    def test_invalid_ranges(self):\n        # window start >= end\n        code, stdout, _ = self.run_solution('{\"window\": [10, 0], \"threshold\": 1, \"intervals\": [[0, 5]]}')\n        self.assertNotEqual(code, 0)\n        self.assertEqual(stdout, \"\")\n        # interval start >= end\n        code, stdout, _ = self.run_solution('{\"window\": [0, 10], \"threshold\": 1, \"intervals\": [[5, 2]]}')\n        self.assertNotEqual(code, 0)\n        self.assertEqual(stdout, \"\")\n\n    def test_basic_success(self):\n        input_str = '{\"window\": [0, 10], \"threshold\": 2, \"intervals\": [[0, 5], [2, 7], [5, 10]]}'\n        code, stdout, _ = self.run_solution(input_str)\n        self.assertEqual(code, 0)\n        result = json.loads(stdout)\n        self.assertEqual(result, {\"covered\": 10, \"peak\": 2, \"first_peak\": 2, \"alerts\": [[2, 7]]})\n\n    def test_peak_zero(self):\n        input_str = '{\"window\": [0, 10], \"threshold\": 1, \"intervals\": [[15, 20]]}'\n        code, stdout, _ = self.run_solution(input_str)\n        self.assertEqual(code, 0)\n        result = json.loads(stdout)\n        self.assertEqual(result, {\"covered\": 0, \"peak\": 0, \"first_peak\": None, \"alerts\": []})\n\n    def test_clipping(self):\n        # Interval [-5, 5] -> [0, 5], [5, 15] -> [5, 10]\n        input_str = '{\"window\": [0, 10], \"threshold\": 1, \"intervals\": [[-5, 5], [5, 15]]}'\n        code, stdout, _ = self.run_solution(input_str)\n        self.assertEqual(code, 0)\n        result = json.loads(stdout)\n        self.assertEqual(result, {\"covered\": 10, \"peak\": 1, \"first_peak\": 0, \"alerts\": [[0, 10]]})\n\n    def test_merging_alerts(self):\n        # threshold 2, counts [2, 2] across [0, 5] and [5, 10]\n        input_str = '{\"window\": [0, 10], \"threshold\": 2, \"intervals\": [[0, 5], [0, 5], [5, 10], [5, 10]]}'\n        code, stdout, _ = self.run_solution(input_str)\n        self.assertEqual(code, 0)\n        result = json.loads(stdout)\n        self.assertEqual(result, {\"covered\": 10, \"peak\": 2, \"first_peak\": 0, \"alerts\": [[0, 10]]})\n\n    def test_non_merging_alerts(self):\n        # threshold 2, counts [2, 0, 2] across [0, 5], [5, 6], [6, 10]\n        input_str = '{\"window\": [0, 10], \"threshold\": 2, \"intervals\": [[0, 5], [0, 5], [6, 10], [6, 10]]}'\n        code, stdout, _ = self.run_solution(input_str)\n        self.assertEqual(code, 0)\n        result = json.loads(stdout)\n        self.assertEqual(result, {\"covered\": 9, \"peak\": 2, \"first_peak\": 0, \"alerts\": [[0, 5], [6, 10]]})\n\n    def test_duplicates(self):\n        input_str = '{\"window\": [0, 10], \"threshold\": 2, \"intervals\": [[0, 5], [0, 5]]}'\n        code, stdout, _ = self.run_solution(input_str)\n        self.assertEqual(code, 0)\n        result = json.loads(stdout)\n        self.assertEqual(result, {\"covered\": 5, \"peak\": 2, \"first_peak\": 0, \"alerts\": [[0, 5]]})\n\n    def test_extra_keys(self):\n        input_str = '{\"window\": [0, 10], \"threshold\": 1, \"intervals\": [[0, 5]], \"extra\": \"data\"}'\n        code, stdout, _ = self.run_solution(input_str)\n        self.assertEqual(code, 0)\n        result = json.loads(stdout)\n        self.assertEqual(result, {\"covered\": 5, \"peak\": 1, \"first_peak\": 0, \"alerts\": [[0, 5]]})\n\nif __name__ == '__main__':\n    unittest.main()"
+    }
+  ],
+  "source_text_sha256": {
+    "tests/test_solution.py": "08de38650e84fec3a8bbb8cb1ed600290858eef5b9f290fa16ee5887bde5a33d"
+  },
+  "archive_note": "Final submitted source only. Source text is UTF-8 with LF newlines; raw reasoning and transport envelopes are excluded."
+}

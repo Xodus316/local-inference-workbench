@@ -1,0 +1,2158 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "bidirectional-synthetic-code-rewrite-20261030",
+  "protocol": {
+    "reviewer_behavior": "The reviewer returns issues and a complete replacement module; this is code rewriting, not a verdict-only review.",
+    "production_verdict_accuracy": "Unmeasured by this experiment. Workbench Edit returns approved/summary rather than replacement code.",
+    "author_context": 16384,
+    "review_context_minimum": 32768,
+    "executed_review_context": 32768,
+    "context_rule": "Choose a supported context covering UTF-8 message bytes + output allowance + 2048 framing tokens; no truncation.",
+    "generation": {
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "top_k": 40,
+      "thinking": false,
+      "output_limit": 8192
+    },
+    "automatic_retries": 0,
+    "source_repairs": 0,
+    "test_feedback_rounds": 0,
+    "review_passes_per_draft": 1,
+    "pilot_pair_reused": false,
+    "initial_16k_reviews": "Separate feasibility cohort; excluded from final scores.",
+    "excluded_pair": {
+      "direction": "qwen_to_gemma",
+      "task": "query_parser",
+      "trial": 2,
+      "reason": "Infrastructure response missing; no replacement generation; exclude from model accuracy denominator."
+    },
+    "failure_policy": "A known author output-limit failure remains a failed pipeline result with no dependent review. Reviewers receive only the original contract and exact draft, not grading feedback.",
+    "controls_not_tested": [
+      "same-model self-review",
+      "additional independent sampling",
+      "reviewer given execution feedback"
+    ]
+  },
+  "availability": {
+    "original_475_check_grader": false,
+    "supplemental_two_check_worker": true,
+    "exact_candidate_sources": 68
+  },
+  "models": {
+    "qwen": {
+      "model_package": "Qwen 27B MTP Q4_K_M",
+      "recorded_model_name": "qwen3.8:27b-mtp-q4_K_M",
+      "model_artifact_sha256": null
+    },
+    "gemma": {
+      "model_package": "Gemma 31B QAT",
+      "recorded_model_name": "gemma4:31b-it-qat",
+      "model_artifact_sha256": null
+    }
+  },
+  "prompt_sha256": {
+    "scheduler_repair": "549225bd01752df211c3f0b1c866c72768d3752e1f49c73b1f28f8ae1dbfc78f",
+    "expiring_lru": "8934fbaa0c834c64115c6a9ff29ecdef6be0ef45b65e067038271209b47d1091",
+    "query_parser": "00831e70dfef7e24af01c91c6186eb49734ffba2f8d8949d6e65a00546f6d157",
+    "resumable_log": "ac4859b536b84470aa3acbab85fa8299dad971e31db281335fef9c0aef2b3eeb",
+    "pricing_feature": "75ff8a5845fbbed1899decd6e7d3864198f50ff73dd400bb05e42b788cc63eb5",
+    "bounded_async": "915540615c49cbed5f39329321858f6080f07ed88a31a3365112ff04c9b0659c"
+  },
+  "historical_audited_worker_sha256": "2327b8afb3c16b97b154d364567d1f3686ce7abec798ff9025dede5d1db8437a",
+  "directions": [
+    {
+      "id": "qwen_to_gemma",
+      "planned_pairs": 18,
+      "evaluable_pairs": 17,
+      "missing_pairs": 1,
+      "draft_full_passes": 8,
+      "review_full_passes": 15,
+      "transitions": {
+        "retained_pass": 8,
+        "fixed": 7,
+        "regression": 0,
+        "still_failing": 2
+      },
+      "draft_passes_with_supplemental": 8,
+      "review_passes_with_supplemental": 12,
+      "matched_subset": {
+        "pairs": 17,
+        "draft_full_passes": 8,
+        "review_full_passes": 15,
+        "review_passes_with_supplemental": 12,
+        "excluded_task_trial": [
+          "query_parser",
+          2
+        ]
+      },
+      "source_changed_count": 15,
+      "median_pair_request_seconds": 51.59,
+      "total_pair_request_seconds": 888.691
+    },
+    {
+      "id": "gemma_to_qwen",
+      "planned_pairs": 18,
+      "evaluable_pairs": 18,
+      "missing_pairs": 0,
+      "draft_full_passes": 13,
+      "review_full_passes": 12,
+      "transitions": {
+        "retained_pass": 12,
+        "fixed": 0,
+        "regression": 1,
+        "still_failing": 5
+      },
+      "draft_passes_with_supplemental": 10,
+      "review_passes_with_supplemental": 9,
+      "matched_subset": {
+        "pairs": 17,
+        "draft_full_passes": 13,
+        "review_full_passes": 12,
+        "review_passes_with_supplemental": 9,
+        "excluded_task_trial": [
+          "query_parser",
+          2
+        ]
+      },
+      "source_changed_count": 15,
+      "median_pair_request_seconds": 29.331,
+      "total_pair_request_seconds": 626.014
+    }
+  ],
+  "pairs": [
+    {
+      "direction": "qwen_to_gemma",
+      "task": "scheduler_repair",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": true,
+      "transition": "fixed",
+      "source_changed": true,
+      "pair_wall_seconds": 56.55,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 34,
+        "total": 102,
+        "execution_seconds": 0.00672
+      },
+      "review_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.0106
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/scheduler_repair/trial-1-draft.py",
+          "sha256": "99dd459d6935d68f04e57aaa241b20db2db11cde668460470df38205e2883c5b"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "7cf124c10fcc7ad7e7b9f0066fdf7137ca807f7ae33a70dfeda0e65f76c9aaf4",
+          "response_sha256": "5523e83f222a6d88af7e37554503cb6db6b2a57c9466c333a9e77f57a9d9a982",
+          "code_sha256": "99dd459d6935d68f04e57aaa241b20db2db11cde668460470df38205e2883c5b"
+        },
+        "usage": {
+          "prompt_tokens": 555,
+          "completion_tokens": 332,
+          "total_tokens": 887
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/scheduler_repair/trial-1-review.py",
+          "sha256": "d5748ef4c257ebb5383f003445ed6cc693a95ecf1e68cfaf9764f609175935c7"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "ea1b030f693dd103da32d379ce0d960de70604f5a99f2b6f609ffec06f82b994",
+          "response_sha256": "9c5ea30a06519af2dfa605894562a11c4ff2baf9ec9a5c9d1b29b0bc8ff029fe",
+          "code_sha256": "d5748ef4c257ebb5383f003445ed6cc693a95ecf1e68cfaf9764f609175935c7"
+        },
+        "usage": {
+          "prompt_tokens": 1108,
+          "completion_tokens": 536,
+          "total_tokens": 1644
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "scheduler_repair",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": false,
+      "draft_fully_solved": false,
+      "review_fully_solved": false,
+      "transition": "still_failing",
+      "source_changed": null,
+      "pair_wall_seconds": 117.144,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": null,
+      "review_checks": null,
+      "draft": {
+        "source": null,
+        "finish_reason": "length",
+        "provenance": {
+          "request_sha256": "7cf124c10fcc7ad7e7b9f0066fdf7137ca807f7ae33a70dfeda0e65f76c9aaf4",
+          "response_sha256": "08eb6e2249a77afffdbde7ffac1150f276e0be691dc0873831df813e35bebff0"
+        },
+        "usage": {
+          "prompt_tokens": 555,
+          "completion_tokens": 8192,
+          "total_tokens": 8747
+        }
+      },
+      "review": {
+        "source": null,
+        "finish_reason": null,
+        "provenance": {},
+        "usage": {}
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "scheduler_repair",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": true,
+      "transition": "fixed",
+      "source_changed": true,
+      "pair_wall_seconds": 20.598,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 34,
+        "total": 102,
+        "execution_seconds": 0.00704
+      },
+      "review_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.01111
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/scheduler_repair/trial-3-draft.py",
+          "sha256": "5ef3c4ae7d28ace98ef31f1e029a54b7c8bf5d13a0a2ab0a505df7cc8b556eb9"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "7cf124c10fcc7ad7e7b9f0066fdf7137ca807f7ae33a70dfeda0e65f76c9aaf4",
+          "response_sha256": "4fd5a1721b6a181e0ab04bbe4e1afe0448ef4269ebfa90d6a8ded0777271b464",
+          "code_sha256": "5ef3c4ae7d28ace98ef31f1e029a54b7c8bf5d13a0a2ab0a505df7cc8b556eb9"
+        },
+        "usage": {
+          "prompt_tokens": 555,
+          "completion_tokens": 332,
+          "total_tokens": 887
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/scheduler_repair/trial-3-review.py",
+          "sha256": "bd3954213e1f6fc4bb8983ec6fbd56ca875f4a41e075ad708fbeadb6c320f277"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "b81aff96e0f89525d8d3bf6420fa069a34868ac5077cc649e8b3e1b9cf7420ef",
+          "response_sha256": "bdee97ce8679c627576587f96d0e1c33b3b0e0e4381c691af24c5f8834d2d4df",
+          "code_sha256": "bd3954213e1f6fc4bb8983ec6fbd56ca875f4a41e075ad708fbeadb6c320f277"
+        },
+        "usage": {
+          "prompt_tokens": 1107,
+          "completion_tokens": 499,
+          "total_tokens": 1606
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "expiring_lru",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 51.59,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.17016
+      },
+      "review_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16643
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/expiring_lru/trial-1-draft.py",
+          "sha256": "226ea475f047c75a00d89b8d8b9cab1673f213c2dc04f5385c7f4b8462846496"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5facde96960166109de0f58c5f8c23776c456bec9a7e6455e34e49a5294c5cb1",
+          "response_sha256": "126aac17c08339460a67924e4c56a62948ae902b94c4dd334015afd23eb4deff",
+          "code_sha256": "226ea475f047c75a00d89b8d8b9cab1673f213c2dc04f5385c7f4b8462846496"
+        },
+        "usage": {
+          "prompt_tokens": 505,
+          "completion_tokens": 423,
+          "total_tokens": 928
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/expiring_lru/trial-1-review.py",
+          "sha256": "4dc74091d71778139cb5e17289983dae8175e285a445113dd852413bc9f9a83b"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "2f0a37ba8b06e00f77de7e879a7cc3f8999237a023b2c25f865494b3fcd7259f",
+          "response_sha256": "890f3882745838e4cd928f2513163c56848c29c7be91d27c75f4715feed38e3d",
+          "code_sha256": "4dc74091d71778139cb5e17289983dae8175e285a445113dd852413bc9f9a83b"
+        },
+        "usage": {
+          "prompt_tokens": 1171,
+          "completion_tokens": 1243,
+          "total_tokens": 2414
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "expiring_lru",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": false,
+      "pair_wall_seconds": 55.416,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16899
+      },
+      "review_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16841
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/expiring_lru/trial-2-draft.py",
+          "sha256": "0e3267067be5a6801ee47a950305bb9863e790466fe1d76702a0db6429fd7519"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5facde96960166109de0f58c5f8c23776c456bec9a7e6455e34e49a5294c5cb1",
+          "response_sha256": "1ce1e3037df5482883f4543c1dc5e57ff09c8cd30811a04440d4a73da63bf2b2",
+          "code_sha256": "0e3267067be5a6801ee47a950305bb9863e790466fe1d76702a0db6429fd7519"
+        },
+        "usage": {
+          "prompt_tokens": 505,
+          "completion_tokens": 419,
+          "total_tokens": 924
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/expiring_lru/trial-2-review.py",
+          "sha256": "0e3267067be5a6801ee47a950305bb9863e790466fe1d76702a0db6429fd7519"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "7195010465eb0670f6115285e2cbc564010084205bbb6ed4ba39b8819641a71c",
+          "response_sha256": "f0897cc6a812e0d813bd5f83d6b3c9419c623ba04ef561b276834a962ac56c03",
+          "code_sha256": "0e3267067be5a6801ee47a950305bb9863e790466fe1d76702a0db6429fd7519"
+        },
+        "usage": {
+          "prompt_tokens": 1167,
+          "completion_tokens": 1460,
+          "total_tokens": 2627
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "expiring_lru",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": true,
+      "transition": "fixed",
+      "source_changed": true,
+      "pair_wall_seconds": 25.318,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 7,
+        "total": 90,
+        "execution_seconds": 0.09079
+      },
+      "review_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16872
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/expiring_lru/trial-3-draft.py",
+          "sha256": "646dee888200f90616496b0c4d045b91e06fb4edbd15038addec628f2e9f5e51"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5facde96960166109de0f58c5f8c23776c456bec9a7e6455e34e49a5294c5cb1",
+          "response_sha256": "1756b97c01f62758cbdce784c7611e455d6f6ff64e48cd3b81703ac8adb71e15",
+          "code_sha256": "646dee888200f90616496b0c4d045b91e06fb4edbd15038addec628f2e9f5e51"
+        },
+        "usage": {
+          "prompt_tokens": 505,
+          "completion_tokens": 483,
+          "total_tokens": 988
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/expiring_lru/trial-3-review.py",
+          "sha256": "326b334bc659914fc325b6a4ad4ac7c1764757b9ce0a046b922988e6d88c0629"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "2dc7a47c3dc564e0cbc39145fd6277c8157cf5918de409e4ce79797c001532d2",
+          "response_sha256": "2f4d5a04a1ce758ebda09bdefab79e8267abc63f30cdf9adbeba76a03decf4de",
+          "code_sha256": "326b334bc659914fc325b6a4ad4ac7c1764757b9ce0a046b922988e6d88c0629"
+        },
+        "usage": {
+          "prompt_tokens": 1228,
+          "completion_tokens": 541,
+          "total_tokens": 1769
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "query_parser",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": true,
+      "transition": "fixed",
+      "source_changed": true,
+      "pair_wall_seconds": 86.55,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 72,
+        "total": 127,
+        "execution_seconds": 0.00203
+      },
+      "review_checks": {
+        "passed": 127,
+        "total": 127,
+        "execution_seconds": 0.00217
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/query_parser/trial-1-draft.py",
+          "sha256": "c675ee334c0ecd55ff859018381fc4f151a85672f224d9630e4a2cf7b84a97cb"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "dfc74c6f11e8d1006d78fae9693615110a70a543d9984b405c7e206e74272d8d",
+          "response_sha256": "ca8bc0862c5918b9165a8403057ee9fd3a2744e5bcafd67c34a43ae29ef64437",
+          "code_sha256": "c675ee334c0ecd55ff859018381fc4f151a85672f224d9630e4a2cf7b84a97cb"
+        },
+        "usage": {
+          "prompt_tokens": 538,
+          "completion_tokens": 1242,
+          "total_tokens": 1780
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/query_parser/trial-1-review.py",
+          "sha256": "eb74fc47b5c44c452b1ad4c56c1ab42cbf309e7f5ee92c850c14b25664521727"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "fe6c0a1f1ffec4795fde118d859b247cad88c3614a5026981c5302ff2b1c2c62",
+          "response_sha256": "516923662047dffde7f05057d3eee6fd845db83325cca62fc8cfe84cf8ffd1d6",
+          "code_sha256": "eb74fc47b5c44c452b1ad4c56c1ab42cbf309e7f5ee92c850c14b25664521727"
+        },
+        "usage": {
+          "prompt_tokens": 2059,
+          "completion_tokens": 1559,
+          "total_tokens": 3618
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "query_parser",
+      "trial": 2,
+      "evaluable": false,
+      "review_dispatched": false,
+      "draft_fully_solved": null,
+      "review_fully_solved": null,
+      "transition": "infrastructure_missing",
+      "draft_with_supplemental": null,
+      "review_with_supplemental": null,
+      "draft_checks": null,
+      "review_checks": null,
+      "draft": {
+        "source": null,
+        "finish_reason": null,
+        "provenance": {},
+        "usage": {}
+      },
+      "review": {
+        "source": null,
+        "finish_reason": null,
+        "provenance": {},
+        "usage": {}
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "query_parser",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": false,
+      "transition": "still_failing",
+      "source_changed": true,
+      "pair_wall_seconds": 82.421,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 72,
+        "total": 127,
+        "execution_seconds": 0.0013
+      },
+      "review_checks": {
+        "passed": 88,
+        "total": 127,
+        "execution_seconds": 0.0015
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/query_parser/trial-3-draft.py",
+          "sha256": "41a8986d8bb1e9ef7e8e30124593e4d2791188b6be6263d955a7141b885281ff"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "dfc74c6f11e8d1006d78fae9693615110a70a543d9984b405c7e206e74272d8d",
+          "response_sha256": "8f0d789d26e0bbccf1e93d511568ee3d883410193719fb4d560d1e8ff6b0e619",
+          "code_sha256": "41a8986d8bb1e9ef7e8e30124593e4d2791188b6be6263d955a7141b885281ff"
+        },
+        "usage": {
+          "prompt_tokens": 538,
+          "completion_tokens": 1675,
+          "total_tokens": 2213
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/query_parser/trial-3-review.py",
+          "sha256": "9b0532f1d8f4903b44f49ab4b229d3ba7d7033fb913a5f54aadd681a7266586f"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "002c5cbfdb1eaef72d53a859c278992ea506ae985c5b6a7b95972bfe84c234f2",
+          "response_sha256": "6242560beb44e69359ff287e27f5a673cc0e220942bb5dcf14ee89961e5ffd92",
+          "code_sha256": "9b0532f1d8f4903b44f49ab4b229d3ba7d7033fb913a5f54aadd681a7266586f"
+        },
+        "usage": {
+          "prompt_tokens": 2575,
+          "completion_tokens": 1927,
+          "total_tokens": 4502
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "resumable_log",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 60.32,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 24,
+        "total": 24,
+        "execution_seconds": 0.04104
+      },
+      "review_checks": {
+        "passed": 24,
+        "total": 24,
+        "execution_seconds": 0.02869
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/resumable_log/trial-1-draft.py",
+          "sha256": "426a42a4ab97dbc9725e2eaafb9b6e82797289c7b40d0fc3da27d46b07622c12"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "a9d8126deb6fe507557352252081b743e5ab83ee5ce9d1cb1aa9b5cbf58b530e",
+          "response_sha256": "21a149ede9ff8482e54e973a4bbc9374c8ce07f64ac6ea88ad1f69145cf05313",
+          "code_sha256": "426a42a4ab97dbc9725e2eaafb9b6e82797289c7b40d0fc3da27d46b07622c12"
+        },
+        "usage": {
+          "prompt_tokens": 690,
+          "completion_tokens": 1314,
+          "total_tokens": 2004
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/resumable_log/trial-1-review.py",
+          "sha256": "c1efcd951857de0266351c304738ad74253014b1de5180ba2215a840560e9b0b"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "a993bff6f1a118d983400c50900eec598f77dbe450d0e46deb9bb8f484d6195c",
+          "response_sha256": "fb220ee82369e069fdfb9dba351568aee609ee1b4fb7c21b812cfeca3e559494",
+          "code_sha256": "c1efcd951857de0266351c304738ad74253014b1de5180ba2215a840560e9b0b"
+        },
+        "usage": {
+          "prompt_tokens": 2342,
+          "completion_tokens": 1296,
+          "total_tokens": 3638
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "resumable_log",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 75.23,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 24,
+        "total": 24,
+        "execution_seconds": 0.04407
+      },
+      "review_checks": {
+        "passed": 24,
+        "total": 24,
+        "execution_seconds": 0.038
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/resumable_log/trial-2-draft.py",
+          "sha256": "2008b58f526d3570c734c65073d2d5091cd6b55df7e3e2ca43a575f31283ae9d"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "a9d8126deb6fe507557352252081b743e5ab83ee5ce9d1cb1aa9b5cbf58b530e",
+          "response_sha256": "465f1000a743373de93d018bbc94d06f91bbf514b9a206f837f83b8cbe04953f",
+          "code_sha256": "2008b58f526d3570c734c65073d2d5091cd6b55df7e3e2ca43a575f31283ae9d"
+        },
+        "usage": {
+          "prompt_tokens": 690,
+          "completion_tokens": 1312,
+          "total_tokens": 2002
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/resumable_log/trial-2-review.py",
+          "sha256": "6503625ce577da7acc9b8222878b13b6d8bf6512ca8cb684b13e63e87969c12e"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "dc1873a5e327b3d520a582210439d2467c9d6a6840aa0a9f42746d4bd83c419b",
+          "response_sha256": "bcfc4c6015691e78ffdc3065a5a3bff855f4f24ca56274227126d8db31a1c857",
+          "code_sha256": "6503625ce577da7acc9b8222878b13b6d8bf6512ca8cb684b13e63e87969c12e"
+        },
+        "usage": {
+          "prompt_tokens": 2298,
+          "completion_tokens": 1828,
+          "total_tokens": 4126
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "resumable_log",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 63.738,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 24,
+        "total": 24,
+        "execution_seconds": 0.03536
+      },
+      "review_checks": {
+        "passed": 24,
+        "total": 24,
+        "execution_seconds": 0.02697
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/resumable_log/trial-3-draft.py",
+          "sha256": "a36d7083f661f87caa3adc849d32d85346302bcff96d859ce4e589f20af73a25"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "a9d8126deb6fe507557352252081b743e5ab83ee5ce9d1cb1aa9b5cbf58b530e",
+          "response_sha256": "ed0fbd41d300cd26254fa2afc0c4c4fdc61b51866a15b3209a3a65fdd6e0acf8",
+          "code_sha256": "a36d7083f661f87caa3adc849d32d85346302bcff96d859ce4e589f20af73a25"
+        },
+        "usage": {
+          "prompt_tokens": 690,
+          "completion_tokens": 1372,
+          "total_tokens": 2062
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/resumable_log/trial-3-review.py",
+          "sha256": "eaf542b7c1d00d4c6432b7a8ddcc7a8c9b0b9e9e7bd3eeeda3ea57f4d6d53782"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "2052e9dd90a16c1e9126105680bdba9c474227ebddb9d9a4661c71dd28c4e016",
+          "response_sha256": "b2847dc25c71958cc3304cc16719c74c9b0f6e3b108d5ee5cb5e7e0681c03049",
+          "code_sha256": "eaf542b7c1d00d4c6432b7a8ddcc7a8c9b0b9e9e7bd3eeeda3ea57f4d6d53782"
+        },
+        "usage": {
+          "prompt_tokens": 2361,
+          "completion_tokens": 1401,
+          "total_tokens": 3762
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "pricing_feature",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 36.417,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00144
+      },
+      "review_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00138
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/pricing_feature/trial-1-draft.py",
+          "sha256": "8318e991758398eaea56ab67a2b8cb1135411cc4c59688659537b60d9fffb483"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "fbb9cc506bda7ccd7e488588ea44db4eb13010dc5b8fa1d3447f9773bce94cdf",
+          "response_sha256": "3a283b5c5b55fff3f922f3f83c672e79c417121c8153a8097ddb406c30b1f0ea",
+          "code_sha256": "8318e991758398eaea56ab67a2b8cb1135411cc4c59688659537b60d9fffb483"
+        },
+        "usage": {
+          "prompt_tokens": 707,
+          "completion_tokens": 734,
+          "total_tokens": 1441
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/pricing_feature/trial-1-review.py",
+          "sha256": "94d82d45b3872e9b336aa27c670336ec9345e1be131ebbe79cf44c6da7bd7df5"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "8c289f79769ccaca7e7ce3cd0aa9ce7701428b59f47d978144b2a6c917312443",
+          "response_sha256": "2cd00904eb8c55c9e96be24e4e746966e4f21aa8b795104e35473fb706172b4e",
+          "code_sha256": "94d82d45b3872e9b336aa27c670336ec9345e1be131ebbe79cf44c6da7bd7df5"
+        },
+        "usage": {
+          "prompt_tokens": 1697,
+          "completion_tokens": 805,
+          "total_tokens": 2502
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "pricing_feature",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 34.909,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00148
+      },
+      "review_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.0014
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/pricing_feature/trial-2-draft.py",
+          "sha256": "e3860437ac9b6fb07a53a2b2394a69a2ebc884f88807586614f3843229c0d055"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "fbb9cc506bda7ccd7e488588ea44db4eb13010dc5b8fa1d3447f9773bce94cdf",
+          "response_sha256": "577b13cfe316a3008f79390d6230b5eff29f54a5ce50a30b97ff9ffbb7fae2c6",
+          "code_sha256": "e3860437ac9b6fb07a53a2b2394a69a2ebc884f88807586614f3843229c0d055"
+        },
+        "usage": {
+          "prompt_tokens": 707,
+          "completion_tokens": 667,
+          "total_tokens": 1374
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/pricing_feature/trial-2-review.py",
+          "sha256": "41daf157f1731bb5449a8c2f7afdcf7bab714f8ec0026fc210de520f75492373"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "26e286651c38f7c551d7df2e722dd2ee71986573ff391a7b927ce68946b1f198",
+          "response_sha256": "1714d2f5d3e14175125c686d5ba89be6b9ee3325d8d753f5e2b47d4a4ea2b5bf",
+          "code_sha256": "41daf157f1731bb5449a8c2f7afdcf7bab714f8ec0026fc210de520f75492373"
+        },
+        "usage": {
+          "prompt_tokens": 1636,
+          "completion_tokens": 762,
+          "total_tokens": 2398
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "pricing_feature",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 37.364,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00139
+      },
+      "review_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00139
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/pricing_feature/trial-3-draft.py",
+          "sha256": "4557f416f95ca2e2a06c6de1da0ab97e23da22169aab12a8e76e874f50c83023"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "fbb9cc506bda7ccd7e488588ea44db4eb13010dc5b8fa1d3447f9773bce94cdf",
+          "response_sha256": "e68cd7658b9c3d035a9a9f2ff51c542676b33a03bccb10d677890471fab012b5",
+          "code_sha256": "4557f416f95ca2e2a06c6de1da0ab97e23da22169aab12a8e76e874f50c83023"
+        },
+        "usage": {
+          "prompt_tokens": 707,
+          "completion_tokens": 770,
+          "total_tokens": 1477
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/pricing_feature/trial-3-review.py",
+          "sha256": "7669cdfc225535449477e703474f38ede990c63e3c7d4c1e3f510943d7ee2ca1"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "18a821f694ee602d5502ef7724ea5f4fb9162f969433e55267375597d1de7b0c",
+          "response_sha256": "a14250560a85083c31d16c9882e4da3ebd1df33d616e114301df13e95d1446af",
+          "code_sha256": "7669cdfc225535449477e703474f38ede990c63e3c7d4c1e3f510943d7ee2ca1"
+        },
+        "usage": {
+          "prompt_tokens": 1737,
+          "completion_tokens": 850,
+          "total_tokens": 2587
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "bounded_async",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": true,
+      "transition": "fixed",
+      "source_changed": true,
+      "pair_wall_seconds": 25.396,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 14,
+        "total": 15,
+        "execution_seconds": 3.12217
+      },
+      "review_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.12501
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/bounded_async/trial-1-draft.py",
+          "sha256": "f0f26c320efadc9608cdedc566a86218e7da1aef63d7b53de443ca757fb8967d"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "47aaf493331a8b42f8ef946da5b5c202f964a11312db6f9112a168c5e7e267ae",
+          "response_sha256": "88683ff3a6fdb42dc2bfa8169e0fd42e85f8f1ce65c181fd09aaffc48a09d072",
+          "code_sha256": "f0f26c320efadc9608cdedc566a86218e7da1aef63d7b53de443ca757fb8967d"
+        },
+        "usage": {
+          "prompt_tokens": 465,
+          "completion_tokens": 339,
+          "total_tokens": 804
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/bounded_async/trial-1-review.py",
+          "sha256": "8ea6b0e53797094635311b7ef8e7097a4682c608b3e74a45ce5844dbe5cfdcd2"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "d105ad2a907f835bf5e0fc7ba5860b504eb231da13f0310c88d21c2790507a31",
+          "response_sha256": "231618d1d2393f796d8f01a7d2bf7082ce5d654d6484ce8aafd63122a1943935",
+          "code_sha256": "8ea6b0e53797094635311b7ef8e7097a4682c608b3e74a45ce5844dbe5cfdcd2"
+        },
+        "usage": {
+          "prompt_tokens": 1062,
+          "completion_tokens": 623,
+          "total_tokens": 1685
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "bounded_async",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": true,
+      "transition": "fixed",
+      "source_changed": true,
+      "pair_wall_seconds": 29.663,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 13,
+        "total": 15,
+        "execution_seconds": 3.08497
+      },
+      "review_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.09821
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/bounded_async/trial-2-draft.py",
+          "sha256": "aad0ce423b202c2d48c8b687790e6fd01659c92773bea7c862fbde214d9a40c2"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "47aaf493331a8b42f8ef946da5b5c202f964a11312db6f9112a168c5e7e267ae",
+          "response_sha256": "7f6f942ffde30927312e2450c3a113ff5b3d7773892183145a948fd4908d06f0",
+          "code_sha256": "aad0ce423b202c2d48c8b687790e6fd01659c92773bea7c862fbde214d9a40c2"
+        },
+        "usage": {
+          "prompt_tokens": 465,
+          "completion_tokens": 707,
+          "total_tokens": 1172
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/bounded_async/trial-2-review.py",
+          "sha256": "6b256a05a9f4b5fc2421982cf0b41589fc02962254d821b98524709fbfdb1d26"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "42cbca938a68408d795aacae49f6dd50d41dd89e8d65e3d373556eadfdc5a27c",
+          "response_sha256": "204736b90e8100411d421a78a974da986ef3245a313d5aa0f0f29f8f07834a8d",
+          "code_sha256": "6b256a05a9f4b5fc2421982cf0b41589fc02962254d821b98524709fbfdb1d26"
+        },
+        "usage": {
+          "prompt_tokens": 1438,
+          "completion_tokens": 602,
+          "total_tokens": 2040
+        }
+      }
+    },
+    {
+      "direction": "qwen_to_gemma",
+      "task": "bounded_async",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": true,
+      "transition": "fixed",
+      "source_changed": true,
+      "pair_wall_seconds": 30.067,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 13,
+        "total": 15,
+        "execution_seconds": 3.12332
+      },
+      "review_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.12066
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/bounded_async/trial-3-draft.py",
+          "sha256": "eda1f3957d65e85b25066ded65d606527721532e41d2ffc4c8977d7e381de8c6"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "47aaf493331a8b42f8ef946da5b5c202f964a11312db6f9112a168c5e7e267ae",
+          "response_sha256": "3a0b67fe46eb3f210327df2a55b37081cbd88911645a0848cdbc775eb77c6544",
+          "code_sha256": "eda1f3957d65e85b25066ded65d606527721532e41d2ffc4c8977d7e381de8c6"
+        },
+        "usage": {
+          "prompt_tokens": 465,
+          "completion_tokens": 346,
+          "total_tokens": 811
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/qwen_to_gemma/bounded_async/trial-3-review.py",
+          "sha256": "b6353d9d786f7eca615d9d315a791354b66cbb6759f02cfbcce093b13f229446"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "9acd55289e51b63c9841f65279a080b4edd683b902a2f66f96d161ca5eabc168",
+          "response_sha256": "a62c82dc9120567e31541ed3b8070b1f0a1f5f6ff74925d1b850e99833b92ce7",
+          "code_sha256": "b6353d9d786f7eca615d9d315a791354b66cbb6759f02cfbcce093b13f229446"
+        },
+        "usage": {
+          "prompt_tokens": 1072,
+          "completion_tokens": 780,
+          "total_tokens": 1852
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "scheduler_repair",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 22.628,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.01082
+      },
+      "review_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.01057
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/scheduler_repair/trial-1-draft.py",
+          "sha256": "36ca57bba662e5957d982e70ab2c53b0bf9c915964d5bf229f2dd503be56c739"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "dac6a725e748be550fad8204f71e213b35b6581b2c65e70f15fd6ac4869d661e",
+          "response_sha256": "0c696117ceee8b55de821da52e2a88dc50a272c7e9d1e353b5172bec644f453b",
+          "code_sha256": "36ca57bba662e5957d982e70ab2c53b0bf9c915964d5bf229f2dd503be56c739"
+        },
+        "usage": {
+          "prompt_tokens": 576,
+          "completion_tokens": 523,
+          "total_tokens": 1099
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/scheduler_repair/trial-1-review.py",
+          "sha256": "b75f022a7260e1bd2c8ad5b47c6255ef0d47626684c18396ddaedf6c0d8e5152"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "85cb1c04188285566319dee447c9925d1d4dfd19be9ac0be68fdcf16b960517b",
+          "response_sha256": "2eb1da755eaabb59e1cd9b2d2cf121f9e08cd366e4bfa97d494d614f7d429a9b",
+          "code_sha256": "b75f022a7260e1bd2c8ad5b47c6255ef0d47626684c18396ddaedf6c0d8e5152"
+        },
+        "usage": {
+          "prompt_tokens": 1198,
+          "completion_tokens": 484,
+          "total_tokens": 1682
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "scheduler_repair",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 27.452,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.01075
+      },
+      "review_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.01137
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/scheduler_repair/trial-2-draft.py",
+          "sha256": "cefa6b80052dd7d597ec920f437159bb4d5122b24df23a8795376a15ea5830d0"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "dac6a725e748be550fad8204f71e213b35b6581b2c65e70f15fd6ac4869d661e",
+          "response_sha256": "0f911f331b34aa1ae4f76834de6bcef34a261164aa7541a49866cef3617fd02c",
+          "code_sha256": "cefa6b80052dd7d597ec920f437159bb4d5122b24df23a8795376a15ea5830d0"
+        },
+        "usage": {
+          "prompt_tokens": 576,
+          "completion_tokens": 659,
+          "total_tokens": 1235
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/scheduler_repair/trial-2-review.py",
+          "sha256": "47e2f1dbff15146e4a5db4db1be716e2f8051aa4783ed34e6fcfef5c7e42fb93"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "7a735f2656f411a7ac462d242ad9b4ac6c988944a4965b6df44f6b7438b772bb",
+          "response_sha256": "2d9089251f989409c9b2e64b72dc4f25a9dae24c76e65cdc31e51c18dd5cd90c",
+          "code_sha256": "47e2f1dbff15146e4a5db4db1be716e2f8051aa4783ed34e6fcfef5c7e42fb93"
+        },
+        "usage": {
+          "prompt_tokens": 1310,
+          "completion_tokens": 602,
+          "total_tokens": 1912
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "scheduler_repair",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": false,
+      "pair_wall_seconds": 24.256,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.01056
+      },
+      "review_checks": {
+        "passed": 102,
+        "total": 102,
+        "execution_seconds": 0.01115
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/scheduler_repair/trial-3-draft.py",
+          "sha256": "6082bdb6464504e304d0ed0aa3b809b35d274b50c11dc2de9c87a7b31ab97af1"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "dac6a725e748be550fad8204f71e213b35b6581b2c65e70f15fd6ac4869d661e",
+          "response_sha256": "ae9813973a36035496a92e88bdc7c0b7ded71ef30862ed4c7f67655077383381",
+          "code_sha256": "6082bdb6464504e304d0ed0aa3b809b35d274b50c11dc2de9c87a7b31ab97af1"
+        },
+        "usage": {
+          "prompt_tokens": 576,
+          "completion_tokens": 550,
+          "total_tokens": 1126
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/scheduler_repair/trial-3-review.py",
+          "sha256": "6082bdb6464504e304d0ed0aa3b809b35d274b50c11dc2de9c87a7b31ab97af1"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "85b76cdb6f49228efda77a52f9ec88dc28895c6ec0088f69434517eff9fe24fa",
+          "response_sha256": "465bfd97e1f0f28ba91d87d631fd175813140ab07280ea57429819aafa3d6011",
+          "code_sha256": "6082bdb6464504e304d0ed0aa3b809b35d274b50c11dc2de9c87a7b31ab97af1"
+        },
+        "usage": {
+          "prompt_tokens": 1217,
+          "completion_tokens": 599,
+          "total_tokens": 1816
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "expiring_lru",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": false,
+      "pair_wall_seconds": 20.841,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16196
+      },
+      "review_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16486
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/expiring_lru/trial-1-draft.py",
+          "sha256": "a6eb7de724175522905be9a3ef5da215a5d44e1c907b477e2e48a8076fd08f63"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "6dcda4a47e7824526444f6664c475795d7d48780a389156ec56b4b68fd2fc03c",
+          "response_sha256": "f29a5e1c7fd3a2ab857827ef9578c53292da017426091a1e9184ebe7dc788b1d",
+          "code_sha256": "a6eb7de724175522905be9a3ef5da215a5d44e1c907b477e2e48a8076fd08f63"
+        },
+        "usage": {
+          "prompt_tokens": 524,
+          "completion_tokens": 469,
+          "total_tokens": 993
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/expiring_lru/trial-1-review.py",
+          "sha256": "a6eb7de724175522905be9a3ef5da215a5d44e1c907b477e2e48a8076fd08f63"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "03517ceaa53483c4a664c821008d9f2be2e9cb0520ce7bdb720e72df3e89352b",
+          "response_sha256": "5477a422581b6e3ae577b0202247c033fe0933a5a17e77179c0e2447b360e420",
+          "code_sha256": "a6eb7de724175522905be9a3ef5da215a5d44e1c907b477e2e48a8076fd08f63"
+        },
+        "usage": {
+          "prompt_tokens": 1104,
+          "completion_tokens": 457,
+          "total_tokens": 1561
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "expiring_lru",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": false,
+      "pair_wall_seconds": 30.77,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16286
+      },
+      "review_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16825
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/expiring_lru/trial-2-draft.py",
+          "sha256": "51bbc08f699d3b1117032703d25a6ac5f3087f089800395f247819363d4073e1"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "6dcda4a47e7824526444f6664c475795d7d48780a389156ec56b4b68fd2fc03c",
+          "response_sha256": "58335c9ee896208eb7d285539327d62cb18fba44e8a98f0677d8e97abcb2b60e",
+          "code_sha256": "51bbc08f699d3b1117032703d25a6ac5f3087f089800395f247819363d4073e1"
+        },
+        "usage": {
+          "prompt_tokens": 524,
+          "completion_tokens": 456,
+          "total_tokens": 980
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/expiring_lru/trial-2-review.py",
+          "sha256": "51bbc08f699d3b1117032703d25a6ac5f3087f089800395f247819363d4073e1"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "703fed39a6f86ce7fc0d708fd54866b68cc31f5aef21d5e3be48787aa1aa2dee",
+          "response_sha256": "ac70a28a16cbeffb3e0e9ff64b3178c761c74f32b50979eaa3587c5d3c3d6a05",
+          "code_sha256": "51bbc08f699d3b1117032703d25a6ac5f3087f089800395f247819363d4073e1"
+        },
+        "usage": {
+          "prompt_tokens": 1095,
+          "completion_tokens": 1229,
+          "total_tokens": 2324
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "expiring_lru",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 19.469,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.16438
+      },
+      "review_checks": {
+        "passed": 90,
+        "total": 90,
+        "execution_seconds": 0.1639
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/expiring_lru/trial-3-draft.py",
+          "sha256": "a6eb7de724175522905be9a3ef5da215a5d44e1c907b477e2e48a8076fd08f63"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "6dcda4a47e7824526444f6664c475795d7d48780a389156ec56b4b68fd2fc03c",
+          "response_sha256": "be1907ea420c80d3a3452c67705c0155e2f4de2122ad4cf5980c9793ba7ace83",
+          "code_sha256": "a6eb7de724175522905be9a3ef5da215a5d44e1c907b477e2e48a8076fd08f63"
+        },
+        "usage": {
+          "prompt_tokens": 524,
+          "completion_tokens": 465,
+          "total_tokens": 989
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/expiring_lru/trial-3-review.py",
+          "sha256": "b54b1cddf7a4bbcb55453151e6b2488af0dba3f93aa45ae9e0510f7649cf4ea3"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "03517ceaa53483c4a664c821008d9f2be2e9cb0520ce7bdb720e72df3e89352b",
+          "response_sha256": "e78b6279a5976d46fbd142349605f5fa24ef43b3001f859d2052683795947035",
+          "code_sha256": "b54b1cddf7a4bbcb55453151e6b2488af0dba3f93aa45ae9e0510f7649cf4ea3"
+        },
+        "usage": {
+          "prompt_tokens": 1104,
+          "completion_tokens": 451,
+          "total_tokens": 1555
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "query_parser",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": false,
+      "transition": "still_failing",
+      "source_changed": true,
+      "pair_wall_seconds": 58.821,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 105,
+        "total": 127,
+        "execution_seconds": 0.00175
+      },
+      "review_checks": {
+        "passed": 105,
+        "total": 127,
+        "execution_seconds": 0.00174
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/query_parser/trial-1-draft.py",
+          "sha256": "4ff477bce784107463113db76eb4b3718e03c25b57f14b46e81305f19c40f345"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "1c543a0846676e283e495fafd10c93d628f654c21e38473dadf899378d8c57be",
+          "response_sha256": "216a8abf19040838e056d435bbc7a1a313a9f9391c12f0b5ab6b5d79f0842436",
+          "code_sha256": "4ff477bce784107463113db76eb4b3718e03c25b57f14b46e81305f19c40f345"
+        },
+        "usage": {
+          "prompt_tokens": 565,
+          "completion_tokens": 1341,
+          "total_tokens": 1906
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/query_parser/trial-1-review.py",
+          "sha256": "2c4750121bd724c94253f89ca4adb3383bc4b26519b32e035e5a806b575581c3"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "8467ba5040c9d9068fd2031704a3cebefa7b698a7d84b11207eae3d74a62c62e",
+          "response_sha256": "79e90166881cd241d06160d6b830ed48361bd02474c9285a69eab1ae7b4d3e3c",
+          "code_sha256": "2c4750121bd724c94253f89ca4adb3383bc4b26519b32e035e5a806b575581c3"
+        },
+        "usage": {
+          "prompt_tokens": 1910,
+          "completion_tokens": 1400,
+          "total_tokens": 3310
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "query_parser",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": false,
+      "transition": "still_failing",
+      "source_changed": true,
+      "pair_wall_seconds": 72.411,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 105,
+        "total": 127,
+        "execution_seconds": 0.0018
+      },
+      "review_checks": {
+        "passed": 105,
+        "total": 127,
+        "execution_seconds": 0.00252
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/query_parser/trial-2-draft.py",
+          "sha256": "4652a5ff8338fde90ddec40f43dc0ca462b17a2f0e7d065c0097e54c4332add5"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "1c543a0846676e283e495fafd10c93d628f654c21e38473dadf899378d8c57be",
+          "response_sha256": "900437c26ed62f1aafd3d9f7feb92765e4b99912297d44e3fe6eb9c4e0501366",
+          "code_sha256": "4652a5ff8338fde90ddec40f43dc0ca462b17a2f0e7d065c0097e54c4332add5"
+        },
+        "usage": {
+          "prompt_tokens": 565,
+          "completion_tokens": 1526,
+          "total_tokens": 2091
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/query_parser/trial-2-review.py",
+          "sha256": "79b319237671cdc04dd87760873f822ad46e87f60fd0f572aca4bda7da0a6cb6"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "8e9208cc4136327c41791942ca1430824d8596cf16bb61167d2515d6b1e0b24d",
+          "response_sha256": "8c54e1ddfa4fc27d5700f152eb5dcfdfba22e1eef0fc222101d8380228555f56",
+          "code_sha256": "79b319237671cdc04dd87760873f822ad46e87f60fd0f572aca4bda7da0a6cb6"
+        },
+        "usage": {
+          "prompt_tokens": 2061,
+          "completion_tokens": 2019,
+          "total_tokens": 4080
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "query_parser",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": false,
+      "transition": "regression",
+      "source_changed": true,
+      "pair_wall_seconds": 53.906,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 127,
+        "total": 127,
+        "execution_seconds": 0.00295
+      },
+      "review_checks": {
+        "passed": 125,
+        "total": 127,
+        "execution_seconds": 0.00306
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/query_parser/trial-3-draft.py",
+          "sha256": "e189a798ec9fa3e7197b5385ba189a2c4b1b76646dd6aea58d0d340709defcd1"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "1c543a0846676e283e495fafd10c93d628f654c21e38473dadf899378d8c57be",
+          "response_sha256": "7330271b4bb6d02e04917b3405697ae3c23fab5a55c3eda1d68cf3d239eb1a25",
+          "code_sha256": "e189a798ec9fa3e7197b5385ba189a2c4b1b76646dd6aea58d0d340709defcd1"
+        },
+        "usage": {
+          "prompt_tokens": 565,
+          "completion_tokens": 1210,
+          "total_tokens": 1775
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/query_parser/trial-3-review.py",
+          "sha256": "01815451888cbe3c86c1a0bea8320bbfdd68f934357033a61832b96ad95a2baa"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "a52bdb9c6f0a0e199f5ebbb79948d6c467e7dea244228628d1cf368a65e656a2",
+          "response_sha256": "7dd21c582576a5b51702e028b53a70bf39ea8cab21389e07875448576857db0e",
+          "code_sha256": "01815451888cbe3c86c1a0bea8320bbfdd68f934357033a61832b96ad95a2baa"
+        },
+        "usage": {
+          "prompt_tokens": 1740,
+          "completion_tokens": 1319,
+          "total_tokens": 3059
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "resumable_log",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": false,
+      "transition": "still_failing",
+      "source_changed": true,
+      "pair_wall_seconds": 43.288,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 23,
+        "total": 24,
+        "execution_seconds": 0.02924
+      },
+      "review_checks": {
+        "passed": 23,
+        "total": 24,
+        "execution_seconds": 0.0286
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/resumable_log/trial-1-draft.py",
+          "sha256": "e15e017e2fc14b1633f09287248ef4f45affa8baa8015608af4ec81e12b75354"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "4522619f7fb7f5f70ae10cfb53f399c0bf7ff300b815561ec0763deccf6b6996",
+          "response_sha256": "040fbfd66dd34e1a7991723eb49ba23a9004677253d8b9f4607f2dd1da1b165c",
+          "code_sha256": "e15e017e2fc14b1633f09287248ef4f45affa8baa8015608af4ec81e12b75354"
+        },
+        "usage": {
+          "prompt_tokens": 734,
+          "completion_tokens": 909,
+          "total_tokens": 1643
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/resumable_log/trial-1-review.py",
+          "sha256": "53acb557ba365f542853ba555940cfb1f1f1a95723997b90f80ec440b48ab20b"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "c72973139a606e536dc124fea6de8cfec8142eb3ece9f54720622067231b60bf",
+          "response_sha256": "7914aa52663c5373b2d42a618a020babb4b99077d64550fb23a9000ac27f250d",
+          "code_sha256": "53acb557ba365f542853ba555940cfb1f1f1a95723997b90f80ec440b48ab20b"
+        },
+        "usage": {
+          "prompt_tokens": 1639,
+          "completion_tokens": 1153,
+          "total_tokens": 2792
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "resumable_log",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": false,
+      "transition": "still_failing",
+      "source_changed": true,
+      "pair_wall_seconds": 43.961,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 23,
+        "total": 24,
+        "execution_seconds": 0.02818
+      },
+      "review_checks": {
+        "passed": 23,
+        "total": 24,
+        "execution_seconds": 0.02837
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/resumable_log/trial-2-draft.py",
+          "sha256": "77cf5a907b7b60a3758f1a82c22ca36c14cc7552441d86c23d9b61b4bf76aa74"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "4522619f7fb7f5f70ae10cfb53f399c0bf7ff300b815561ec0763deccf6b6996",
+          "response_sha256": "ceb8c3f6dc1ae0c59f4d6839376b0c1bd770bb732bd45e006b5c6dce27fb6f50",
+          "code_sha256": "77cf5a907b7b60a3758f1a82c22ca36c14cc7552441d86c23d9b61b4bf76aa74"
+        },
+        "usage": {
+          "prompt_tokens": 734,
+          "completion_tokens": 940,
+          "total_tokens": 1674
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/resumable_log/trial-2-review.py",
+          "sha256": "953d644934ad877d623029792e36a09cb4a94f30213b59e6bfb2a4b33fdd79cf"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "4b03464ce53dd7d2fd141578e9f1183fa777db865f9fce2210d4b9779e51b1d8",
+          "response_sha256": "85d8638a0240bc77f22a1f5f4981d334dc54b53d1fa48795352a9a4939d969e0",
+          "code_sha256": "953d644934ad877d623029792e36a09cb4a94f30213b59e6bfb2a4b33fdd79cf"
+        },
+        "usage": {
+          "prompt_tokens": 1656,
+          "completion_tokens": 1173,
+          "total_tokens": 2829
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "resumable_log",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": false,
+      "review_fully_solved": false,
+      "transition": "still_failing",
+      "source_changed": true,
+      "pair_wall_seconds": 42.938,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 22,
+        "total": 24,
+        "execution_seconds": 0.02718
+      },
+      "review_checks": {
+        "passed": 23,
+        "total": 24,
+        "execution_seconds": 0.0292
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/resumable_log/trial-3-draft.py",
+          "sha256": "7153ec479f3e6af2553a5961385c603d47f43a4a304d041b74995115a01ff2f1"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "4522619f7fb7f5f70ae10cfb53f399c0bf7ff300b815561ec0763deccf6b6996",
+          "response_sha256": "a4e9141816f44222b30248f3a5e78c684c5106b684d035e671a99410d955b4f4",
+          "code_sha256": "7153ec479f3e6af2553a5961385c603d47f43a4a304d041b74995115a01ff2f1"
+        },
+        "usage": {
+          "prompt_tokens": 734,
+          "completion_tokens": 939,
+          "total_tokens": 1673
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/resumable_log/trial-3-review.py",
+          "sha256": "11650879be2de83215089dc42c01e3c2d78c298a756ba1ead89e0a7e6ef26d1d"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "13b06bcffa03cbad8f9b121f85bfb02fb4652f84f3ce8bd401d69ec526a9cd1b",
+          "response_sha256": "90e884b783feeec9f93956117a28c6fadfbf66d4eadc811da4904f4100e446b7",
+          "code_sha256": "11650879be2de83215089dc42c01e3c2d78c298a756ba1ead89e0a7e6ef26d1d"
+        },
+        "usage": {
+          "prompt_tokens": 1664,
+          "completion_tokens": 1081,
+          "total_tokens": 2745
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "pricing_feature",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 31.659,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00139
+      },
+      "review_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00138
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/pricing_feature/trial-1-draft.py",
+          "sha256": "13d02e44f98644ce9032fd1689e7e50908488fd9e7e3b4f10f009ba925939143"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5ca6ab74a3198b806f140121fec3049d078bbb18be9954fabb8c349f0ce6bae3",
+          "response_sha256": "9797a63a34fd573639d0f8dc9db9175f3247427dc83c2fb8a5928d714ba7e331",
+          "code_sha256": "13d02e44f98644ce9032fd1689e7e50908488fd9e7e3b4f10f009ba925939143"
+        },
+        "usage": {
+          "prompt_tokens": 743,
+          "completion_tokens": 684,
+          "total_tokens": 1427
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/pricing_feature/trial-1-review.py",
+          "sha256": "bfb617234f54093ca3ddf0fd83b44fea3d5656140ddb5a9537e31b96c4995f57"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5b66513368fd00fa62ff2068bc01c4bb8bda5ae8e68e4cfca038269373a87bca",
+          "response_sha256": "daf950ba30ba9bd0c68692ddc2c3cf45309c9225d29065a29c27d01fb31248f8",
+          "code_sha256": "bfb617234f54093ca3ddf0fd83b44fea3d5656140ddb5a9537e31b96c4995f57"
+        },
+        "usage": {
+          "prompt_tokens": 1486,
+          "completion_tokens": 724,
+          "total_tokens": 2210
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "pricing_feature",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 35.257,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00132
+      },
+      "review_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00139
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/pricing_feature/trial-2-draft.py",
+          "sha256": "0da1cfe410ba54dd6b365b7b7b5aeea0f73030503205ec4dbb955af2e62f32d3"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5ca6ab74a3198b806f140121fec3049d078bbb18be9954fabb8c349f0ce6bae3",
+          "response_sha256": "26d65d1eba28f14ee532e56a27336b785bcb6ead60a52c580aaadc4bed3efd10",
+          "code_sha256": "0da1cfe410ba54dd6b365b7b7b5aeea0f73030503205ec4dbb955af2e62f32d3"
+        },
+        "usage": {
+          "prompt_tokens": 743,
+          "completion_tokens": 630,
+          "total_tokens": 1373
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/pricing_feature/trial-2-review.py",
+          "sha256": "cccba1b3f0d0f579e1adc196accaf6a4110ac2b50981ce90cd291bf2c2c016ed"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "628ee3c29109b60678b5c70b43d1c0c85bbe647c805757a4604fc392713c2aec",
+          "response_sha256": "d7f20a8d3487ce81bb9060db3e829583460483d6386b21ed8089ab0a18058ca0",
+          "code_sha256": "cccba1b3f0d0f579e1adc196accaf6a4110ac2b50981ce90cd291bf2c2c016ed"
+        },
+        "usage": {
+          "prompt_tokens": 1433,
+          "completion_tokens": 1128,
+          "total_tokens": 2561
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "pricing_feature",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 27.892,
+      "draft_with_supplemental": true,
+      "review_with_supplemental": true,
+      "draft_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00137
+      },
+      "review_checks": {
+        "passed": 117,
+        "total": 117,
+        "execution_seconds": 0.00142
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/pricing_feature/trial-3-draft.py",
+          "sha256": "9c7c1fc2a3d84e03961fc8d5f7102e6678bc4eca4532ae444e9e1557f805fa0e"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5ca6ab74a3198b806f140121fec3049d078bbb18be9954fabb8c349f0ce6bae3",
+          "response_sha256": "593aa69887cb73b8f41b7e5b8905fb1b28a7c21b4d6b5b12cbf4bea532daa132",
+          "code_sha256": "9c7c1fc2a3d84e03961fc8d5f7102e6678bc4eca4532ae444e9e1557f805fa0e"
+        },
+        "usage": {
+          "prompt_tokens": 743,
+          "completion_tokens": 632,
+          "total_tokens": 1375
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/pricing_feature/trial-3-review.py",
+          "sha256": "8d7caa4f783421f18332f5b96cb13fb968c8195bced3a47f1a93cbba1f2dcc1e"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "cb4aa736b19b85e58d14da9613d0b2d0f63d84fd895a7270fd28eca3dbd0a827",
+          "response_sha256": "15ecfa9d8b7171f3d8c80aca07ca3a428368c70e5bac4a5addeb25bec693f29c",
+          "code_sha256": "8d7caa4f783421f18332f5b96cb13fb968c8195bced3a47f1a93cbba1f2dcc1e"
+        },
+        "usage": {
+          "prompt_tokens": 1434,
+          "completion_tokens": 687,
+          "total_tokens": 2121
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "bounded_async",
+      "trial": 1,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 25.931,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.09825
+      },
+      "review_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.0987
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/bounded_async/trial-1-draft.py",
+          "sha256": "055c3c6d689b3cf567456a3f963b2407be25bc35227437e4280ca54dbe2a1dce"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "7e5761aef3be1f0cb2fece43a7db460c4ac6cbdf8319013da1ef6eb07d626dd9",
+          "response_sha256": "a7d13feeeb0b32de4e88a99870b60e683d12dece08d5cf2641a5f4d26e0d6949",
+          "code_sha256": "055c3c6d689b3cf567456a3f963b2407be25bc35227437e4280ca54dbe2a1dce"
+        },
+        "usage": {
+          "prompt_tokens": 487,
+          "completion_tokens": 442,
+          "total_tokens": 929
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/bounded_async/trial-1-review.py",
+          "sha256": "85c8b57e58343a054baa900d197baa158b00d889d9445d2bc0025fc5d74d4741"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "b910af87fe9cc5903846f803467528ba9e4d694212eaeb3868dd78c8d794e6a6",
+          "response_sha256": "13fd96ec98fcdf2f8f6c5a04774001ae5ba18bbab7b400eeb1a5c422df0104e4",
+          "code_sha256": "85c8b57e58343a054baa900d197baa158b00d889d9445d2bc0025fc5d74d4741"
+        },
+        "usage": {
+          "prompt_tokens": 1042,
+          "completion_tokens": 753,
+          "total_tokens": 1795
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "bounded_async",
+      "trial": 2,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 23.683,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.09917
+      },
+      "review_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.09754
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/bounded_async/trial-2-draft.py",
+          "sha256": "037303ad955aa27fedba38cf8bd092b0e8f60ea29d28e8207b04d008c010fc96"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "7e5761aef3be1f0cb2fece43a7db460c4ac6cbdf8319013da1ef6eb07d626dd9",
+          "response_sha256": "2d99b24706d0828d046faf136ceb2c811943dc67b231665a8c7c0b6cb9d39250",
+          "code_sha256": "037303ad955aa27fedba38cf8bd092b0e8f60ea29d28e8207b04d008c010fc96"
+        },
+        "usage": {
+          "prompt_tokens": 487,
+          "completion_tokens": 448,
+          "total_tokens": 935
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/bounded_async/trial-2-review.py",
+          "sha256": "e6f0027d313950f4b26e7425f1c73f1208c10569548503a4cfe19eb0c7e5a5a3"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "5b7cfb6f15bfa1f8e4e5a932ed3ef7ac137bd6dfd179a983f41a09644238aca8",
+          "response_sha256": "92db757d1c63f688a8b7f8f30ed1919613d98a9a386bf8bf57051f8b12825997",
+          "code_sha256": "e6f0027d313950f4b26e7425f1c73f1208c10569548503a4cfe19eb0c7e5a5a3"
+        },
+        "usage": {
+          "prompt_tokens": 1050,
+          "completion_tokens": 665,
+          "total_tokens": 1715
+        }
+      }
+    },
+    {
+      "direction": "gemma_to_qwen",
+      "task": "bounded_async",
+      "trial": 3,
+      "evaluable": true,
+      "review_dispatched": true,
+      "draft_fully_solved": true,
+      "review_fully_solved": true,
+      "transition": "retained_pass",
+      "source_changed": true,
+      "pair_wall_seconds": 20.851,
+      "draft_with_supplemental": false,
+      "review_with_supplemental": false,
+      "draft_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.0991
+      },
+      "review_checks": {
+        "passed": 15,
+        "total": 15,
+        "execution_seconds": 0.09861
+      },
+      "draft": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/bounded_async/trial-3-draft.py",
+          "sha256": "5fa2cd4ad024488d44336e298cdc14e573da776d06a7720ded0110d1faf56045"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "7e5761aef3be1f0cb2fece43a7db460c4ac6cbdf8319013da1ef6eb07d626dd9",
+          "response_sha256": "acec03078b1db16813ec6c1689a90d541c932902fedc090139e70d50da7d2bea",
+          "code_sha256": "5fa2cd4ad024488d44336e298cdc14e573da776d06a7720ded0110d1faf56045"
+        },
+        "usage": {
+          "prompt_tokens": 487,
+          "completion_tokens": 433,
+          "total_tokens": 920
+        }
+      },
+      "review": {
+        "source": {
+          "path": "review/candidates/gemma_to_qwen/bounded_async/trial-3-review.py",
+          "sha256": "357fb616765bce947c5aef30ba63dcda4c5b5ca57748887eb5a2ba785055f3c4"
+        },
+        "finish_reason": "stop",
+        "provenance": {
+          "request_sha256": "c9b7e5944a2221f149bb2f8fafc74625e2b30591b9e7d843ab3f497d566502e3",
+          "response_sha256": "1d648a3886186d1619873e711873e0cadb46c69dc099b7792bd692e4a7c4ae8b",
+          "code_sha256": "357fb616765bce947c5aef30ba63dcda4c5b5ca57748887eb5a2ba785055f3c4"
+        },
+        "usage": {
+          "prompt_tokens": 1034,
+          "completion_tokens": 542,
+          "total_tokens": 1576
+        }
+      }
+    }
+  ]
+}

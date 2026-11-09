@@ -8,6 +8,8 @@ Gemma 12B Q4 is the suggested initial selection for text conversations. In the m
 
 An earlier functional exercise against local models recorded fifteen chat jobs. Thirteen completed. A queued request and a generating request were each stopped deliberately. The checks covered model switching with existing history, answers derived from four attached documents, image input, editing, regeneration and explicit thinking settings. Selected examples give a sense of the observed end-to-end cost.
 
+These synthetic functional checks ran on an earlier service implementation. They are historical behavior observations, not a benchmark of the current Workbench chat path or a matched comparison of conversational quality. The initial model choice is informed by the separate reader experiments; this trial does not establish that it is the best chat model.
+
 | Interaction | Model | Reported elapsed time |
 |---|---|---:|
 | Short initial text reply | Qwen 9B | 3.43 s |

@@ -1,0 +1,666 @@
+{
+  "glm-flash-q4-implement": {
+    "status": "failed",
+    "commands": [
+      {
+        "exit_code": 1,
+        "timed_out": false,
+        "cancelled": false,
+        "cleanup_confirmed": true,
+        "command_index": 1
+      }
+    ],
+    "sandbox": {
+      "engine": "docker",
+      "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+      "network": "disabled",
+      "read_only_root": true,
+      "read_only_project": true
+    },
+    "implementation_checks": [
+      {
+        "case": "valid_0",
+        "passed": true
+      },
+      {
+        "case": "valid_1",
+        "passed": true
+      },
+      {
+        "case": "valid_2",
+        "passed": true
+      },
+      {
+        "case": "valid_3",
+        "passed": true
+      },
+      {
+        "case": "valid_4",
+        "passed": true
+      },
+      {
+        "case": "valid_5",
+        "passed": true
+      },
+      {
+        "case": "valid_6",
+        "passed": true
+      },
+      {
+        "case": "valid_7",
+        "passed": true
+      },
+      {
+        "case": "valid_8",
+        "passed": true
+      },
+      {
+        "case": "valid_9",
+        "passed": true
+      },
+      {
+        "case": "valid_10",
+        "passed": true
+      },
+      {
+        "case": "valid_11",
+        "passed": true
+      },
+      {
+        "case": "invalid_0",
+        "passed": true
+      },
+      {
+        "case": "invalid_1",
+        "passed": true
+      },
+      {
+        "case": "invalid_2",
+        "passed": true
+      },
+      {
+        "case": "invalid_3",
+        "passed": true
+      },
+      {
+        "case": "invalid_4",
+        "passed": false
+      },
+      {
+        "case": "invalid_5",
+        "passed": false
+      },
+      {
+        "case": "invalid_6",
+        "passed": false
+      },
+      {
+        "case": "invalid_7",
+        "passed": false
+      },
+      {
+        "case": "invalid_8",
+        "passed": false
+      },
+      {
+        "case": "invalid_9",
+        "passed": false
+      },
+      {
+        "case": "invalid_10",
+        "passed": false
+      },
+      {
+        "case": "invalid_11",
+        "passed": false
+      },
+      {
+        "case": "invalid_12",
+        "passed": false
+      },
+      {
+        "case": "invalid_13",
+        "passed": false
+      },
+      {
+        "case": "invalid_14",
+        "passed": false
+      },
+      {
+        "case": "invalid_15",
+        "passed": false
+      },
+      {
+        "case": "invalid_16",
+        "passed": false
+      }
+    ]
+  },
+  "glm-flash-q5-tests": {
+    "second_control.py": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "reference.py": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    }
+  },
+  "nemotron-lightning-implement": {
+    "status": "passed",
+    "commands": [
+      {
+        "exit_code": 0,
+        "timed_out": false,
+        "cancelled": false,
+        "cleanup_confirmed": true,
+        "command_index": 1
+      }
+    ],
+    "sandbox": {
+      "engine": "docker",
+      "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+      "network": "disabled",
+      "read_only_root": true,
+      "read_only_project": true
+    },
+    "implementation_checks": [
+      {
+        "case": "valid_0",
+        "passed": true
+      },
+      {
+        "case": "valid_1",
+        "passed": true
+      },
+      {
+        "case": "valid_2",
+        "passed": true
+      },
+      {
+        "case": "valid_3",
+        "passed": true
+      },
+      {
+        "case": "valid_4",
+        "passed": true
+      },
+      {
+        "case": "valid_5",
+        "passed": true
+      },
+      {
+        "case": "valid_6",
+        "passed": true
+      },
+      {
+        "case": "valid_7",
+        "passed": true
+      },
+      {
+        "case": "valid_8",
+        "passed": true
+      },
+      {
+        "case": "valid_9",
+        "passed": true
+      },
+      {
+        "case": "valid_10",
+        "passed": true
+      },
+      {
+        "case": "valid_11",
+        "passed": true
+      },
+      {
+        "case": "invalid_0",
+        "passed": true
+      },
+      {
+        "case": "invalid_1",
+        "passed": true
+      },
+      {
+        "case": "invalid_2",
+        "passed": true
+      },
+      {
+        "case": "invalid_3",
+        "passed": true
+      },
+      {
+        "case": "invalid_4",
+        "passed": true
+      },
+      {
+        "case": "invalid_5",
+        "passed": true
+      },
+      {
+        "case": "invalid_6",
+        "passed": true
+      },
+      {
+        "case": "invalid_7",
+        "passed": true
+      },
+      {
+        "case": "invalid_8",
+        "passed": true
+      },
+      {
+        "case": "invalid_9",
+        "passed": true
+      },
+      {
+        "case": "invalid_10",
+        "passed": true
+      },
+      {
+        "case": "invalid_11",
+        "passed": true
+      },
+      {
+        "case": "invalid_12",
+        "passed": true
+      },
+      {
+        "case": "invalid_13",
+        "passed": true
+      },
+      {
+        "case": "invalid_14",
+        "passed": true
+      },
+      {
+        "case": "invalid_15",
+        "passed": true
+      },
+      {
+        "case": "invalid_16",
+        "passed": true
+      }
+    ]
+  },
+  "glm-flash-q4-tests": {
+    "second_control.py": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "reference.py": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    }
+  },
+  "glm-flash-q5-implement": {
+    "status": "passed",
+    "commands": [
+      {
+        "exit_code": 0,
+        "timed_out": false,
+        "cancelled": false,
+        "cleanup_confirmed": true,
+        "command_index": 1
+      }
+    ],
+    "sandbox": {
+      "engine": "docker",
+      "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+      "network": "disabled",
+      "read_only_root": true,
+      "read_only_project": true
+    },
+    "implementation_checks": [
+      {
+        "case": "valid_0",
+        "passed": true
+      },
+      {
+        "case": "valid_1",
+        "passed": true
+      },
+      {
+        "case": "valid_2",
+        "passed": true
+      },
+      {
+        "case": "valid_3",
+        "passed": true
+      },
+      {
+        "case": "valid_4",
+        "passed": true
+      },
+      {
+        "case": "valid_5",
+        "passed": true
+      },
+      {
+        "case": "valid_6",
+        "passed": true
+      },
+      {
+        "case": "valid_7",
+        "passed": true
+      },
+      {
+        "case": "valid_8",
+        "passed": true
+      },
+      {
+        "case": "valid_9",
+        "passed": true
+      },
+      {
+        "case": "valid_10",
+        "passed": true
+      },
+      {
+        "case": "valid_11",
+        "passed": true
+      },
+      {
+        "case": "invalid_0",
+        "passed": true
+      },
+      {
+        "case": "invalid_1",
+        "passed": true
+      },
+      {
+        "case": "invalid_2",
+        "passed": true
+      },
+      {
+        "case": "invalid_3",
+        "passed": true
+      },
+      {
+        "case": "invalid_4",
+        "passed": true
+      },
+      {
+        "case": "invalid_5",
+        "passed": true
+      },
+      {
+        "case": "invalid_6",
+        "passed": true
+      },
+      {
+        "case": "invalid_7",
+        "passed": true
+      },
+      {
+        "case": "invalid_8",
+        "passed": true
+      },
+      {
+        "case": "invalid_9",
+        "passed": true
+      },
+      {
+        "case": "invalid_10",
+        "passed": true
+      },
+      {
+        "case": "invalid_11",
+        "passed": true
+      },
+      {
+        "case": "invalid_12",
+        "passed": true
+      },
+      {
+        "case": "invalid_13",
+        "passed": true
+      },
+      {
+        "case": "invalid_14",
+        "passed": true
+      },
+      {
+        "case": "invalid_15",
+        "passed": true
+      },
+      {
+        "case": "invalid_16",
+        "passed": true
+      }
+    ]
+  },
+  "nemotron-lightning-tests": {
+    "allow_reversed": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "swallow_gap": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "allow_bool": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "sort_input_in_place": {
+      "status": "passed",
+      "commands": [
+        {
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "second_control.py": {
+      "status": "passed",
+      "commands": [
+        {
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "reference.py": {
+      "status": "passed",
+      "commands": [
+        {
+          "exit_code": 0,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "skip_singleton": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "miss_adjacent": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    },
+    "shrink_containment": {
+      "status": "failed",
+      "commands": [
+        {
+          "exit_code": 1,
+          "timed_out": false,
+          "cancelled": false,
+          "cleanup_confirmed": true,
+          "command_index": 1
+        }
+      ],
+      "sandbox": {
+        "engine": "docker",
+        "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+        "network": "disabled",
+        "read_only_root": true,
+        "read_only_project": true
+      }
+    }
+  }
+}

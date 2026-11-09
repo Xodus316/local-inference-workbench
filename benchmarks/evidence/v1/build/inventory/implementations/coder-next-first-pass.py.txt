@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Atomic inventory allocation CLI.
+
+Reads one JSON object from stdin with 'stock' (dict) and 'orders' (list).
+Writes one JSON object to stdout with 'fulfilled', 'rejected', 'remaining'.
+"""
+
+import json
+import re
+import sys
+
+
+def validate_and_parse():
+    """Read stdin, validate structure, return (stock, orders) or exit nonzero."""
+    raw = sys.stdin.read()
+    try:
+        data = json.loads(raw)
+    except Exception:
+        sys.exit(1)
+
+    if not isinstance(data, dict):
+        sys.exit(1)
+
+    if "stock" not in data or "orders" not in data:
+        sys.exit(1)
+
+    stock = data.get("stock")
+    orders = data.get("orders")
+
+    if not isinstance(stock, dict) or not isinstance(orders, list):
+        sys.exit(1)
+
+    # Validate stock: keys are non-empty lowercase ASCII; values are int (not bool) >= 0
+    sku_pattern = re.compile(r"^[a-z]+$")
+    for sku, qty in stock.items():
+        if not isinstance(sku, str) or not sku_pattern.match(sku):
+            sys.exit(1)
+        if type(qty) is not int or qty < 0:
+            sys.exit(1)
+
+    # Validate orders
+    seen_ids = set()
+    order_pattern = re.compile(r"^[a-z]+$")
+
+    for order in orders:
+        if not isinstance(order, dict):
+            sys.exit(1)
+
+        # Required fields
+        order_id = order.get("id")
+        priority = order.get("priority")
+        items = order.get("items")
+
+        # Check 'id': non-empty lowercase ASCII string, unique
+        if not isinstance(order_id, str) or not order_pattern.match(order_id):
+            sys.exit(1)
+        if order_id in seen_ids:
+            sys.exit(1)
+        seen_ids.add(order_id)
+
+        # Check 'priority': integer (not bool)
+        if type(priority) is not int:
+            sys.exit(1)
+
+        # Check 'items': non-empty dict
+        if not isinstance(items, dict) or len(items) == 0:
+            sys.exit(1)
+
+        # Validate items keys (SKUs) and values
+        for item_sku, item_qty in items.items():
+            if not isinstance(item_sku, str) or not sku_pattern.match(item_sku):
+                sys.exit(1)
+            if type(item_qty) is not int or item_qty <= 0:
+                sys.exit(1)
+
+    return stock, orders
+
+
+def allocate(stock, orders):
+    """Process orders by priority/id; return (fulfilled_ids, rejected_ids, remaining_stock)."""
+    # Sort orders: descending priority, ascending id
+    sorted_orders = sorted(orders, key=lambda o: (-o["priority"], o["id"]))
+
+    # Deep copy stock values as integers (stock keys are already validated)
+    stock_copy = {sku: qty for sku, qty in stock.items()}
+
+    fulfilled = []
+    rejected = []
+
+    for order in sorted_orders:
+        order_id = order["id"]
+        items = order["items"]
+
+        # Check if all items can be fulfilled
+        can_fulfill = True
+        for item_sku, needed_qty in items.items():
+            available = stock_copy.get(item_sku, 0)
+            if available < needed_qty:
+                can_fulfill = False
+                break
+
+        if can_fulfill:
+            # Deduct atomically
+            for item_sku, needed_qty in items.items():
+                stock_copy[item_sku] -= needed_qty
+            fulfilled.append(order_id)
+        else:
+            rejected.append(order_id)
+
+    # Prepare remaining: list of [sku, qty] sorted by sku
+    remaining = sorted([[sku, stock_copy[sku]] for sku in stock], key=lambda x: x[0])
+
+    return fulfilled, rejected, remaining
+
+
+def main():
+    stock, orders = validate_and_parse()
+    fulfilled, rejected, remaining = allocate(stock, orders)
+
+    result = {
+        "fulfilled": fulfilled,
+        "rejected": rejected,
+        "remaining": remaining,
+    }
+
+    print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()

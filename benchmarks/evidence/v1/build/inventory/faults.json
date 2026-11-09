@@ -1,0 +1,266 @@
+[
+  {
+    "id": "partial_deduction",
+    "original": "        else:rejected.append(o['id'])",
+    "replacement": "        else:\n            for k,v in o['items'].items():\n                if stock.get(k,0)<v: break\n                stock[k]-=v\n            rejected.append(o['id'])",
+    "witness": {
+      "id": "partial_deduction",
+      "input": {
+        "stock": {
+          "a": 3,
+          "b": 1
+        },
+        "orders": [
+          {
+            "id": "first",
+            "priority": 5,
+            "items": {
+              "a": 2,
+              "b": 2
+            }
+          },
+          {
+            "id": "last",
+            "priority": -2,
+            "items": {
+              "a": 3
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "last"
+        ],
+        "rejected": [
+          "first"
+        ],
+        "remaining": [
+          [
+            "a",
+            0
+          ],
+          [
+            "b",
+            1
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "skip_validation_when_short",
+    "original": "        name(o['id'])",
+    "replacement": "        if isinstance(o.get('items'),dict) and any(type(v) is int and stock.get(k,0)<v for k,v in o['items'].items()):\n            continue\n        name(o['id'])",
+    "witness": {
+      "id": "skip_validation_when_short",
+      "input": {
+        "stock": {
+          "a": 1
+        },
+        "orders": [
+          {
+            "id": "first",
+            "priority": 3,
+            "items": {
+              "a": 1
+            }
+          },
+          {
+            "id": "later",
+            "priority": 1,
+            "items": {
+              "unknown": 3,
+              "a": false
+            }
+          }
+        ]
+      },
+      "expected": null
+    }
+  },
+  {
+    "id": "validate_first_stock_only",
+    "original": "for k,v in stock.items():",
+    "replacement": "for k,v in list(stock.items())[:1]:",
+    "witness": {
+      "id": "validate_first_stock_only",
+      "input": {
+        "stock": {
+          "x": 2,
+          "y": -1
+        },
+        "orders": []
+      },
+      "expected": null
+    }
+  },
+  {
+    "id": "accept_zero_item_quantity",
+    "original": "type(v) is not int or v <= 0",
+    "replacement": "type(v) is not int or v < 0",
+    "witness": {
+      "id": "accept_zero_item_quantity",
+      "input": {
+        "stock": {
+          "x": 1
+        },
+        "orders": [
+          {
+            "id": "alpha",
+            "priority": 0,
+            "items": {
+              "x": 0
+            }
+          }
+        ]
+      },
+      "expected": null
+    }
+  },
+  {
+    "id": "accept_final_newline",
+    "original": "re.fullmatch('[a-z]+', value)",
+    "replacement": "re.match('^[a-z]+$', value)",
+    "witness": {
+      "id": "accept_final_newline",
+      "input": {
+        "stock": {
+          "sku\n": 1
+        },
+        "orders": []
+      },
+      "expected": null
+    }
+  },
+  {
+    "id": "reject_zero_stock",
+    "original": "type(v) is not int or v < 0",
+    "replacement": "type(v) is not int or v <= 0",
+    "witness": {
+      "id": "reject_zero_stock",
+      "input": {
+        "stock": {
+          "x": 0
+        },
+        "orders": []
+      },
+      "expected": {
+        "fulfilled": [],
+        "rejected": [],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "validate_first_order_only",
+    "original": "for o in data['orders']:",
+    "replacement": "for o in data['orders'][:1]:",
+    "witness": {
+      "id": "validate_first_order_only",
+      "input": {
+        "stock": {
+          "x": 3
+        },
+        "orders": [
+          {
+            "id": "first",
+            "priority": 2,
+            "items": {
+              "x": 1
+            }
+          },
+          {
+            "id": "LATER",
+            "priority": 1,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": null
+    }
+  },
+  {
+    "id": "reject_exact_stock",
+    "original": "stock.get(k,0)>=v",
+    "replacement": "stock.get(k,0)>v",
+    "witness": {
+      "id": "reject_exact_stock",
+      "input": {
+        "stock": {
+          "x": 2
+        },
+        "orders": [
+          {
+            "id": "alpha",
+            "priority": 0,
+            "items": {
+              "x": 2
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "alpha"
+        ],
+        "rejected": [],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "id": "allocate_first_order_only",
+    "original": "for o in sorted(data['orders'], key=lambda o:(-o['priority'],o['id'])):",
+    "replacement": "for o in sorted(data['orders'], key=lambda o:(-o['priority'],o['id']))[:1]:",
+    "witness": {
+      "id": "allocate_first_order_only",
+      "input": {
+        "stock": {
+          "x": 2
+        },
+        "orders": [
+          {
+            "id": "first",
+            "priority": 5,
+            "items": {
+              "x": 1
+            }
+          },
+          {
+            "id": "last",
+            "priority": 0,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "first",
+          "last"
+        ],
+        "rejected": [],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    }
+  }
+]

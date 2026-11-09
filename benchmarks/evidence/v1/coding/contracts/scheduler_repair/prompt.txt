@@ -1,0 +1,26 @@
+You are implementing a small Python 3.11+ project. Standard-library imports, classes and helpers are allowed. Do not use third-party packages or access the network. Return exactly one JSON object with key "code": its string value must be the complete replacement Python module specified below, without Markdown fences or explanatory text. This JSON wrapper is your RESPONSE format; the Python functions must return the values specified by their interfaces. Do not include tests in the module or run code at import time other than definitions and ordinary constants.
+
+Repair allocate_jobs(jobs, workers). Each job is a dict with exactly id (unique str), release (nonnegative int), duration (positive int). Inputs satisfy these conditions. workers is a positive int. Process jobs in ascending (release, id) order, independent of input order. A job starts at its release time if any worker is idle then; choose the LOWEST worker index among all idle workers. If all are busy, choose the earliest finishing worker, breaking ties by index, and start then. Worker IDs are 0..workers-1. Jobs are not preempted. Return a list of new dicts with id, worker, start, finish in processing order. Never mutate jobs or its dictionaries. Support 2,000 jobs and release/duration up to 10**12 without iterating time ticks. The existing function assigns wrong worker IDs after idle gaps and changes its input; fix those behaviors while preserving scheduling otherwise. Replace candidate.py.
+
+Current module:
+import heapq
+
+def allocate_jobs(jobs, workers):
+    jobs.sort(key=lambda job: (job["release"], job["id"]))
+    ready = [(0, worker) for worker in range(workers)]
+    heapq.heapify(ready)
+    answer = []
+    for job in jobs:
+        free_at, worker = heapq.heappop(ready)
+        start = max(free_at, job["release"])
+        finish = start + job["duration"]
+        answer.append({"id": job["id"], "worker": worker, "start": start, "finish": finish})
+        heapq.heappush(ready, (finish, worker))
+    return answer
+
+
+Visible smoke test (imports your module as candidate):
+from candidate import allocate_jobs
+assert allocate_jobs([{"id":"a","release":0,"duration":3},{"id":"b","release":1,"duration":1}],1)==[{"id":"a","worker":0,"start":0,"finish":3},{"id":"b","worker":0,"start":3,"finish":4}]
+assert allocate_jobs([],2)==[]
+

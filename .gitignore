@@ -10,6 +10,8 @@ data/
 *.egg-info/
 dist/
 build/
+!benchmarks/evidence/v1/build/
+!benchmarks/evidence/v1/build/**
 .pytest_cache/
 .ruff_cache/
 .DS_Store

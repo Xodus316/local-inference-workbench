@@ -2,6 +2,8 @@
 
 Three Gemma models each received one attempt to write a Python test suite from the same accepted plan and command-line specification. **Zero of the three delivered an accepted suite.** Given four specific coverage gaps and 14 existing tests, Gemma 26B later caught **8 of 9 known faults**. Gemma 12B Q8 and Qwen 9B BF16 eventually caught all nine with different kinds of assistance.
 
+The [Build evidence archive](../../benchmarks/evidence/v1/build/README.md) records which source artifacts and historical outcomes are available. An assisted result is not substituted for a failed first submission. Missing original suites or grader artifacts remain explicit gaps rather than being recreated and presented as the original experiment.
+
 ## What counted as a pass
 
 The program reads two ships from JSON, simulates combat, and prints the winner or a draw. Weapons start ready and recharge after firing. Both ships fire simultaneously, shields absorb damage before hull, and a temporary pause for recharge must allow combat to continue.

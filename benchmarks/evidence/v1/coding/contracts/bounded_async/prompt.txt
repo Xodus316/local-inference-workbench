@@ -1,0 +1,17 @@
+You are implementing a small Python 3.11+ project. Standard-library imports, classes and helpers are allowed. Do not use third-party packages or access the network. Return exactly one JSON object with key "code": its string value must be the complete replacement Python module specified below, without Markdown fences or explanatory text. This JSON wrapper is your RESPONSE format; the Python functions must return the values specified by their interfaces. Do not include tests in the module or run code at import time other than definitions and ordinary constants.
+
+Implement async def bounded_map(worker, items, limit) in candidate.py. worker is an async callable accepting one item; items is a finite list of arbitrary objects. Return a list of worker results in INPUT order, regardless of completion order. Do not mutate items. limit must be an exact positive int (bool invalid), otherwise raise ValueError, including for an empty list. An empty valid input returns [].
+Run at most limit worker calls concurrently, and use up to min(limit,len(items)) concurrency when work can proceed. Do not create one asyncio Task per input item: at most limit internal worker tasks may be live at any point, apart from the caller's own task. Support 2,000 items. Use actual asynchronous scheduling; do not create threads or processes.
+If a worker raises an ordinary Exception, cancel and await all other worker tasks before re-raising that original exception. Cancellation/finally cleanup in workers must finish before bounded_map exits. If the caller cancels bounded_map, cancel and await its workers before propagating asyncio.CancelledError. Do not leave orphan tasks. When multiple failures happen together, any original worker exception is acceptable. You may assume cancellation-cooperative workers and that worker cleanup does not raise another exception. No exact order of worker starts or cancellation is required.
+
+Visible smoke test (imports your module as candidate):
+import asyncio
+from candidate import bounded_map
+async def main():
+    async def worker(x):
+        await asyncio.sleep(0)
+        return x*x
+    assert await bounded_map(worker,[3,1,2],2)==[9,1,4]
+    assert await bounded_map(worker,[],1)==[]
+asyncio.run(main())
+

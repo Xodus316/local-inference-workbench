@@ -8,6 +8,8 @@ The model saw a specification and a visible smoke check. Each attempt had to pas
 
 Each exercise column below gives full successes out of **three** draws. Percentages are rounded. The accompanying data file records the finish reason, whole-attempt outcome and available hidden-check counts for the 198 single-model draws in these two tables (11 configurations × 18 attempts). A blank hidden score means no numeric grade was recorded. [Per-attempt measurements](implementation-attempts.csv)
 
+The [coding evidence archive](../../benchmarks/evidence/v1/coding/README.md) includes the synthetic contracts, supplied files and archived outcomes. The original 475-check grader and transactional validator were held separately and are unavailable in this checkout, so these historical grades can be reconciled with retained records but cannot all be re-executed from this bundle. The later independently authored six-contract grader is a different suite; its pass rates must not replace or be pooled with these results.
+
 | Model and package | Scheduler | Expiring LRU | Query parser | Resumable log | Pricing | Bounded async | Whole-attempt pass rate |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Qwen 27B MTP Q4_K_M | 1 | 3 | 1 | 3 | 3 | 1 | 12/18 (67%) |
@@ -50,6 +52,8 @@ Two supplemental async checks exercised subclasses of `int` where an exact integ
 ## When a second model reviewed the draft
 
 The reviewer received the brief and verbatim draft without execution feedback. It could change a passing answer. Authors used 16K context and reviewers used at least 32K. Both models used thinking off and an 8,192-token output cap. These were fresh drafts in each direction.
+
+This tests **review with code rewriting**. The current Workbench Edit reviewer returns only `approved` and `summary`. Improvements to revised programs are indirect evidence for choosing that reviewer; they do not measure its approval accuracy, false approvals or missed defects. No same-model self-review or matched extra-draft baseline was included. The small live Edit check in [planning and edits](planning-and-edits.md#preparing-changes-to-existing-code) establishes that the path works, rather than a comparative reviewer success rate.
 
 | Author → reviewer | Original drafts passing | After review | After review including the two extra async checks |
 |---|---:|---:|---:|

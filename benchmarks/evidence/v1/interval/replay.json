@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "interval-union-original-20261106",
+  "reference": "reference.py",
+  "second_control": "second_control.py",
+  "implementation_evaluator": "heldout.py",
+  "mutation_recipe": "mutations.json",
+  "implementation_entrypoint": "solution.py",
+  "test_entrypoint": "test_solution.py",
+  "implementation_command": [
+    "python3",
+    "heldout.py"
+  ],
+  "test_command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "test_solution"
+  ],
+  "historical_docker_image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+  "historical_architecture": null,
+  "grading_host": "ARM64 Mac",
+  "architecture_note": "The historical record identifies an ARM64 Mac grading host and an exact image ID, but retains no container-platform inspection. Host architecture must not be inferred to be container architecture.",
+  "timeout_seconds": 15,
+  "expected_control_qualification": {
+    "reference.py": {
+      "heldout_passes": 29,
+      "cases": 29
+    },
+    "second_control.py": {
+      "heldout_passes": 29,
+      "cases": 29
+    },
+    "miss_adjacent": {
+      "heldout_passes": 24,
+      "cases": 29
+    },
+    "swallow_gap": {
+      "heldout_passes": 26,
+      "cases": 29
+    },
+    "shrink_containment": {
+      "heldout_passes": 28,
+      "cases": 29
+    },
+    "sort_input_in_place": {
+      "heldout_passes": 24,
+      "cases": 29
+    },
+    "allow_bool": {
+      "heldout_passes": 27,
+      "cases": 29
+    },
+    "allow_reversed": {
+      "heldout_passes": 28,
+      "cases": 29
+    },
+    "skip_singleton": {
+      "heldout_passes": 25,
+      "cases": 29
+    }
+  },
+  "models": [
+    {
+      "id": "glm-flash-q4",
+      "implementation": "submitted/glm-flash-q4-implementation.py",
+      "tests": "submitted/glm-flash-q4-tests.py",
+      "expected_implementation_passes": 16,
+      "expected_controls_accepted": 0,
+      "expected_faults_detected": null,
+      "expected_mutations": {}
+    },
+    {
+      "id": "glm-flash-q5",
+      "implementation": "submitted/glm-flash-q5-implementation.py",
+      "tests": "submitted/glm-flash-q5-tests.py",
+      "expected_implementation_passes": 29,
+      "expected_controls_accepted": 0,
+      "expected_faults_detected": null,
+      "expected_mutations": {}
+    },
+    {
+      "id": "nemotron-lightning",
+      "implementation": "submitted/nemotron-lightning-implementation.py",
+      "tests": "submitted/nemotron-lightning-tests.py",
+      "expected_implementation_passes": 29,
+      "expected_controls_accepted": 2,
+      "expected_faults_detected": 6,
+      "expected_mutations": {
+        "miss_adjacent": "detected",
+        "swallow_gap": "detected",
+        "shrink_containment": "detected",
+        "sort_input_in_place": "survived",
+        "allow_bool": "detected",
+        "allow_reversed": "detected",
+        "skip_singleton": "detected"
+      }
+    }
+  ],
+  "execution_requirement": "Generated source must only run inside disposable network-disabled containers with read-only project/root and bounded writable temporary space. Never import it into the host verifier."
+}

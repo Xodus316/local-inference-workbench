@@ -1,0 +1,630 @@
+{
+  "cases": [
+    {
+      "id": "empty",
+      "input": {
+        "stock": {},
+        "orders": []
+      },
+      "expected": {
+        "fulfilled": [],
+        "rejected": [],
+        "remaining": []
+      }
+    },
+    {
+      "id": "empty_orders_sorted",
+      "input": {
+        "stock": {
+          "b": 0,
+          "a": 2
+        },
+        "orders": []
+      },
+      "expected": {
+        "fulfilled": [],
+        "rejected": [],
+        "remaining": [
+          [
+            "a",
+            2
+          ],
+          [
+            "b",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "priority",
+      "input": {
+        "stock": {
+          "x": 2
+        },
+        "orders": [
+          {
+            "id": "a",
+            "priority": -1,
+            "items": {
+              "x": 2
+            }
+          },
+          {
+            "id": "z",
+            "priority": 4,
+            "items": {
+              "x": 2
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "z"
+        ],
+        "rejected": [
+          "a"
+        ],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "lexical_tie",
+      "input": {
+        "stock": {
+          "x": 1
+        },
+        "orders": [
+          {
+            "id": "b",
+            "priority": 2,
+            "items": {
+              "x": 1
+            }
+          },
+          {
+            "id": "a",
+            "priority": 2,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "a"
+        ],
+        "rejected": [
+          "b"
+        ],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "atomic_rejection",
+      "input": {
+        "stock": {
+          "a": 3,
+          "b": 0
+        },
+        "orders": [
+          {
+            "id": "first",
+            "priority": 3,
+            "items": {
+              "a": 2,
+              "b": 1
+            }
+          },
+          {
+            "id": "later",
+            "priority": 0,
+            "items": {
+              "a": 3
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "later"
+        ],
+        "rejected": [
+          "first"
+        ],
+        "remaining": [
+          [
+            "a",
+            0
+          ],
+          [
+            "b",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "unknown_sku",
+      "input": {
+        "stock": {
+          "a": 2
+        },
+        "orders": [
+          {
+            "id": "first",
+            "priority": 3,
+            "items": {
+              "a": 1,
+              "missing": 1
+            }
+          },
+          {
+            "id": "next",
+            "priority": 1,
+            "items": {
+              "a": 2
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "next"
+        ],
+        "rejected": [
+          "first"
+        ],
+        "remaining": [
+          [
+            "a",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "exact_boundary",
+      "input": {
+        "stock": {
+          "x": 3
+        },
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 3
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "a"
+        ],
+        "rejected": [],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "reject_continue",
+      "input": {
+        "stock": {
+          "x": 2
+        },
+        "orders": [
+          {
+            "id": "a",
+            "priority": 5,
+            "items": {
+              "x": 3
+            }
+          },
+          {
+            "id": "b",
+            "priority": 4,
+            "items": {
+              "x": 1
+            }
+          },
+          {
+            "id": "c",
+            "priority": 3,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "b",
+          "c"
+        ],
+        "rejected": [
+          "a"
+        ],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "multiple_items",
+      "input": {
+        "stock": {
+          "x": 3,
+          "y": 4
+        },
+        "orders": [
+          {
+            "id": "z",
+            "priority": 0,
+            "items": {
+              "x": 2,
+              "y": 3
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "z"
+        ],
+        "rejected": [],
+        "remaining": [
+          [
+            "x",
+            1
+          ],
+          [
+            "y",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "large_integer",
+      "input": {
+        "stock": {
+          "x": 1152921504606846977
+        },
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 1152921504606846976
+            }
+          },
+          {
+            "id": "b",
+            "priority": -1,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [
+          "a",
+          "b"
+        ],
+        "rejected": [],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "empty_stock",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": {
+        "fulfilled": [],
+        "rejected": [
+          "a"
+        ],
+        "remaining": []
+      }
+    },
+    {
+      "id": "ignored_extras",
+      "input": {
+        "stock": {
+          "x": 1
+        },
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 1
+            },
+            "note": [
+              1
+            ]
+          }
+        ],
+        "note": false
+      },
+      "expected": {
+        "fulfilled": [
+          "a"
+        ],
+        "rejected": [],
+        "remaining": [
+          [
+            "x",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "invalid_1",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "invalid_2",
+      "input": [],
+      "expected": null
+    },
+    {
+      "id": "invalid_3",
+      "input": {},
+      "expected": null
+    },
+    {
+      "id": "invalid_4",
+      "input": {
+        "stock": {},
+        "orders": null
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_5",
+      "input": {
+        "stock": [],
+        "orders": []
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_6",
+      "input": {
+        "stock": {
+          "x": true
+        },
+        "orders": []
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_7",
+      "input": {
+        "stock": {
+          "x": 1.0
+        },
+        "orders": []
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_8",
+      "input": {
+        "stock": {
+          "x": -1
+        },
+        "orders": []
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_9",
+      "input": {
+        "stock": {
+          "X": 1
+        },
+        "orders": []
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_10",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {}
+          },
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_11",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": true,
+            "items": {
+              "x": 1
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_12",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": false
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_13",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 0
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_14",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": -1
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_15",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 1.5
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_16",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "x": 1
+            }
+          },
+          {
+            "id": "a",
+            "priority": 1,
+            "items": {
+              "x": 2
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_17",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "invalid_18",
+      "input": {
+        "stock": {},
+        "orders": [
+          {
+            "id": "a",
+            "priority": 0,
+            "items": {
+              "unknown": -1
+            }
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "id": "malformed",
+      "raw_input": "{ invalid }",
+      "expected": null
+    }
+  ]
+}

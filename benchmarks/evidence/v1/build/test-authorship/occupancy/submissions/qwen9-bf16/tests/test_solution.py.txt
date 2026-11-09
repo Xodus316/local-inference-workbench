@@ -1,0 +1,185 @@
+"""Unit tests for solution.py CLI reservation auditing."""
+
+import json
+import subprocess
+import sys
+
+
+class TestSolution:
+    """Test suite for reservation auditing CLI."""
+
+    def run_command(self, input_data):
+        """Run solution.py with given input, return (returncode, stdout, stderr)."""
+        result = subprocess.run(
+            [sys.executable, 'solution.py'],
+            input=input_data,
+            capture_output=True,
+            text=True
+        )
+        return result.returncode, result.stdout, result.stderr
+
+    def _make_input(self, **kwargs):
+        """Helper to create JSON input string."""
+        return json.dumps(kwargs)
+
+    def test_basic_valid_single_reservation(self):
+        """Covers criterion 1: Basic valid input with single reservation."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=1,
+            intervals=[[2, 5]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0, f"Exit code should be 0, got {returncode}"
+        result = json.loads(stdout)
+        assert result['covered'] == 3
+        assert result['peak'] == 1
+        assert result['first_peak'] == 2
+
+    def test_reservation_outside_window(self):
+        """Covers criterion 2: Reservation outside window contributes zero."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=1,
+            intervals=[[15, 20]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0
+        result = json.loads(stdout)
+        assert result['covered'] == 0
+        assert result['peak'] == 0
+        assert result['first_peak'] is None
+
+    def test_negative_endpoints(self):
+        """Covers criterion 1: Negative endpoints handled correctly."""
+        input_data = self._make_input(
+            window=[-10, -5],
+            threshold=1,
+            intervals=[[-8, -6]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0
+        result = json.loads(stdout)
+        assert result['covered'] == 2
+        assert result['peak'] == 1
+        assert result['first_peak'] == -8
+
+    def test_duplicate_reservations(self):
+        """Covers criterion 4: Duplicate reservations counted separately."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=1,
+            intervals=[[2, 5], [2, 5]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0
+        result = json.loads(stdout)
+        assert result['covered'] == 3  # 3 units covered by at least one
+        assert result['peak'] == 2  # 2 concurrent reservations
+
+    def test_alert_generation_merging(self):
+        """Covers criterion 7: Alert generation and merging."""
+        input_data = self._make_input(
+            window=[0, 20],
+            threshold=2,
+            intervals=[[2, 6], [8, 12], [10, 14]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0
+        result = json.loads(stdout)
+        # [2,6] with count 1, [8,12] and [10,14] merge where overlap
+        alerts = result['alerts']
+        assert len(alerts) >= 1
+
+    def test_malformed_json(self):
+        """Covers criterion 7: Malformed JSON input."""
+        input_data = '{invalid json'
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode != 0
+        assert stdout == ''
+
+    def test_missing_required_keys(self):
+        """Covers criterion 1: Missing required keys."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=1
+            # missing intervals
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode != 0
+        assert stdout == ''
+
+    def test_boolean_not_integer(self):
+        """Covers criterion 1: Boolean value for integer field."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=True,
+            intervals=[[2, 5]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode != 0
+        assert stdout == ''
+
+    def test_invalid_interval(self):
+        """Covers criterion 1: Invalid interval with start >= end."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=1,
+            intervals=[[5, 2]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode != 0
+        assert stdout == ''
+
+    def test_no_reservations_in_window(self):
+        """Covers criterion 6: Peak calculation edge case."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=1,
+            intervals=[]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0
+        result = json.loads(stdout)
+        assert result['peak'] == 0
+        assert result['first_peak'] is None
+        assert result['alerts'] == []
+
+    def test_extra_keys_ignored(self):
+        """Covers criterion 1: Extra object keys ignored."""
+        input_data = self._make_input(
+            window=[0, 10],
+            threshold=1,
+            intervals=[[2, 5]],
+            extra_key='should_be_ignored',
+            another_field=123
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0
+        result = json.loads(stdout)
+        assert 'covered' in result
+        assert 'peak' in result
+        assert 'first_peak' in result
+        assert 'alerts' in result
+
+    def test_multiple_overlapping_reservations(self):
+        """Covers criterion 2: Multiple overlapping reservations."""
+        input_data = self._make_input(
+            window=[0, 20],
+            threshold=2,
+            intervals=[[5, 10], [8, 15], [12, 18]]
+        )
+        returncode, stdout, stderr = self.run_command(input_data)
+        assert returncode == 0
+        result = json.loads(stdout)
+        assert result['peak'] >= 2
+        assert len(result['alerts']) > 0
+
+
+def main():
+    """Entry point for test discovery."""
+    unittest.main()
+
+
+if __name__ == '__main__':
+    main()

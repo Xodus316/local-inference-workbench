@@ -1,0 +1,696 @@
+{
+  "format_version": 1,
+  "task": "Synthetic clipped-interval occupancy CLI",
+  "inference_hardware": "RTX 3090, 24 GB VRAM",
+  "scoring_environment": "Docker on an ARM64 Mac; network disabled; container architecture not recorded",
+  "scoring_host_architecture": "arm64",
+  "scoring_container_architecture": null,
+  "preflight_valid_inputs_cross_checked": 1389,
+  "first_passes": [
+    {
+      "model": "Gemma 31B QAT",
+      "generation": {
+        "context": 32768,
+        "output_tokens": null,
+        "repetition_guard": true,
+        "temperature": 1.0,
+        "think": true,
+        "top_k": 64,
+        "top_p": 0.95
+      },
+      "finish_reason": "stop",
+      "first_pass_accepted": true,
+      "first_failure": {},
+      "model_call_seconds": 320.77180910110474,
+      "prompt_tokens": 640,
+      "output_tokens_including_thinking": 6083,
+      "controls": {
+        "segments": {
+          "status": "passed",
+          "tests_executed": 9,
+          "cleanup_confirmed": true,
+          "exit_code": 0,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        "sweep": {
+          "status": "passed",
+          "tests_executed": 9,
+          "cleanup_confirmed": true,
+          "exit_code": 0,
+          "failed_tests": [],
+          "errored_tests": []
+        }
+      },
+      "controls_passed": true,
+      "mutation_summary": {
+        "applicable": 10,
+        "detected": 10,
+        "detected_timeout": 0,
+        "equivalent_reviewed": 0,
+        "inconclusive": 0,
+        "passed": true,
+        "sampled": 10,
+        "survived": 0
+      },
+      "mutations": [
+        {
+          "id": "left_clip",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_negative_coordinates",
+            "test_window_intersection"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "right_clip",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_window_intersection"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "closed_end",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_alerts_merging",
+            "test_covered_duration",
+            "test_duplicate_intervals",
+            "test_negative_coordinates",
+            "test_window_intersection"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "collapse_duplicates",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_duplicate_intervals"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "sum_overlaps",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_covered_duration",
+            "test_duplicate_intervals",
+            "test_negative_coordinates"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "late_peak",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_window_intersection"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "strict_threshold",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_alerts_merging",
+            "test_duplicate_intervals",
+            "test_negative_coordinates",
+            "test_window_intersection"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "split_alerts",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_alerts_merging",
+            "test_negative_coordinates"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "bool_endpoint",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_invalid_input_types"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "empty_peak",
+          "outcome": "detected",
+          "tests_executed": 9,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_peak_and_first_peak"
+          ],
+          "errored_tests": []
+        }
+      ],
+      "submission": "submissions/gemma31-qat/submission.json"
+    },
+    {
+      "model": "Gemma 12B Q8_0",
+      "generation": {
+        "context": 32768,
+        "output_tokens": null,
+        "repetition_guard": true,
+        "temperature": 1.0,
+        "think": true,
+        "top_k": 64,
+        "top_p": 0.95
+      },
+      "finish_reason": "stop",
+      "first_pass_accepted": true,
+      "first_failure": {},
+      "model_call_seconds": 542.5947346687317,
+      "prompt_tokens": 640,
+      "output_tokens_including_thinking": 24978,
+      "controls": {
+        "segments": {
+          "status": "passed",
+          "tests_executed": 10,
+          "cleanup_confirmed": true,
+          "exit_code": 0,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        "sweep": {
+          "status": "passed",
+          "tests_executed": 10,
+          "cleanup_confirmed": true,
+          "exit_code": 0,
+          "failed_tests": [],
+          "errored_tests": []
+        }
+      },
+      "controls_passed": true,
+      "mutation_summary": {
+        "applicable": 10,
+        "detected": 9,
+        "detected_timeout": 0,
+        "equivalent_reviewed": 0,
+        "inconclusive": 0,
+        "passed": false,
+        "sampled": 10,
+        "survived": 1
+      },
+      "mutations": [
+        {
+          "id": "left_clip",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_clipping"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "right_clip",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_clipping",
+            "test_peak_zero"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "closed_end",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_duplicates",
+            "test_extra_keys",
+            "test_merging_alerts",
+            "test_non_merging_alerts"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "collapse_duplicates",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_duplicates",
+            "test_merging_alerts",
+            "test_non_merging_alerts"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "sum_overlaps",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_basic_success",
+            "test_duplicates",
+            "test_merging_alerts",
+            "test_non_merging_alerts"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "late_peak",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_basic_success",
+            "test_clipping",
+            "test_merging_alerts",
+            "test_non_merging_alerts"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "strict_threshold",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_duplicates",
+            "test_extra_keys",
+            "test_merging_alerts",
+            "test_non_merging_alerts"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "split_alerts",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_basic_success",
+            "test_clipping",
+            "test_merging_alerts"
+          ],
+          "errored_tests": []
+        },
+        {
+          "id": "bool_endpoint",
+          "outcome": "survived",
+          "tests_executed": 10,
+          "status": "passed",
+          "exit_code": 0,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "empty_peak",
+          "outcome": "detected",
+          "tests_executed": 10,
+          "status": "failed",
+          "exit_code": 1,
+          "cleanup_confirmed": true,
+          "failed_tests": [
+            "test_peak_zero"
+          ],
+          "errored_tests": []
+        }
+      ],
+      "submission": "submissions/gemma12-q8/submission.json"
+    },
+    {
+      "model": "Qwen 3.5 9B BF16",
+      "generation": {
+        "context": 32768,
+        "output_tokens": null,
+        "repetition_guard": true,
+        "temperature": 1.0,
+        "think": true,
+        "top_k": 20,
+        "top_p": 0.95
+      },
+      "finish_reason": "stop",
+      "first_pass_accepted": false,
+      "first_failure": {
+        "error_type": "MissingCoverageError",
+        "step": "coverage"
+      },
+      "model_call_seconds": 79.03994083404541,
+      "prompt_tokens": 617,
+      "output_tokens_including_thinking": 3321,
+      "controls": {
+        "segments": {
+          "status": "failed",
+          "tests_executed": 0,
+          "cleanup_confirmed": true,
+          "exit_code": 5,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        "sweep": {
+          "status": "failed",
+          "tests_executed": 0,
+          "cleanup_confirmed": true,
+          "exit_code": 5,
+          "failed_tests": [],
+          "errored_tests": []
+        }
+      },
+      "controls_passed": false,
+      "mutation_summary": null,
+      "mutations": [
+        {
+          "id": "left_clip",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "right_clip",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "closed_end",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "collapse_duplicates",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "sum_overlaps",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "late_peak",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "strict_threshold",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "split_alerts",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "bool_endpoint",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        },
+        {
+          "id": "empty_peak",
+          "outcome": "inconclusive",
+          "tests_executed": 0,
+          "status": "failed",
+          "exit_code": 5,
+          "cleanup_confirmed": true,
+          "failed_tests": [],
+          "errored_tests": []
+        }
+      ],
+      "submission": "submissions/qwen9-bf16/submission.json"
+    },
+    {
+      "model": "Gemma 31B IQ4_XS",
+      "generation": {
+        "context": 32768,
+        "output_tokens": null,
+        "repetition_guard": true,
+        "temperature": 1.0,
+        "think": true,
+        "top_k": 64,
+        "top_p": 0.95
+      },
+      "finish_reason": "stop",
+      "first_pass_accepted": false,
+      "first_failure": {
+        "error_type": "TestSyntaxError",
+        "step": "coverage"
+      },
+      "model_call_seconds": 144.8489830493927,
+      "prompt_tokens": 640,
+      "output_tokens_including_thinking": 4846,
+      "controls_passed": false,
+      "official_mutation_score": null,
+      "assessment": "Initial Python source did not import. It is preserved unchanged as a failed first submission.",
+      "submission": "submissions/gemma31-iq4xs-first-pass/submission.json"
+    }
+  ],
+  "syntax_only_diagnostic": {
+    "kind": "Assisted saved-suite diagnostic; not a first-pass success",
+    "model": "Gemma 31B IQ4_XS",
+    "edit": "Removed only the trailing three characters after unittest.main(); all assertions and class/function ASTs unchanged.",
+    "inference_calls": 0,
+    "assertions_unchanged": true,
+    "controls": {
+      "segments": {
+        "status": "passed",
+        "tests": 11,
+        "elapsed_seconds": 1.3810209169751033,
+        "cleanup_confirmed": true
+      },
+      "sweep": {
+        "status": "passed",
+        "tests": 11,
+        "elapsed_seconds": 1.4903801669133827,
+        "cleanup_confirmed": true
+      }
+    },
+    "controls_passed": true,
+    "mutation_summary": {
+      "applicable": 10,
+      "detected": 10,
+      "detected_timeout": 0,
+      "equivalent_reviewed": 0,
+      "inconclusive": 0,
+      "passed": true,
+      "sampled": 10,
+      "survived": 0
+    },
+    "mutations": [
+      {
+        "id": "left_clip",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_window_intersection"
+        ]
+      },
+      {
+        "id": "right_clip",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_window_intersection",
+          "test_zero_occupancy"
+        ]
+      },
+      {
+        "id": "closed_end",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_alerts_merging",
+          "test_basic_success",
+          "test_covered_duration",
+          "test_duplicates",
+          "test_window_intersection"
+        ]
+      },
+      {
+        "id": "collapse_duplicates",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_duplicates"
+        ]
+      },
+      {
+        "id": "sum_overlaps",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_basic_success",
+          "test_duplicates"
+        ]
+      },
+      {
+        "id": "late_peak",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_peak_and_first_peak",
+          "test_window_intersection"
+        ]
+      },
+      {
+        "id": "strict_threshold",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_alerts_merging",
+          "test_basic_success",
+          "test_duplicates",
+          "test_window_intersection"
+        ]
+      },
+      {
+        "id": "split_alerts",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_alerts_merging",
+          "test_window_intersection"
+        ]
+      },
+      {
+        "id": "bool_endpoint",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_invalid_input_types"
+        ]
+      },
+      {
+        "id": "empty_peak",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_zero_occupancy"
+        ]
+      }
+    ],
+    "container_evaluation_seconds": 16.561069833813235,
+    "source_comparison": {
+      "original_utf8_bytes": 7742,
+      "cleaned_utf8_bytes": 7739,
+      "removed_suffix": "\"},",
+      "all_other_bytes_identical": true,
+      "original_source_sha256": "bd2ab55ec795dec5e3ae865f6a955f9fc5e28497f1903b17f9ee1008c7a55b11",
+      "cleaned_source_sha256": "13bcf83d4556077cfba5c479cc7fefe5931d480a18bc6acd5f9390c4c2f7639e"
+    },
+    "submission": "submissions/gemma31-iq4xs-syntax-cleaned/submission.json",
+    "limitations": [
+      "The generated test subprocesses still lack per-call timeouts; the evaluator used the original 15-second container deadline.",
+      "Ten seeded defects on one task do not establish general equivalence to QAT.",
+      "This is deterministic syntax cleanup, not a measurement of automatic model repair latency or reliability."
+    ]
+  },
+  "fit_only": {
+    "model": "Gemma 31B Q4_K_S",
+    "offloaded_bytes": 1195890441,
+    "full_authorship_dispatched": false
+  },
+  "limitations": [
+    "One first submission per model; earlier QAT result is a historical baseline for the later IQ4_XS cohort.",
+    "Different packages also differ in provenance and generation length; precision alone is not isolated.",
+    "Assisted syntax cleanup does not measure automatic repair reliability."
+  ]
+}

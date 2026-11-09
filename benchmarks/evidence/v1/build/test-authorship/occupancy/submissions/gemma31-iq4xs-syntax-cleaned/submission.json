@@ -1,0 +1,85 @@
+{
+  "assumptions": [],
+  "commands": [
+    "python3 -m unittest discover -s tests -v"
+  ],
+  "coverage": [
+    {
+      "catches": "Invalid input validation (floats/booleans/wrong types)",
+      "criterion": 1,
+      "expected_result": "Exit nonzero, no stdout",
+      "scenario": "Input with float values in window or threshold",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_invalid_input_types"
+    },
+    {
+      "catches": "Invalid range validation (start >= end)",
+      "criterion": 1,
+      "expected_result": "Exit nonzero, no stdout",
+      "scenario": "Window or interval has start >= end",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_invalid_ranges"
+    },
+    {
+      "catches": "Clipping reservations to window",
+      "criterion": 2,
+      "expected_result": "Correct covered, peak, and alerts based on window intersection",
+      "scenario": "Reservation starts before window or ends after window",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_window_intersection"
+    },
+    {
+      "catches": "Duplicate intervals",
+      "criterion": 3,
+      "expected_result": "Each instance counted separately towards peak and coverage",
+      "scenario": "Multiple identical reservations",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_duplicates"
+    },
+    {
+      "catches": "Calculation of covered duration",
+      "criterion": 4,
+      "expected_result": "Total duration in window with occupancy >= 1",
+      "scenario": "Disjoint and overlapping intervals",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_covered_duration"
+    },
+    {
+      "catches": "Calculation of peak and first_peak",
+      "criterion": 5,
+      "expected_result": "Max simultaneous reservations and earliest occurrence",
+      "scenario": "Varying occupancy levels",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_peak_and_first_peak"
+    },
+    {
+      "catches": "Calculation of alerts and merging",
+      "criterion": 6,
+      "expected_result": "Maximal half-open ranges with occupancy >= threshold",
+      "scenario": "Contiguous spans with different occupancy levels both >= threshold",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_alerts_merging"
+    },
+    {
+      "catches": "JSON format and exit status",
+      "criterion": 7,
+      "expected_result": "Exit 0 and correct JSON on success; exit nonzero on malformed JSON",
+      "scenario": "Malformed JSON input",
+      "test_file": "tests/test_solution.py",
+      "test_name": "TestAuditCLI.test_malformed_json"
+    }
+  ],
+  "implementation_files": [
+    "solution.py"
+  ],
+  "files": [
+    {
+      "path": "tests/test_solution.py",
+      "content": "import unittest\nimport subprocess\nimport json\nimport os\n\nclass TestAuditCLI(unittest.TestCase):\n    def run_cli(self, input_data):\n        \"\"\"Helper to run the solution.py CLI with given input.\"\"\"\n        process = subprocess.Popen(\n            ['python3', 'solution.py'],\n            stdin=subprocess.PIPE,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            text=True\n        )\n        stdout, stderr = process.communicate(input=json.dumps(input_data))\n        return process.returncode, stdout, stderr\n\n    def test_basic_success(self):\n        # Standard case: window [0, 10], threshold 2, overlapping intervals\n        # Occ: 1 at [1, 2), 2 at [2, 5), 1 at [5, 6), 1 at [7, 9)\n        # covered: [1, 6) + [7, 9) = 5 + 2 = 7\n        # peak: 2, first_peak: 2\n        # alerts: [[2, 5)]\n        data = {\n            \"window\": [0, 10],\n            \"threshold\": 2,\n            \"intervals\": [[1, 5], [2, 6], [7, 9]]\n        }\n        rc, stdout, stderr = self.run_cli(data)\n        self.assertEqual(rc, 0)\n        res = json.loads(stdout)\n        self.assertEqual(res['covered'], 7)\n        self.assertEqual(res['peak'], 2)\n        self.assertEqual(res['first_peak'], 2)\n        self.assertEqual(res['alerts'], [[2, 5]])\n\n    def test_window_intersection(self):\n        # Test clipping and reservations outside window\n        # window [10, 20]\n        # Int 1: [5, 15] -> intersection [10, 15]\n        # Int 2: [15, 25] -> intersection [15, 20]\n        # Int 3: [25, 30] -> intersection empty, but must be validated\n        # Occ: 1 at [10, 20)\n        # covered: 10, peak: 1, first_peak: 10, alerts: [[10, 20]]\n        data = {\n            \"window\": [10, 20],\n            \"threshold\": 1,\n            \"intervals\": [[5, 15], [15, 25], [25, 30]]\n        }\n        rc, stdout, stderr = self.run_cli(data)\n        self.assertEqual(rc, 0)\n        res = json.loads(stdout)\n        self.assertEqual(res['covered'], 10)\n        self.assertEqual(res['peak'], 1)\n        self.assertEqual(res['first_peak'], 10)\n        self.assertEqual(res['alerts'], [[10, 20]])\n\n    def test_duplicates(self):\n        # Duplicates count separately\n        # window [0, 10], threshold 2, two identical intervals [1, 5]\n        # Occ: 2 at [1, 5)\n        # covered: 4, peak: 2, first_peak: 1, alerts: [[1, 5]]\n        data = {\n            \"window\": [0, 10],\n            \"threshold\": 2,\n            \"intervals\": [[1, 5], [1, 5]]\n        }\n        rc, stdout, stderr = self.run_cli(data)\n        self.assertEqual(rc, 0)\n        res = json.loads(stdout)\n        self.assertEqual(res['covered'], 4)\n        self.assertEqual(res['peak'], 2)\n        self.assertEqual(res['first_peak'], 1)\n        self.assertEqual(res['alerts'], [[1, 5]])\n\n    def test_covered_duration(self):\n        # Disjoint segments\n        data = {\n            \"window\": [0, 100],\n            \"threshold\": 1,\n            \"intervals\": [[10, 20], [30, 40], [50, 60]]\n        }\n        rc, stdout, stderr = self.run_cli(data)\n        self.assertEqual(rc, 0)\n        res = json.loads(stdout)\n        self.assertEqual(res['covered'], 30)\n\n    def test_peak_and_first_peak(self):\n        # Peak occurs at different times\n        # [1, 5], [2, 6], [8, 12], [9, 13]\n        # window [0, 20], thresh 1\n        # Times: 1(+1), 2(+1), 5(-1), 6(-1), 8(+1), 9(+1), 12(-1), 13(-1)\n        # Peak is 2, first occurs at t=2\n        data = {\n            \"window\": [0, 20],\n            \"threshold\": 1,\n            \"intervals\": [[1, 5], [2, 6], [8, 12], [9, 13]]\n        }\n        rc, stdout, stderr = self.run_cli(data)\n        self.assertEqual(rc, 0)\n        res = json.loads(stdout)\n        self.assertEqual(res['peak'], 2)\n        self.assertEqual(res['first_peak'], 2)\n\n    def test_zero_occupancy(self):\n        # No reservations within window\n        data = {\n            \"window\": [0, 10],\n            \"threshold\": 1,\n            \"intervals\": [[11, 15], [20, 25]]\n        }\n        rc, stdout, stderr = self.run_cli(data)\n        self.assertEqual(rc, 0)\n        res = json.loads(stdout)\n        self.assertEqual(res['covered'], 0)\n        self.assertEqual(res['peak'], 0)\n        self.assertEqual(res['first_peak'], None)\n        self.assertEqual(res['alerts'], [])\n\n    def test_alerts_merging(self):\n        # Threshold 2\n        # [1, 5] (occ 1), [2, 6] (occ 2), [4, 8] (occ 2/3), [7, 10] (occ 2/1)\n        # Range [2, 8) has occupancy >= 2\n        # 2: +1 (Occ 2) -> Alert Start\n        # 4: +1 (Occ 3) -> Alert Continue\n        # 5: -1 (Occ 2) -> Alert Continue\n        # 6: -1 (Occ 1) -> Wait, actually [2, 6) is occ 2, then [4, 8) is occ 2\n        # Let's trace: \n        # t=1: 1\n        # t=2: 2 (S)\n        # t=4: 3\n        # t=5: 2\n        # t=6: 1 (E) -> [2, 6)\n        # t=7: 2 (S) -> [7, 8)\n        # t=8: 1 (E)\n        # Actually, if intervals are [[1, 6], [2, 7], [6, 10], [7, 11]], thresh 2\n        # [2, 7) is occ 2\n        # [6, 10) and [7, 11) -> [7, 10) is occ 2\n        # So [2, 7) and [7, 10) are adjacent. Should merge to [2, 10).\n        data = {\n            \"window\": [0, 20],\n            \"threshold\": 2,\n            \"intervals\": [[1, 7], [2, 7], [6, 11], [7, 11]]\n        }\n        rc, stdout, stderr = self.run_cli(data)\n        self.assertEqual(rc, 0)\n        res = json.loads(stdout)\n        # Occ trace:\n        # 1: 1\n        # 2: 2 (S)\n        # 6: 3\n        # 7: 3-2+2 = 3 (S continues)\n        # 11: 3-2 = 1 (E)\n        # Alert: [2, 11]\n        self.assertEqual(res['alerts'], [[2, 11]])\n\n    def test_invalid_input_types(self):\n        # Floats are not integers\n        cases = [\n            {\"window\": [0.0, 10], \"threshold\": 2, \"intervals\": [[1, 5]]},\n            {\"window\": [0, 10], \"threshold\": 2.5, \"intervals\": [[1, 5]]},\n            {\"window\": [0, 10], \"threshold\": 2, \"intervals\": [[1.1, 5]]},\n            {\"window\": [True, 10], \"threshold\": 2, \"intervals\": [[1, 5]]},\n            {\"window\": [0, 10], \"threshold\": 2, \"intervals\": [\"not an array\"]},\n            {\"window\": [0, 10], \"threshold\": \"2\", \"intervals\": [[1, 5]]},\n        ]\n        for data in cases:\n            rc, stdout, stderr = self.run_cli(data)\n            self.assertNotEqual(rc, 0, f\"Failed to reject invalid type: {data}\")\n            self.assertEqual(stdout, \"\")\n\n    def test_invalid_ranges(self):\n        # start >= end\n        cases = [\n            {\"window\": [10, 0], \"threshold\": 2, \"intervals\": [[1, 5]]},\n            {\"window\": [5, 5], \"threshold\": 2, \"intervals\": [[1, 5]]},\n            {\"window\": [0, 10], \"threshold\": 2, \"intervals\": [[5, 1]]},\n            {\"window\": [0, 10], \"threshold\": 2, \"intervals\": [[5, 5]]},\n        ]\n        for data in cases:\n            rc, stdout, stderr = self.run_cli(data)\n            self.assertNotEqual(rc, 0, f\"Failed to reject invalid range: {data}\")\n            self.assertEqual(stdout, \"\")\n\n    def test_threshold_validation(self):\n        # threshold must be a positive integer\n        cases = [\n            {\"window\": [0, 10], \"threshold\": 0, \"intervals\": [[1, 5]]},\n            {\"window\": [0, 10], \"threshold\": -1, \"intervals\": [[1, 5]]},\n        ]\n        for data in cases:\n            rc, stdout, stderr = self.run_cli(data)\n            self.assertNotEqual(rc, 0, f\"Failed to reject invalid threshold: {data}\")\n            self.assertEqual(stdout, \"\")\n\n    def test_malformed_json(self):\n        process = subprocess.Popen(\n            ['python3', 'solution.py'],\n            stdin=subprocess.PIPE,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            text=True\n        )\n        stdout, stderr = process.communicate(input=\"{ invalid json }\")\n        self.assertNotEqual(process.returncode, 0)\n        self.assertEqual(stdout, \"\")\n\nif __name__ == '__main__':\n    unittest.main()"
+    }
+  ],
+  "source_text_sha256": {
+    "tests/test_solution.py": "13bcf83d4556077cfba5c479cc7fefe5931d480a18bc6acd5f9390c4c2f7639e"
+  },
+  "archive_note": "Final submitted source only. Source text is UTF-8 with LF newlines; raw reasoning and transport envelopes are excluded."
+}

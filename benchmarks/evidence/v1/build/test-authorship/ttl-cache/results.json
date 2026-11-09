@@ -1,0 +1,216 @@
+{
+  "format_version": 1,
+  "task": "Synthetic timestamped cache CLI",
+  "inference_hardware": "RTX 3090, 24 GB VRAM",
+  "scoring_environment": "Docker on an ARM64 Mac; network disabled; container architecture not recorded",
+  "scoring_host_architecture": "arm64",
+  "scoring_container_architecture": null,
+  "preflight": {
+    "random_inputs_cross_checked": 2500,
+    "controls": 2,
+    "manual_cases": 13,
+    "invalid_inputs": 29,
+    "witnessed_mutations": 10,
+    "verified_before_inference": true
+  },
+  "first_pass": {
+    "model": "Gemma 31B IQ4_XS",
+    "generation": {
+      "context": 32768,
+      "output_tokens": null,
+      "repetition_guard": true,
+      "temperature": 1.0,
+      "think": true,
+      "top_k": 64,
+      "top_p": 0.95
+    },
+    "finish_reason": "stop",
+    "first_pass_accepted": true,
+    "model_calls": 1,
+    "syntax_repair_calls": 0,
+    "assertions_edited": false,
+    "model_call_seconds": 147.37476897239685,
+    "container_evaluation_seconds": 16.42773894313723,
+    "generation_plus_evaluation_seconds": 163.80250791553408,
+    "timing_excludes": "Task/fixture preparation, evaluator review pauses and API preflight. This sum is not wall time from user request.",
+    "controls": {
+      "segments": {
+        "status": "passed",
+        "tests": 8,
+        "elapsed_seconds": 1.4142617500619963,
+        "cleanup_confirmed": true
+      },
+      "sweep": {
+        "status": "passed",
+        "tests": 8,
+        "elapsed_seconds": 1.3520854170201346,
+        "cleanup_confirmed": true
+      }
+    },
+    "controls_passed": true,
+    "mutation_summary": {
+      "applicable": 10,
+      "detected": 10,
+      "detected_timeout": 0,
+      "equivalent_reviewed": 0,
+      "inconclusive": 0,
+      "passed": true,
+      "sampled": 10,
+      "survived": 0
+    },
+    "mutations": [
+      {
+        "id": "expiry_late",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_get_logic",
+          "test_put_and_expiry"
+        ]
+      },
+      {
+        "id": "ttl_absolute",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_put_and_expiry"
+        ]
+      },
+      {
+        "id": "zero_immortal",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_put_and_expiry"
+        ]
+      },
+      {
+        "id": "reverse_ties",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_ordering"
+        ]
+      },
+      {
+        "id": "input_order",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_ordering"
+        ]
+      },
+      {
+        "id": "ignore_delete",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_delete_logic"
+        ]
+      },
+      {
+        "id": "first_put_wins",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_ordering"
+        ]
+      },
+      {
+        "id": "get_refresh",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_get_logic",
+          "test_put_and_expiry"
+        ]
+      },
+      {
+        "id": "reverse_live",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_output_format"
+        ]
+      },
+      {
+        "id": "bool_integer",
+        "outcome": "detected",
+        "cleanup_confirmed": true,
+        "failed_tests": [
+          "test_validation"
+        ]
+      }
+    ],
+    "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8",
+    "limitations": [
+      "No repair was necessary, so live automatic repair reliability remains unmeasured.",
+      "Subprocess wait timeout is five seconds but the generated helper lacks explicit child cleanup on timeout. Outer containers were cleaned up.",
+      "Invalid stdout is checked with strip(), so whitespace-only invalid output would pass. Some unseeded validation/overwrite behaviors remain untested.",
+      "One fresh task plus the earlier syntax-cleaned task supports a pilot, not broad equivalence across tasks."
+    ],
+    "submission": "submissions/gemma31-iq4xs/submission.json"
+  },
+  "challengers": [
+    {
+      "model": "Qwen 3.5 9B BF16",
+      "generation": {
+        "context": 32768,
+        "output_tokens": null,
+        "repetition_guard": true,
+        "temperature": 1.0,
+        "think": true,
+        "top_k": 20,
+        "top_p": 0.95
+      },
+      "first_pass_accepted": false,
+      "calls": [
+        {
+          "elapsed_seconds": 173.1255350112915,
+          "output_tokens": 7533,
+          "prompt_tokens": 734,
+          "total_tokens": 8267,
+          "stage": "build_tests"
+        }
+      ],
+      "official_mutation_score": null,
+      "assessment": "No qualified suite; do not credit failures on mutants as defect detections.",
+      "failure": "Coverage references nonexistent tests; diagnostic discovery ran zero tests on both controls.",
+      "syntax_repair_calls": 0
+    },
+    {
+      "model": "Gemma 12B Q8_0",
+      "generation": {
+        "context": 32768,
+        "output_tokens": null,
+        "repetition_guard": true,
+        "temperature": 1.0,
+        "think": true,
+        "top_k": 64,
+        "top_p": 0.95
+      },
+      "first_pass_accepted": false,
+      "calls": [
+        {
+          "elapsed_seconds": 381.94379806518555,
+          "output_tokens": 18288,
+          "prompt_tokens": 755,
+          "total_tokens": 19043,
+          "stage": "build_tests"
+        },
+        {
+          "elapsed_seconds": 58.75573229789734,
+          "output_tokens": 2815,
+          "prompt_tokens": 3949,
+          "total_tokens": 6764,
+          "stage": "build_tests_repair_1"
+        }
+      ],
+      "official_mutation_score": null,
+      "assessment": "No qualified suite; do not credit failures on mutants as defect detections.",
+      "failure": "Initial source failed import; a syntax-repair response included an implementation file and was rejected.",
+      "syntax_repair_calls": 1
+    }
+  ],
+  "comparison_limit": "One submission per model on this fixture. Challengers ran later; package provenance differs. Timings are historical observations, not a controlled general ranking."
+}
