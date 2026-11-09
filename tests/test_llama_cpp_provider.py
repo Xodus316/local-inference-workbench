@@ -344,22 +344,26 @@ class LlamaCppProviderTests(unittest.TestCase):
     def test_changed_identity_invalidates_approval(self):
         with tempfile.TemporaryDirectory() as directory:
             runtime = Runtime(Path(directory), self.config)
-            self.addCleanup(runtime.close)
-            row = runtime.prepare({"prompt": "answer", "mode": "fast"})
-            self.server.props_changes = {"chat_template": "changed"}
-            with self.assertRaises(LlamaCppError):
-                runtime.approve(row["id"], row["digest"])
-            self.assertEqual(self.server.requests, [])
+            try:
+                row = runtime.prepare({"prompt": "answer", "mode": "fast"})
+                self.server.props_changes = {"chat_template": "changed"}
+                with self.assertRaises(LlamaCppError):
+                    runtime.approve(row["id"], row["digest"])
+                self.assertEqual(self.server.requests, [])
+            finally:
+                runtime.close()
 
     def test_operator_launch_attestation_drift_invalidates_approval(self):
         with tempfile.TemporaryDirectory() as directory:
             runtime = Runtime(Path(directory), self.config)
-            self.addCleanup(runtime.close)
-            row = runtime.prepare({"prompt": "answer", "mode": "fast"})
-            self.config.llama_cpp.identity.launch_attestation_sha256 = "6" * 64
-            with self.assertRaises(ValueError):
-                runtime.approve(row["id"], row["digest"])
-            self.assertEqual(self.server.requests, [])
+            try:
+                row = runtime.prepare({"prompt": "answer", "mode": "fast"})
+                self.config.llama_cpp.identity.launch_attestation_sha256 = "6" * 64
+                with self.assertRaises(ValueError):
+                    runtime.approve(row["id"], row["digest"])
+                self.assertEqual(self.server.requests, [])
+            finally:
+                runtime.close()
 
     def test_partial_receipt_and_unknown_quarantine_survive_runtime_restart(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -376,14 +380,16 @@ class LlamaCppProviderTests(unittest.TestCase):
             self.assertTrue(runtime.store.has_unknown_calls())
             runtime.close()
             runtime = Runtime(Path(directory), self.config)
-            self.addCleanup(runtime.close)
-            second = runtime.prepare({"prompt": "second", "mode": "fast"})
-            runtime.events[second["id"]] = threading.Event()
-            runtime.deadline = time.monotonic() + 5
-            with self.assertRaisesRegex(RuntimeError, "native_completion_unknown"):
-                runtime._call({"run_id": second["id"]}, "primary", "fast_primary",
-                              {"messages": [{"role": "user", "content": "second"}], "schema": {}})
-            self.assertEqual(len(self.server.requests), 1)
+            try:
+                second = runtime.prepare({"prompt": "second", "mode": "fast"})
+                runtime.events[second["id"]] = threading.Event()
+                runtime.deadline = time.monotonic() + 5
+                with self.assertRaisesRegex(RuntimeError, "native_completion_unknown"):
+                    runtime._call({"run_id": second["id"]}, "primary", "fast_primary",
+                                  {"messages": [{"role": "user", "content": "second"}], "schema": {}})
+                self.assertEqual(len(self.server.requests), 1)
+            finally:
+                runtime.close()
 
 
 if __name__ == "__main__":
