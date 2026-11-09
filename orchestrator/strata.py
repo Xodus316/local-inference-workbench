@@ -397,10 +397,11 @@ class StrataClient:
                             ("stop_sent", "stop_sent_monotonic")):
             if value[flag] and not number(stamp) or not value[flag] and value.get(stamp) is not None:
                 return False
-        if (value["cancellation_requested"] and value["cancellation_requested_monotonic"] > finished
-                or value["stop_sent"] and (not value["cancellation_requested"]
-                                           or not value["cancellation_requested_monotonic"]
-                                           <= value["stop_sent_monotonic"] <= finished)):
+        if value["cancellation_requested"] and value["cancellation_requested_monotonic"] > finished:
+            return False
+        if (value["stop_sent"] and (value["stop_sent_monotonic"] > finished
+                or value["cancellation_requested"] and value["cancellation_requested_monotonic"]
+                > value["stop_sent_monotonic"])):
             return False
         reason = value.get("native_done_reason")
         if terminal_reason is not None and (terminal_reason not in {"stop", "length"} or reason != terminal_reason):
@@ -423,6 +424,16 @@ class StrataClient:
                 if (not number("cleanup_elapsed_seconds") or value["cleanup_elapsed_seconds"] > _CLEANUP_SECONDS
                         or not math.isclose(value["cleanup_elapsed_seconds"],
                                             finished - value["cancellation_requested_monotonic"],
+                                            rel_tol=1e-9, abs_tol=1e-6)):
+                    return False
+            elif value["stop_sent"]:
+                # The normal response iterator also sends STOP while draining
+                # native DONE. That cleanup does not imply user cancellation.
+                stopped = value["stop_sent_monotonic"]
+                if (not first <= stopped <= done or not number("cleanup_elapsed_seconds")
+                        or value["cleanup_elapsed_seconds"] > _CLEANUP_SECONDS
+                        or finished - stopped > _CLEANUP_SECONDS
+                        or not math.isclose(value["cleanup_elapsed_seconds"], finished - stopped,
                                             rel_tol=1e-9, abs_tol=1e-6)):
                     return False
             elif value["cleanup_elapsed_seconds"] is not None:

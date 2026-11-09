@@ -262,6 +262,47 @@ class StrataProtocolTests(unittest.TestCase):
         self.assertEqual(self.api.receipt_reads, 0)
         self.assertIn("request_id", caught.exception.raw_response["native_protocol_request"])
 
+    def test_normal_stop_drain_retains_terminal_proof_without_claiming_cancellation(self):
+        self.api.mode = "normal"
+        self.api.edit_receipt = lambda value: {**value, "stop_sent": True,
+            "stop_sent_monotonic": 12.0, "cleanup_elapsed_seconds": 2.0}
+        provider = NativeProvider(Config(backend="strata", strata=self.client.config))
+        for reason in ("stop", "length"):
+            with self.subTest(reason=reason):
+                self.api.finish_reason = reason
+                result = provider.complete(MODEL, {"context": 32768, "output_tokens": None, "think": "high"},
+                    {"messages": MESSAGES, "schema": SCHEMA}, threading.Event(), None,
+                    protocol_request_id=REQUEST_ID)
+                self.assertEqual(result["native_protocol"]["native_done_reason"], reason)
+                self.assertTrue(result["native_protocol"]["stop_sent"])
+                self.assertEqual(result["native_protocol"]["cleanup_elapsed_seconds"], 2.0)
+                self.assertTrue(result["native"]["cleanup_confirmed"])
+                self.assertFalse(result["native"]["cancellation_requested"])
+                self.assertFalse(result["native"]["cancellation_exercised"])
+                self.assertTrue(result["native_transport"]["complete"])
+        self.assertEqual(len(self.api.posts), 2)
+
+    def test_normal_stop_drain_rejects_invalid_order_elapsed_and_missing_terminal_proof(self):
+        self.api.mode = "normal"
+        invalid = ({"stop_sent_monotonic": 9.5, "cleanup_elapsed_seconds": 4.5},
+                   {"stop_sent_monotonic": 13.5, "cleanup_elapsed_seconds": .5},
+                   {"cleanup_elapsed_seconds": None}, {"cleanup_elapsed_seconds": True},
+                   {"cleanup_elapsed_seconds": 1.9},
+                   {"handler_finished_monotonic": 43.0, "cleanup_elapsed_seconds": 31.0},
+                   {"native_done_ack": False}, {"admission_released": False},
+                   {"request_sha256": "0" * 64})
+        for change in invalid:
+            with self.subTest(change=change):
+                self.api.edit_receipt = lambda value, change=change: {
+                    **value, "stop_sent": True, "stop_sent_monotonic": 12.0,
+                    "cleanup_elapsed_seconds": 2.0, **change}
+                before = len(self.api.posts)
+                with self.assertRaises(StrataError) as caught:
+                    list(self.client.stream_chat(MODEL, MESSAGES, OPTIONS))
+                self.assertEqual(caught.exception.diagnostics["native_completion"], "unknown")
+                self.assertFalse(caught.exception.diagnostics["cleanup_confirmed"])
+                self.assertEqual(len(self.api.posts), before + 1)
+
     def test_provider_passes_caller_uuid_and_retains_server_proof(self):
         self.api.mode = "normal"
         provider = NativeProvider(Config(backend="strata", strata=self.client.config))
