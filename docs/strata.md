@@ -59,3 +59,25 @@ first token. Its stock response does not expose that attempt count. Keep
 provides an authoritative receipt. A benchmark requiring exactly one native
 attempt must reject such a profile before inference; transport success alone is
 not an eligibility receipt.
+
+An explicitly reviewed serial server patch can expose the `serial-gen-v1`
+contract. To consume it, set `native_attempts_observable` to true and include
+`"native_attempts_policy": "serial-gen-v1"` in the frozen
+`approximation_switches`. The identity probe then requires `/v1/status` to
+report `native_single_attempt: true` and the same policy. Bind the patched
+server/configuration fingerprints to the approval and verify its provenance
+separately. Stock servers remain valid only with attempts unknown.
+
+For this opt-in profile, every terminal completion chunk must provide a strict
+integer `strata_native_attempts: 1`. Missing, zero, boolean, string, or multiple
+counts fail the protocol without a terminal success or automatic retry. Error
+counts and partial bytes remain evidence rather than a successful one-attempt
+result. When observability is false, any counter received from the backend is
+ignored and the saved attempt count remains null.
+
+Receipts also retain bounded native transport bytes. On disconnects, malformed
+frames or rejected counters, `StrataError.raw_response` contains the private
+partial receipt. Runtime archives it as a nonterminal transport artifact before
+filtering diagnostics. No token count or successful text output substitutes for
+the native dispatch counter. Synthetic tests do not establish real cancellation,
+RAM fit or the patched server's live compatibility.

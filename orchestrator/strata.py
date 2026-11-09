@@ -8,6 +8,7 @@ text in the durable receipt even when local schema validation later rejects it.
 from __future__ import annotations
 
 import hashlib
+import base64
 import http.client
 import json
 import math
@@ -30,6 +31,8 @@ _MAX_STREAM_LINE = 1_048_576
 
 class StrataError(OllamaError):
     """A bounded Strata transport or protocol failure."""
+
+    raw_response: dict[str, Any] | None = None
 
 
 class StrataCancelled(OllamaCancelled, StrataError):
@@ -95,13 +98,13 @@ class StrataClient:
             with opener.open(request, timeout=timeout) as response:
                 raw = response.read(_MAX_RESPONSE + 1)
         except Exception as error:
-            raise StrataError("Strata metadata request failed") from error
+            raise StrataError("Strata metadata request failed", diagnostics={"native_completion": "not_started"}) from error
         if len(raw) > _MAX_RESPONSE:
-            raise StrataError("Strata metadata response exceeded its bound")
+            raise StrataError("Strata metadata response exceeded its bound", diagnostics={"native_completion": "not_started"})
         try:
             return _strict_json(raw.decode("utf-8"))
         except (ValueError, UnicodeError, RecursionError) as error:
-            raise StrataError("Strata returned invalid metadata") from error
+            raise StrataError("Strata returned invalid metadata", diagnostics={"native_completion": "not_started"}) from error
 
     def identity(self) -> dict[str, Any]:
         status = self._json("/v1/status")
@@ -138,6 +141,18 @@ class StrataClient:
             "model_path_sha256": expected.model_path_sha256,
             "structured_output_method": "prompt_and_validate",
         }
+        if expected.native_attempts_observable:
+            if expected.approximation_switches.get("native_attempts_policy") != "serial-gen-v1":
+                raise StrataError("Observable attempts require the reviewed serial attempt policy", diagnostics={
+                    "failure_category": "identity_mismatch", "native_completion": "not_started",
+                })
+            if status.get("native_single_attempt") is not True:
+                raise StrataError("Strata did not enable the reviewed native attempt contract", diagnostics={
+                    "failure_category": "identity_mismatch", "native_completion": "not_started",
+                })
+            observed.update(native_single_attempt=status.get("native_single_attempt"),
+                            native_attempts_policy=status.get("native_attempts_policy"))
+            required.update(native_single_attempt=True, native_attempts_policy="serial-gen-v1")
         if observed != required or expected.model not in model_ids:
             raise StrataError("Loaded Strata identity does not match the approved configuration", diagnostics={
                 "failure_category": "identity_mismatch", "native_completion": "not_started"
@@ -234,9 +249,9 @@ class StrataClient:
 
     def _stream(self, body: dict[str, Any], cancel: threading.Event, deadline: float | None):
         if deadline is not None and (type(deadline) not in (int, float) or not math.isfinite(deadline)):
-            raise StrataError("Invalid Strata request deadline")
+            raise StrataError("Invalid Strata request deadline", diagnostics={"native_completion": "not_started"})
         if cancel.is_set():
-            raise StrataCancelled("Generation stopped")
+            raise StrataCancelled("Generation stopped", diagnostics={"native_completion": "not_started"})
         if deadline is not None and time.monotonic() >= deadline:
             raise deadline_error(dispatched=False)
         parsed = urllib.parse.urlsplit(self.base_url)
@@ -245,6 +260,12 @@ class StrataClient:
         finished = threading.Event()
         expired = threading.Event()
         dispatched = False
+        active_socket = None
+        wire = bytearray()
+        saved_content, saved_reasoning = [], []
+        attempts = None
+        stream_complete = False
+        verified_attempts = self.config.identity.native_attempts_observable
 
         def abort():
             while not finished.wait(.025):
@@ -253,13 +274,14 @@ class StrataClient:
                     continue
                 if deadline_reached:
                     expired.set()
-                if connection.sock is not None:
+                transport = active_socket
+                if transport is not None:
                     try:
-                        connection.sock.shutdown(socket.SHUT_RDWR)
+                        transport.shutdown(socket.SHUT_RDWR)
                     except OSError:
                         pass
                     try:
-                        connection.sock.close()
+                        transport.close()
                     except OSError:
                         pass
 
@@ -267,9 +289,24 @@ class StrataClient:
         watcher.start()
         final = None
         usage = {}
+        failure = None
+
+        def observe_attempts(value):
+            nonlocal attempts
+            if verified_attempts and type(value) is int and 0 <= value <= 100:
+                attempts = value
+
+        def receipt():
+            return {"model": body["model"], "choices": [{"finish_reason": final,
+                    "message": {"content": "".join(saved_content), "reasoning_content": "".join(saved_reasoning)}}],
+                    "usage": usage, "native": {"backend": "strata", "attempts": attempts,
+                    "terminal_state": final or "unknown"},
+                    "native_transport": {"encoding": "base64", "bytes": base64.b64encode(wire).decode("ascii"),
+                    "complete": stream_complete}}
         try:
             data = json.dumps(body, ensure_ascii=False, allow_nan=False).encode("utf-8")
             connection.connect()
+            active_socket = connection.sock
             if cancel.is_set():
                 raise StrataCancelled("Generation stopped")
             if deadline is not None and time.monotonic() >= deadline:
@@ -278,16 +315,28 @@ class StrataClient:
             if connection.sock is not None:
                 connection.sock.settimeout(self.timeout if deadline is None else max(.001, deadline - time.monotonic()))
             headers = {"Content-Type": "application/json", **self._headers("text/event-stream")}
-            connection.request("POST", "/v1/chat/completions", body=data, headers=headers)
+            # Once bytes may be written, lack of response is uncertain dispatch.
             dispatched = True
+            connection.request("POST", "/v1/chat/completions", body=data, headers=headers)
             response = connection.getresponse()
             if response.status != 200:
                 raw = response.read(65_537)
+                wire.extend(raw)
+                try:
+                    error_value = _strict_json(raw.decode("utf-8"))
+                    if isinstance(error_value, dict):
+                        observe_attempts(error_value.get("strata_native_attempts"))
+                except (ValueError, UnicodeError, RecursionError):
+                    pass
                 raise StrataError("Strata request failed", diagnostics={
                     **_error_diagnostics(response.status, raw), "native_completion": "unknown"
                 })
             while True:
                 line = response.readline(_MAX_STREAM_LINE + 1)
+                if len(wire) + len(line) > _MAX_RESPONSE:
+                    wire.extend(line[:_MAX_RESPONSE - len(wire)])
+                    raise StrataError("Strata transport exceeded its response bound")
+                wire.extend(line)
                 if cancel.is_set():
                     raise StrataCancelled("Generation stopped")
                 if len(line) > _MAX_STREAM_LINE:
@@ -302,53 +351,71 @@ class StrataClient:
                 if payload == b"[DONE]":
                     if final is None:
                         raise StrataError("Strata stream ended without a terminal choice")
-                    yield {
-                        "message": {"content": "", "thinking": ""}, "done": True,
-                        "done_reason": final, "prompt_eval_count": usage.get("prompt_tokens"),
-                        "eval_count": usage.get("completion_tokens"),
-                        "strata_native_attempts": None,
-                    }
-                    return
+                    stream_complete = True
+                    break
                 try:
                     frame = _strict_json(payload.decode("utf-8"))
                 except (ValueError, UnicodeError, RecursionError) as error:
                     raise StrataError("Strata returned invalid streaming JSON") from error
                 if isinstance(frame, dict) and frame.get("error"):
+                    observe_attempts(frame.get("strata_native_attempts"))
                     raise StrataError("Strata reported a streaming generation error", diagnostics={
                         "failure_category": "backend_error", "native_completion": "unknown"
                     })
                 choices = frame.get("choices") if isinstance(frame, dict) else None
+                if isinstance(frame, dict) and isinstance(frame.get("usage"), dict):
+                    usage = frame["usage"]
+                if choices == [] and isinstance(frame.get("usage"), dict) and final is not None:
+                    continue
                 choice = choices[0] if isinstance(choices, list) and len(choices) == 1 else None
                 delta = choice.get("delta") if isinstance(choice, dict) else None
                 if not isinstance(delta, dict):
                     raise StrataError("Strata returned an invalid streaming choice")
+                part = delta.get("content") or ""
+                thought = delta.get("reasoning_content") or ""
+                if not isinstance(part, str) or not isinstance(thought, str):
+                    raise StrataError("Strata returned non-text message content")
+                saved_content.append(part)
+                saved_reasoning.append(thought)
+                if final is not None and (part or thought):
+                    raise StrataError("Strata returned content after its terminal choice")
                 finish = choice.get("finish_reason")
                 if finish is not None:
-                    if finish not in {"stop", "length", "cancel", "tool_calls"}:
+                    if finish not in {"stop", "length", "cancel", "tool_calls"} or final is not None:
                         raise StrataError("Strata returned an unsupported finish reason")
                     final = finish
-                if isinstance(frame.get("usage"), dict):
-                    usage = frame["usage"]
-                content = delta.get("content") or ""
-                reasoning = delta.get("reasoning_content") or ""
-                if not isinstance(content, str) or not isinstance(reasoning, str):
-                    raise StrataError("Strata returned non-text message content")
-                if content or reasoning:
-                    yield {"message": {"content": content, "thinking": reasoning}, "done": False}
-        except (StrataCancelled, StrataError):
-            raise
+                    if verified_attempts:
+                        observe_attempts(frame.get("strata_native_attempts"))
+                        if type(frame.get("strata_native_attempts")) is not int or attempts != 1:
+                            raise StrataError("Strata did not confirm exactly one native attempt", diagnostics={
+                                "failure_category": "native_attempts_unverified", "native_completion": "unknown",
+                            })
+                if part or thought:
+                    yield {"message": {"content": part, "thinking": thought}, "done": False}
+        except (StrataCancelled, StrataError) as error:
+            failure = error
         except (OSError, http.client.HTTPException, ValueError) as error:
             if expired.is_set() or deadline is not None and time.monotonic() >= deadline:
-                raise deadline_error(dispatched=dispatched) from error
-            if cancel.is_set():
-                raise StrataCancelled("Generation stopped") from error
-            raise StrataError("Strata streaming request failed", diagnostics={
-                "failure_category": "backend_error",
-                "native_completion": "unknown" if dispatched else "not_started",
-            }) from error
+                failure = StrataError("Strata request deadline exceeded", diagnostics={"failure_category": "backend_timeout"})
+            elif cancel.is_set():
+                failure = StrataCancelled("Generation stopped")
+            else:
+                failure = StrataError("Strata streaming request failed", diagnostics={"failure_category": "backend_error"})
         finally:
             if response is not None:
                 response.close()
             connection.close()
             finished.set()
             watcher.join(timeout=.2)
+        if failure is not None:
+            failure.diagnostics = {**failure.diagnostics,
+                                   "native_completion": "unknown" if dispatched else "not_started",
+                                   "automatic_retry": False}
+            if attempts is not None:
+                failure.diagnostics["native_attempts"] = attempts
+            failure.raw_response = receipt() if dispatched else None
+            raise failure
+        yield {"message": {"content": "", "thinking": ""}, "done": True,
+               "done_reason": final, "prompt_eval_count": usage.get("prompt_tokens"),
+               "eval_count": usage.get("completion_tokens"), "strata_native_attempts": attempts,
+               "strata_native_transport": receipt()["native_transport"]}

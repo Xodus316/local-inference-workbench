@@ -99,7 +99,7 @@ class NativeProvider:
         message = {"content": "".join(content)}
         if any(reasoning):
             message["reasoning_content"] = "".join(reasoning)
-        return {"model": model,
+        result = {"model": model,
                 "choices": [{"finish_reason": final.get("done_reason"), "message": message}],
                 "usage": {"prompt_tokens": final.get("prompt_eval_count"),
                           "completion_tokens": final.get("eval_count")},
@@ -107,6 +107,9 @@ class NativeProvider:
                 "native": ({"backend": "strata", "attempts": final.get("strata_native_attempts"),
                             "terminal_state": final.get("done_reason")}
                            if self.config.backend == "strata" else {"backend": "ollama"})}
+        if self.config.backend == "strata" and isinstance(final.get("strata_native_transport"), dict):
+            result["native_transport"] = final["strata_native_transport"]
+        return result
 
     def decide(self, model, payload, cancel, deadline):
         if self.config.backend == "llama-cpp":
