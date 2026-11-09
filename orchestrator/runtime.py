@@ -83,10 +83,13 @@ class Runtime(CodeBuild, Stages):
             if executable is None:
                 raise ValueError("Configured test executable is unavailable")
             commands[name] = [str(Path(executable).absolute()), *argv[1:]]
+        identity = getattr(self.provider, "identity", None)
+        backend = identity() if callable(identity) else {"name": "injected"}
         bundle = {"tests": commands, "mode":mode, "request":packed, "repository":scope, "roles":self.config.roles,
                   "generation":{role:self.config.generation_for(role).model_dump()
                                 for role in self.config.roles}, "config_digest":digest(self.config.model_dump()),
-                  "web_research":mode == "research" or request.research}
+                  "web_research":mode == "research" or request.research,
+                  "backend": backend}
         if bundle["web_research"]:
             bundle["internet_search_provider"] = self.config.research.provider
         if mode == "build":
@@ -122,6 +125,9 @@ class Runtime(CodeBuild, Stages):
                 raise ValueError("Run state or approval digest changed")
             if not self._config_matches(row["bundle"]):
                 raise ValueError("Configuration changed; prepare another scope")
+            identity = getattr(self.provider, "identity", None)
+            if callable(identity) and identity() != row["bundle"].get("backend"):
+                raise ValueError("Backend identity changed; prepare another scope")
             if resume and (not row["approved"] or self.store.has_unknown(run_id)):
                 raise ValueError("The interrupted run has an unresolved call or approval")
             if self.queue.full():
@@ -142,6 +148,9 @@ class Runtime(CodeBuild, Stages):
         run_id = state["run_id"]
         self._guard(run_id)
         bundle = self.bundle(state)
+        identity = getattr(self.provider, "identity", None)
+        if callable(identity) and identity() != bundle.get("backend"):
+            raise ValueError("Backend identity changed after approval")
         model = bundle["roles"][role]
         raw = self.store.cached(run_id, stage, request=payload, role=role, model=model)
         if raw is not None:
@@ -153,10 +162,18 @@ class Runtime(CodeBuild, Stages):
             self.provider.admit(model, bundle["generation"][role], payload, stage)
             self.store.begin_call(run_id, stage, role, model, payload)
             if stage == "decider":
-                raw = self.provider.decide(model, payload, self.events[run_id], self.deadline)
+                try:
+                    raw = self.provider.decide(model, payload, self.events[run_id], self.deadline)
+                except Exception as error:
+                    self.store.record_call_failure(run_id, stage, getattr(error, "diagnostics", {}))
+                    raise
             else:
-                raw = self.provider.complete(model, bundle["generation"][role], payload,
-                                             self.events[run_id], self.deadline)
+                try:
+                    raw = self.provider.complete(model, bundle["generation"][role], payload,
+                                                 self.events[run_id], self.deadline)
+                except Exception as error:
+                    self.store.record_call_failure(run_id, stage, getattr(error, "diagnostics", {}))
+                    raise
             self.store.finish_call(run_id, stage, raw)
             self._guard(run_id)
             return raw

@@ -28,6 +28,63 @@ class Generation(Record):
     temperature: float | None = Field(default=None, ge=0, le=2)
     top_p: float | None = Field(default=None, ge=0, le=1)
     top_k: int | None = Field(default=None, ge=1, le=1000)
+    min_p: float | None = Field(default=None, ge=0, le=1)
+    presence_penalty: float | None = Field(default=None, ge=-2, le=2)
+    frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
+    repetition_penalty: float | None = Field(default=None, ge=0, le=2)
+    repetition_guard: bool = True
+
+
+class StrataIdentity(Record):
+    """Operator-verified immutable identity for one local Strata launch."""
+
+    model: str = Field(min_length=1, max_length=300)
+    engine: str = Field(min_length=1, max_length=100)
+    context: int = Field(ge=2048, le=262144)
+    slots: Literal[1] = 1
+    runtime_sha256: str
+    model_manifest_sha256: str
+    template_sha256: str
+    model_path_sha256: str
+    config_sha256: str
+    memory_mode: Literal["arena", "resident_complement", "budget_with_file_tier"]
+    native_attempts_observable: bool = False
+    approximation_switches: dict[str, bool | int | float | str] = Field(default_factory=dict, max_length=40)
+
+    @field_validator(
+        "runtime_sha256", "model_manifest_sha256", "template_sha256",
+        "model_path_sha256", "config_sha256",
+    )
+    @classmethod
+    def digest_value(cls, value):
+        if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+            raise ValueError("Use a lowercase SHA-256 digest")
+        return value
+
+
+class StrataBackend(Record):
+    url: str = "http://127.0.0.1:18080"
+    api_key_env: str = "STRATA_API_KEY"
+    identity: StrataIdentity
+
+    @field_validator("url")
+    @classmethod
+    def local_endpoint(cls, value):
+        parsed = urlsplit(value)
+        if (parsed.scheme != "http" or parsed.username or parsed.password or parsed.query
+                or parsed.fragment or parsed.path not in ("", "/") or not parsed.hostname):
+            raise ValueError("Configure a loopback HTTP Strata endpoint")
+        if parsed.hostname != "localhost" and not ipaddress.ip_address(parsed.hostname).is_loopback:
+            raise ValueError("Configure a loopback Strata endpoint")
+        return value.rstrip("/")
+
+    @field_validator("api_key_env")
+    @classmethod
+    def environment_name(cls, value):
+        if (not value or len(value) > 100 or not value.replace("_", "a").isalnum()
+                or value[0].isdigit() or value.upper() != value):
+            raise ValueError("Configure an uppercase environment variable name")
+        return value
 
 
 class Research(Record):
@@ -62,7 +119,9 @@ class BuildConfig(Record):
 
 class Config(Record):
     build: BuildConfig = Field(default_factory=BuildConfig)
+    backend: Literal["ollama", "strata"] = "ollama"
     ollama_url: str = "http://127.0.0.1:11434"
+    strata: StrataBackend | None = None
     roles: dict[str, str] = Field(default_factory=lambda: dict(DEFAULT_ROLES))
     generation: dict[str, Generation] = Field(default_factory=dict)
     repositories: list[str] = Field(default_factory=list)
@@ -112,4 +171,8 @@ class Config(Record):
             if (not name.strip() or len(name) > 80 or not 1 <= len(argv) <= 60
                     or any(not arg or len(arg) > 2000 or "\0" in arg for arg in argv)):
                 raise ValueError("Invalid named test command")
+        if self.backend == "strata" and self.strata is None:
+            raise ValueError("Configure the pinned Strata backend identity")
+        if self.backend != "strata" and self.strata is not None:
+            raise ValueError("Strata settings require backend=strata")
         return self

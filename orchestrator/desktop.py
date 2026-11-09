@@ -223,8 +223,10 @@ def main(argv=None):
                 except (ValueError, OSError, http.client.HTTPException):
                     current = None
                 try:
-                    conf = Config.model_validate_json(service.config.read_text(encoding="utf-8-sig")) if service.config.exists() else Config()
-                    resident = local_json(conf.ollama_url + "/api/ps").get("models", [])
+                    # Ask the service's selected provider. This works for both
+                    # Ollama and the opt-in Strata backend without giving the
+                    # panel a second backend connection or credential path.
+                    resident = local_json(service.base + "/api/models").get("models", [])
                 except (ValueError,OSError,http.client.HTTPException):
                     resident = []
                 rows = (current or {}).get("runs", [])

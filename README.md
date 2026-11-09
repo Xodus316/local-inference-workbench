@@ -1,6 +1,6 @@
 # Local Inference Workbench
 
-Run a quick summary, compare two independent answers, or prepare a code change using models on your own machine. The workbench pairs a Python/LangGraph workflow engine with Ollama, a PC control panel and a streaming chat interface. SQLite stores approved inputs, model calls and results so you can inspect how an answer was produced.
+Run a quick summary, compare two independent answers, or prepare a code change using models on your own machine. The workbench pairs a Python/LangGraph workflow engine with Ollama or an explicitly pinned local Strata backend, a PC control panel and a streaming chat interface. SQLite stores approved inputs, model calls and results so you can inspect how an answer was produced.
 
 ## Start on a PC
 
@@ -16,6 +16,8 @@ Copy-Item config.example.json config.local.json
 On macOS or Linux, use `python3 -m venv .venv`, `.venv/bin/python -m pip install .`, `cp config.example.json config.local.json` and `.venv/bin/python -m orchestrator --config config.local.json`.
 
 Set `roles.fast_primary` in your configuration to a completion model installed in Ollama, then restart the service after configuration changes. Open [the workbench](http://127.0.0.1:8787/) and prepare a Fast run. Inspect the request and approve it to generate an answer. Open [Chat](http://127.0.0.1:8787/chat/) for an interactive conversation. Default role names in the example describe the research machine's model selection. Configure the roles used by the workflows you want to run.
+
+Ollama is the default backend. The optional [Strata backend](docs/strata.md) requires a pre-launched loopback server and immutable runtime, model, template, path and configuration fingerprints. Prepared approvals are invalidated if the observed backend identity changes.
 
 ## Workflows
 
