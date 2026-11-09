@@ -87,6 +87,64 @@ class StrataBackend(Record):
         return value
 
 
+class LlamaCppIdentity(Record):
+    """Pinned launch identity, separating HTTP observations from operator proof."""
+
+    model: str = Field(min_length=1, max_length=300)
+    engine: str = Field(min_length=1, max_length=100)
+    source_commit: str = Field(pattern=r"^[a-f0-9]{40}$")
+    build_info: str = Field(min_length=1, max_length=300)
+    context: int = Field(ge=2048, le=262144)
+    slots: Literal[1] = 1
+    runtime_sha256: str
+    package_sha256: str
+    model_manifest_sha256: str
+    template_sha256: str
+    rendered_template_sha256: str
+    model_path_sha256: str
+    config_sha256: str
+    launch_attestation_sha256: str
+    cache_type_k: Literal["f16", "q8_0", "q4_0"] = "f16"
+    cache_type_v: Literal["f16", "q8_0", "q4_0"] = "f16"
+    context_shift: Literal[False] = False
+    speculative_mode: Literal["none"] = "none"
+    memory_mode: Literal["cpu_experts_ram", "partial_cpu_gpu_experts"]
+    server_output_tokens: Literal[-1] = -1
+    native_attempts_observable: bool = False
+    approximation_switches: dict[str, bool | int | float | str] = Field(default_factory=dict, max_length=40)
+
+    @field_validator(
+        "runtime_sha256", "package_sha256", "model_manifest_sha256", "template_sha256",
+        "rendered_template_sha256", "model_path_sha256", "config_sha256", "launch_attestation_sha256",
+    )
+    @classmethod
+    def digest_value(cls, value):
+        if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+            raise ValueError("Use a lowercase SHA-256 digest")
+        return value
+
+
+class LlamaCppBackend(Record):
+    url: str = "http://127.0.0.1:18081"
+    api_key_env: str = "LLAMA_CPP_API_KEY"
+    cleanup_timeout_seconds: float = Field(default=2.0, gt=0, le=30, allow_inf_nan=False)
+    identity: LlamaCppIdentity
+
+    @field_validator("url")
+    @classmethod
+    def local_endpoint(cls, value):
+        result = StrataBackend.local_endpoint(value)
+        parsed = urlsplit(result)
+        if parsed.port is not None and not 1 <= parsed.port <= 65535:
+            raise ValueError("Configure a valid llama.cpp server port")
+        return result
+
+    @field_validator("api_key_env")
+    @classmethod
+    def environment_name(cls, value):
+        return StrataBackend.environment_name(value)
+
+
 class Research(Record):
     # Older configurations without this field were configured for Brave.
     provider: Literal["brave", "ollama", "exa"] = "brave"
@@ -119,9 +177,10 @@ class BuildConfig(Record):
 
 class Config(Record):
     build: BuildConfig = Field(default_factory=BuildConfig)
-    backend: Literal["ollama", "strata"] = "ollama"
+    backend: Literal["ollama", "strata", "llama-cpp"] = "ollama"
     ollama_url: str = "http://127.0.0.1:11434"
     strata: StrataBackend | None = None
+    llama_cpp: LlamaCppBackend | None = None
     roles: dict[str, str] = Field(default_factory=lambda: dict(DEFAULT_ROLES))
     generation: dict[str, Generation] = Field(default_factory=dict)
     repositories: list[str] = Field(default_factory=list)
@@ -175,4 +234,8 @@ class Config(Record):
             raise ValueError("Configure the pinned Strata backend identity")
         if self.backend != "strata" and self.strata is not None:
             raise ValueError("Strata settings require backend=strata")
+        if self.backend == "llama-cpp" and self.llama_cpp is None:
+            raise ValueError("Configure the pinned llama.cpp backend identity")
+        if self.backend != "llama-cpp" and self.llama_cpp is not None:
+            raise ValueError("llama.cpp settings require backend=llama-cpp")
         return self

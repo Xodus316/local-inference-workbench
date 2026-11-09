@@ -8,20 +8,30 @@ from .ollama import OllamaClient, _context_window
 from .model_policy import remote_model
 from .ollama import _strict_json
 from .strata import StrataClient
+from .llama_cpp import LlamaCppClient
 
 
 class NativeProvider:
     def __init__(self, config):
         self.ollama = (StrataClient(config.strata) if config.backend == "strata"
+                       else LlamaCppClient(config.llama_cpp) if config.backend == "llama-cpp"
                        else OllamaClient(config.ollama_url))
         self.config = config
 
     def identity(self):
-        if self.config.backend == "strata":
+        if self.config.backend in {"strata", "llama-cpp"}:
             return self.ollama.identity()
         return {"name": "ollama", "endpoint": self.config.ollama_url}
 
     def admit(self, model, settings, payload, stage):
+        if self.config.backend == "llama-cpp":
+            if stage == "decider":
+                raise ValueError("The native non-thinking llama.cpp profile does not implement System One")
+            generation = Generation.model_validate(settings)
+            self.ollama._preflight(model, payload["messages"],
+                                  {"num_ctx": generation.context, "num_predict": generation.output_tokens or -1},
+                                  generation.think, payload["schema"], threading.Event(), None)
+            return
         if stage == "decider":
             if self.config.backend == "strata":
                 identity = self.ollama.identity()
@@ -55,7 +65,7 @@ class NativeProvider:
             "frequency_penalty", "repetition_penalty",
         )}
         sampling = ({k: v for k, v in overrides.items() if v is not None}
-                    if self.config.backend == "strata"
+                    if self.config.backend in {"strata", "llama-cpp"}
                     else resolve_sampling(model, generation.think, overrides))
         options = {**sampling,
                    "num_ctx": generation.context, "num_predict": generation.output_tokens or -1}
@@ -82,6 +92,10 @@ class NativeProvider:
             stream.close()
         if final is None:
             raise RuntimeError("Native completion unknown")
+        if self.config.backend == "llama-cpp":
+            # This includes exact bounded transport bytes before any stage schema
+            # validation; a malformed final JSON object is still a saved result.
+            return final["llama_cpp_receipt"]
         message = {"content": "".join(content)}
         if any(reasoning):
             message["reasoning_content"] = "".join(reasoning)
@@ -95,6 +109,8 @@ class NativeProvider:
                            if self.config.backend == "strata" else {"backend": "ollama"})}
 
     def decide(self, model, payload, cancel, deadline):
+        if self.config.backend == "llama-cpp":
+            raise ValueError("The native non-thinking llama.cpp profile does not implement System One")
         if self.config.backend == "strata":
             properties = {}
             required = []

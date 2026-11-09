@@ -106,7 +106,11 @@ class Runtime(CodeBuild, Stages):
 
     def _config_matches(self, bundle):
         current = self.config.model_dump()
-        if digest(current) == bundle["config_digest"]:
+        candidates = [current]
+        # An unused optional backend adds no authority to historical approvals.
+        if current.get("llama_cpp") is None:
+            candidates.append({key: value for key, value in current.items() if key != "llama_cpp"})
+        if any(digest(candidate) == bundle["config_digest"] for candidate in candidates):
             return True
         # Prior releases had a single search provider. An existing search approval
         # only authorizes sending queries to that provider.
@@ -114,8 +118,9 @@ class Runtime(CodeBuild, Stages):
             return False
         if bundle.get("web_research") and current["research"]["provider"] != "brave":
             return False
-        del current["research"]["provider"]
-        return digest(current) == bundle["config_digest"]
+        return any(digest({**candidate, "research": {
+            key: value for key, value in candidate["research"].items() if key != "provider"
+        }}) == bundle["config_digest"] for candidate in candidates)
 
     def approve(self, run_id, approved_digest, resume=False):
         with self.management:
@@ -159,26 +164,37 @@ class Runtime(CodeBuild, Stages):
             self._guard(run_id)
         try:
             self._guard(run_id)
+            if self.store.has_unknown_calls():
+                raise RuntimeError("native_completion_unknown; resolve the physical backend before another call")
             self.provider.admit(model, bundle["generation"][role], payload, stage)
             self.store.begin_call(run_id, stage, role, model, payload)
             if stage == "decider":
                 try:
                     raw = self.provider.decide(model, payload, self.events[run_id], self.deadline)
                 except Exception as error:
-                    self.store.record_call_failure(run_id, stage, getattr(error, "diagnostics", {}))
+                    self._save_call_failure(run_id, stage, error)
                     raise
             else:
                 try:
                     raw = self.provider.complete(model, bundle["generation"][role], payload,
                                                  self.events[run_id], self.deadline)
                 except Exception as error:
-                    self.store.record_call_failure(run_id, stage, getattr(error, "diagnostics", {}))
+                    self._save_call_failure(run_id, stage, error)
                     raise
             self.store.finish_call(run_id, stage, raw)
             self._guard(run_id)
             return raw
         finally:
             self.inference_lock.release()
+
+    def _save_call_failure(self, run_id, stage, error):
+        transport = getattr(error, "raw_response", None)
+        if isinstance(transport, dict):
+            self.store.save_artifact(run_id, stage, "transport", transport)
+        diagnostics = getattr(error, "diagnostics", {})
+        if isinstance(diagnostics, dict) and diagnostics.get("native_completion") == "not_started":
+            self.store.finish_call(run_id, stage, {"dispatch_status": "not_dispatched", "error_code": type(error).__name__})
+        self.store.record_call_failure(run_id, stage, diagnostics)
 
     def propose(self, state, stage, role):
         bundle = self.bundle(state)

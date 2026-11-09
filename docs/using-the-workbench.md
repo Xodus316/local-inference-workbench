@@ -14,7 +14,7 @@ The panel uses Tk. On Linux, install the distribution's Tk package for the Pytho
 python -m orchestrator.desktop --config config.json --data workbench-data --port 8787
 ```
 
-1. Open **Configuration** to set the backend, exact installed model names per role and absolute paths for repositories you want to work with. Ollama is the default. A Strata configuration must include the immutable identity described in [the Strata backend guide](strata.md). The editor validates the document before saving. Saved changes take effect when the service starts.
+1. Open **Configuration** to set the backend, exact installed model names per role and absolute paths for repositories you want to work with. Ollama is the default. Optional backends require the immutable identities described in the [Strata guide](strata.md) or [llama.cpp guide](llama-cpp.md). The editor validates the document before saving. Saved changes take effect when the service starts.
 2. Click **Start**. The panel launches a child process using its own Python environment. The status line shows when the loopback API responds.
 3. Use **Open workflows** or **Open chat**. The desktop view displays recent runs, model calls for the active or latest run, and the model context and GPU allocation reported by Ollama. With NVIDIA tools installed it also shows board-wide GPU memory, utilization, temperature and power.
 4. Click **Stop** when work is idle. The panel closes its control pipe and the service shuts down. If the panel discovers a service started from another terminal, it can display status and open both web views. Use the launching terminal to stop that service.

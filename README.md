@@ -17,7 +17,7 @@ On macOS or Linux, use `python3 -m venv .venv`, `.venv/bin/python -m pip install
 
 Set `roles.fast_primary` in your configuration to a completion model installed in Ollama, then restart the service after configuration changes. Open [the workbench](http://127.0.0.1:8787/) and prepare a Fast run. Inspect the request and approve it to generate an answer. Open [Chat](http://127.0.0.1:8787/chat/) for an interactive conversation. Default role names in the example describe the research machine's model selection. Configure the roles used by the workflows you want to run.
 
-Ollama is the default backend. The optional [Strata backend](docs/strata.md) requires a pre-launched loopback server and immutable runtime, model, template, path and configuration fingerprints. Prepared approvals are invalidated if the observed backend identity changes.
+Ollama is the default backend. The optional [Strata backend](docs/strata.md) and [llama.cpp backend](docs/llama-cpp.md) require a pre-launched loopback server and immutable runtime, model, template, path and configuration fingerprints. Prepared approvals are invalidated if the observed backend identity changes. llama.cpp supports a native non-thinking profile with explicit host launch verification and slot cleanup checks.
 
 ## Workflows
 
