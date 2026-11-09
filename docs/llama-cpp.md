@@ -80,6 +80,19 @@ when cleanup is confirmed. Public Runtime's durable unresolved-call gate blocks
 later inference across runs and restarts. Resolve native uncertainty through the
 owning host's reviewed recovery procedure; there is no automatic replay or reset.
 
+An embedding host can explicitly pass `cancel_cleanup_terminal=True` to
+`stream_chat` for a declared cancellation probe. Only cancellation after observed
+generation and verified idle-slot cleanup becomes a known `cancelled` outcome.
+The partial bytes retain `native_transport.complete: false`; this never becomes
+a successful `stop`. Cancellation before observed generation and unconfirmed
+cleanup remain unknown. The default behavior is unchanged.
+
+`observe_identity()` exposes non-generating metadata and the exact rendered
+identity prompt for initial host qualification. It does not verify an approval
+or authorize generation. The owning host must hold its exclusive maintenance
+lease during startup, bind the observed fingerprints, and stop its owned server
+before releasing that lease. Normal calls still require strict `identity()`.
+
 Keep `native_attempts_observable` false until the exact runtime/host supplies
 authoritative one-attempt evidence. Fake-server tests establish protocol behavior
 only, not Windows/CUDA compatibility, RAM fit, real cancellation or benchmark

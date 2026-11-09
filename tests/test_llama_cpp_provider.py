@@ -286,6 +286,17 @@ class LlamaCppProviderTests(unittest.TestCase):
         self.assertEqual(caught.exception.diagnostics["native_completion"], "not_started")
         self.assertEqual(self.server.requests, [])
 
+    def test_metadata_observation_does_not_admit_identity_or_generate(self):
+        self.server.props_changes = {"chat_template": "different-template"}
+        observed = self.provider.ollama.observe_identity()
+        self.assertEqual(observed["chat_template"], "different-template")
+        self.assertEqual(observed["observed"]["template_sha256"], sha("different-template"))
+        self.assertEqual(observed["rendered_identity_prompt"], render(IDENTITY_MESSAGES))
+        self.assertEqual(observed["model_ids"], [MODEL])
+        self.assertEqual(self.server.requests, [])
+        with self.assertRaises(LlamaCppError):
+            self.provider.ollama.identity()
+
     def test_shared_reasoning_guard_stops_unsuccessfully_and_preserves_partial(self):
         self.server.mode = "thinking_loop"
         with self.assertRaises(LlamaCppError) as caught:
@@ -333,6 +344,59 @@ class LlamaCppProviderTests(unittest.TestCase):
             self.complete()
         self.assertEqual(caught.exception.diagnostics["native_completion"], "terminal")
         self.assertFalse(caught.exception.raw_response["native_transport"]["complete"])
+
+    def test_explicit_cancel_probe_after_generation_records_cancelled_terminal_cleanup(self):
+        self.server.mode = "slow_cancel"
+        cancel = threading.Event()
+        stream = self.provider.ollama.stream_chat(
+            MODEL, [{"role": "user", "content": "Example request"}],
+            {"num_ctx": 32768, "num_predict": -1}, cancel=cancel,
+            deadline=time.monotonic() + 3, cancel_cleanup_terminal=True)
+        self.assertTrue(next(stream)["message"]["content"])
+        cancel.set()
+        with self.assertRaises(LlamaCppCancelled) as caught:
+            next(stream)
+        raw = caught.exception.raw_response
+        self.assertEqual(caught.exception.diagnostics["native_completion"], "terminal")
+        self.assertEqual(raw["native"]["terminal_state"], "cancelled")
+        self.assertTrue(raw["native"]["cleanup_confirmed"])
+        self.assertFalse(raw["native_transport"]["complete"])
+        self.assertEqual(len(self.server.requests), 1)
+
+    def test_explicit_cancel_probe_without_generation_remains_unknown(self):
+        self.server.mode = "drop_before"
+        cancel = threading.Event()
+        client = self.provider.ollama
+        original = client._wait_cleanup
+
+        def cancelled_idle():
+            cancel.set()
+            return original()
+
+        from unittest.mock import patch
+        with patch.object(client, "_wait_cleanup", cancelled_idle):
+            with self.assertRaises(LlamaCppError) as caught:
+                list(client.stream_chat(MODEL, [{"role": "user", "content": "Example request"}],
+                     {"num_ctx": 32768, "num_predict": -1}, cancel=cancel,
+                     deadline=time.monotonic() + 3, cancel_cleanup_terminal=True))
+        self.assertEqual(caught.exception.diagnostics["native_completion"], "unknown")
+        self.assertEqual(caught.exception.raw_response["native"]["terminal_state"], "unknown")
+
+    def test_explicit_cancel_probe_requires_confirmed_slot_cleanup(self):
+        self.server.mode = "slow_cancel"
+        cancel = threading.Event()
+        client = self.provider.ollama
+        stream = client.stream_chat(MODEL, [{"role": "user", "content": "Example request"}],
+            {"num_ctx": 32768, "num_predict": -1}, cancel=cancel,
+            deadline=time.monotonic() + 3, cancel_cleanup_terminal=True)
+        next(stream)
+        cancel.set()
+        from unittest.mock import patch
+        with patch.object(client, "_wait_cleanup", return_value=False):
+            with self.assertRaises(LlamaCppCancelled) as caught:
+                next(stream)
+        self.assertEqual(caught.exception.diagnostics["native_completion"], "unknown")
+        self.assertFalse(caught.exception.raw_response["native"]["cleanup_confirmed"])
 
     def test_unconfirmed_cleanup_blocks_terminal_success(self):
         self.server.mode = "busy_after_terminal"

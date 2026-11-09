@@ -92,14 +92,20 @@ class LlamaCppClient:
     def _schema(schema):
         return {"type": "json_schema", "json_schema": {"name": "workbench_result", "strict": True, "schema": schema}}
 
-    def identity(self):
-        expected = self.config.identity
+    def observe_identity(self):
+        """Read raw non-generating metadata; this is not identity admission.
+
+        A host may use the observation while exclusively owning a verified
+        startup to freeze its first approval. Normal generation still calls
+        identity(), which requires every configured fingerprint to match.
+        """
         props = self._json("/props")
         models = self._json("/v1/models")
         if not isinstance(props, dict) or not isinstance(models, dict):
             raise LlamaCppError("llama.cpp identity metadata is invalid", diagnostics={"native_completion": "not_started"})
         defaults = props.get("default_generation_settings") or {}
         params = defaults.get("params") or {} if isinstance(defaults, dict) else {}
+        rendered = self._render(IDENTITY_MESSAGES)
         observed = {
             "model": props.get("model_alias"),
             "build_info": props.get("build_info"),
@@ -107,17 +113,25 @@ class LlamaCppClient:
             "slots": props.get("total_slots"),
             "template_sha256": sha256_text(props["chat_template"]) if isinstance(props.get("chat_template"), str) else None,
             "model_path_sha256": sha256_text(props["model_path"]) if isinstance(props.get("model_path"), str) else None,
-            "rendered_template_sha256": sha256_text(self._render(IDENTITY_MESSAGES)),
+            "rendered_template_sha256": sha256_text(rendered),
             "is_sleeping": props.get("is_sleeping"),
             "slots_endpoint": props.get("endpoint_slots"),
             "default_output_tokens": params.get("n_predict") if isinstance(params, dict) else None,
         }
+        rows = models.get("data")
+        names = [row.get("id") for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+        return {"observed": observed, "model_ids": names, "rendered_identity_prompt": rendered,
+                "chat_template": props.get("chat_template"), "model_path": props.get("model_path")}
+
+    def identity(self):
+        expected = self.config.identity
+        observation = self.observe_identity()
+        observed = observation["observed"]
         required = {key: getattr(expected, key) for key in (
             "model", "build_info", "context", "slots", "template_sha256", "model_path_sha256", "rendered_template_sha256",
         )}
         required.update(is_sleeping=False, slots_endpoint=True, default_output_tokens=-1)
-        rows = models.get("data")
-        names = {row.get("id") for row in rows if isinstance(row, dict)} if isinstance(rows, list) else set()
+        names = observation["model_ids"]
         build_hashes = re.findall(r"(?<![a-f0-9])[a-f0-9]{7,40}(?![a-f0-9])", expected.build_info)
         if (observed != required or type(observed["context"]) is not int or type(observed["slots"]) is not int
                 or type(observed["default_output_tokens"]) is not int or expected.model not in names
@@ -211,7 +225,8 @@ class LlamaCppClient:
             time.sleep(min(.05, max(0, until - time.monotonic())))
 
     def stream_chat(self, model, messages, options, think=None, cancel=None, *,
-                    format_schema=None, deadline=None, repetition_guard=True) -> Iterator[dict[str, Any]]:
+                    format_schema=None, deadline=None, repetition_guard=True,
+                    cancel_cleanup_terminal=False) -> Iterator[dict[str, Any]]:
         cancel = cancel or threading.Event()
         identity = self._preflight(model, messages, options, think, format_schema, cancel, deadline)
         body = {"model": model, "messages": messages, "stream": True,
@@ -225,9 +240,10 @@ class LlamaCppClient:
             if options.get(source) is not None:
                 body[target] = options[source]
         yield from self._stream(body, identity, cancel, deadline,
-                                ThinkingRepetitionGuard() if repetition_guard else None)
+                                ThinkingRepetitionGuard() if repetition_guard else None,
+                                cancel_cleanup_terminal=cancel_cleanup_terminal)
 
-    def _stream(self, body, identity, cancel, deadline, guard=None):
+    def _stream(self, body, identity, cancel, deadline, guard=None, *, cancel_cleanup_terminal=False):
         self._check_deadline(cancel, deadline, dispatched=False)
         connection = self._connection(1.0)
         response = None
@@ -355,9 +371,22 @@ class LlamaCppClient:
         if failure is None and not cleanup:
             failure = LlamaCppError("llama.cpp native cleanup is unconfirmed")
         if failure is not None:
+            # An explicitly requested cancellation probe may establish termination
+            # from the ordinary stream's closed socket and the assigned slot's
+            # verified idle state. Require observed generation first: idle alone
+            # cannot disambiguate a request that has not entered its slot yet.
+            # Preserve the missing native EOS and incomplete transport separately.
+            cancelled_cleanup = (cancel_cleanup_terminal is True
+                                 and isinstance(failure, LlamaCppCancelled)
+                                 and dispatched and cleanup and final is None
+                                 and any(content + reasoning))
+            if cancelled_cleanup:
+                final = "cancelled"
             diagnostics = dict(getattr(failure, "diagnostics", {}))
             diagnostics.update(native_completion="terminal" if final is not None and cleanup else "unknown" if dispatched else "not_started",
                                automatic_retry=False, cleanup_confirmed=cleanup)
+            if cancelled_cleanup:
+                diagnostics["cancellation_proof"] = "observed-generation-stream-closed-slot-idle-v1"
             failure.diagnostics = diagnostics
             failure.raw_response = receipt() if dispatched else None
             raise failure
