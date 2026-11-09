@@ -88,9 +88,14 @@ class FakeStream:
         self.api = api
         frames = [{"choices": [{"delta": {"content": "partial λ", "reasoning_content": "reasoning"},
                                 "finish_reason": None}]}]
+        for _ in range(api.reasoning_frames):
+            frames.append({"id": "chatcmpl-" + "d" * 24, "object": "chat.completion.chunk",
+                           "created": 1, "model": MODEL, "choices": [{"index": 0,
+                               "delta": {"reasoning_content": "r"}, "finish_reason": None}]})
         if api.mode == "normal":
             frames.append({"choices": [{"delta": {}, "finish_reason": api.finish_reason}],
-                           "strata_native_attempts": 1, "usage": {"prompt_tokens": 17, "completion_tokens": 23}})
+                           "strata_native_attempts": 1,
+                           "usage": {"prompt_tokens": 17, "completion_tokens": 23 + api.reasoning_frames}})
         self.lines = [b"data: " + json.dumps(frame).encode() + b"\n\n" for frame in frames]
         if api.mode == "normal":
             self.lines.append(b"data: [DONE]\n\n")
@@ -100,6 +105,8 @@ class FakeStream:
             return self.lines.pop(0)
         if self.api.mode == "cancel":
             self.api.cancel.set()
+        if self.api.mode == "timeout":
+            raise TimeoutError("Synthetic streaming read timeout")
         return b""
 
     def close(self):
@@ -129,6 +136,7 @@ class FakeAPI:
         self.posts, self.gets = [], []
         self.cancel = threading.Event()
         self.mode = "cancel"
+        self.reasoning_frames = 0
         self.finish_reason = "stop"
         self.stream_closed = self.connection_closed = False
         self.status = {"service": "strata", "model": MODEL, "loaded": True, "engine": "0.1.58",
@@ -254,13 +262,87 @@ class StrataProtocolTests(unittest.TestCase):
         self.assertTrue(caught.exception.raw_response["native_transport"]["complete"])
         self.assertEqual(caught.exception.raw_response["choices"][0]["finish_reason"], "stop")
 
-    def test_transport_eof_without_explicit_cancel_never_polls_for_terminal_proof(self):
+    def test_transport_eof_checks_cleanup_but_preserves_failure_and_partial_output(self):
         self.api.mode = "eof"
         with self.assertRaises(StrataError) as caught:
             list(self.client.stream_chat(MODEL, MESSAGES, OPTIONS))
+        self.assertNotIsInstance(caught.exception, StrataCancelled)
+        self.assertIn("ended before a terminal frame", str(caught.exception))
+        self.assertEqual(caught.exception.diagnostics["failure_category"], "invalid_response")
+        self.assertEqual(caught.exception.diagnostics["native_completion"], "terminal")
+        self.assertTrue(caught.exception.diagnostics["cleanup_confirmed"])
+        self.assertFalse(caught.exception.diagnostics["automatic_retry"])
+        self.assertEqual(self.api.receipt_reads, 1)
+        self.assertFalse(self.api.cancel.is_set())
+        self.assertEqual(len(self.api.posts), 1)
+        raw = caught.exception.raw_response
+        self.assertEqual(raw["choices"][0]["message"]["content"], "partial λ")
+        self.assertEqual(raw["native_protocol"]["native_done_reason"], "cancel")
+        self.assertFalse(raw["native_transport"]["complete"])
+
+    def test_transport_failure_with_forged_or_unconfirmed_cleanup_stays_unknown(self):
+        self.api.mode = "eof"
+        for change in ({"request_sha256": "0" * 64}, {"native_done_ack": False},
+                       {"admission_released": False}):
+            with self.subTest(change=change):
+                self.api.edit_receipt = lambda value, change=change: {**value, **change}
+                before = len(self.api.posts)
+                with self.assertRaises(StrataError) as caught:
+                    list(self.client.stream_chat(MODEL, MESSAGES, OPTIONS))
+                self.assertEqual(caught.exception.diagnostics["native_completion"], "unknown")
+                self.assertFalse(caught.exception.diagnostics["cleanup_confirmed"])
+                self.assertFalse(caught.exception.diagnostics["automatic_retry"])
+                self.assertFalse(caught.exception.raw_response["native_transport"]["complete"])
+                self.assertEqual(len(self.api.posts), before + 1)
+
+    def test_stream_timeout_checks_cleanup_without_replaying_or_returning_partial_success(self):
+        self.api.mode = "timeout"
+        with self.assertRaises(StrataError) as caught:
+            list(self.client.stream_chat(MODEL, MESSAGES, OPTIONS))
+        self.assertIn("streaming request failed", str(caught.exception))
+        self.assertEqual(caught.exception.diagnostics["native_completion"], "terminal")
+        self.assertTrue(caught.exception.diagnostics["cleanup_confirmed"])
+        self.assertFalse(caught.exception.diagnostics["automatic_retry"])
+        self.assertFalse(caught.exception.raw_response["native_transport"]["complete"])
+        self.assertEqual(self.api.receipt_reads, 1)
+        self.assertEqual(len(self.api.posts), 1)
+
+    def test_transport_failure_without_cleanup_opt_in_does_not_poll(self):
+        self.api.mode = "eof"
+        client = StrataClient(configuration())
+        with self.assertRaises(StrataError) as caught:
+            list(client.stream_chat(MODEL, MESSAGES, OPTIONS))
         self.assertEqual(caught.exception.diagnostics["native_completion"], "unknown")
         self.assertEqual(self.api.receipt_reads, 0)
-        self.assertIn("request_id", caught.exception.raw_response["native_protocol_request"])
+        self.assertFalse(any(path.startswith("/v1/protocol/") for path in self.api.gets))
+
+    def test_normal_stream_over_four_mb_retains_small_decoded_output_and_terminal_proof(self):
+        self.api.mode = "normal"
+        self.api.reasoning_frames = 24_000
+        provider = NativeProvider(Config(backend="strata", strata=self.client.config))
+        result = provider.complete(MODEL, {"context": 32768, "output_tokens": None, "think": "high"},
+            {"messages": MESSAGES, "schema": SCHEMA}, threading.Event(), None,
+            protocol_request_id=REQUEST_ID)
+        raw_wire = base64.b64decode(result["native_transport"]["bytes"])
+        self.assertGreater(len(raw_wire), 4_000_000)
+        self.assertLessEqual(len(raw_wire), 32_000_000)
+        self.assertLess(result["usage"]["completion_tokens"] + result["usage"]["prompt_tokens"], 32768)
+        self.assertEqual(result["choices"][0]["message"]["reasoning_content"], "reasoning" + "r" * 24_000)
+        self.assertTrue(result["native_transport"]["complete"])
+        self.assertTrue(result["native"]["cleanup_confirmed"])
+        self.assertEqual(len(self.api.posts), 1)
+
+    def test_stream_wire_bound_preserves_error_and_bounded_transport_after_cleanup(self):
+        self.api.mode = "normal"
+        with patch("orchestrator.strata._MAX_STREAM_RESPONSE", 200), self.assertRaises(StrataError) as caught:
+            list(self.client.stream_chat(MODEL, MESSAGES, OPTIONS))
+        self.assertIn("transport exceeded its response bound", str(caught.exception))
+        self.assertEqual(caught.exception.diagnostics["native_completion"], "terminal")
+        self.assertTrue(caught.exception.diagnostics["cleanup_confirmed"])
+        self.assertFalse(caught.exception.diagnostics["automatic_retry"])
+        self.assertEqual(len(base64.b64decode(caught.exception.raw_response["native_transport"]["bytes"])), 200)
+        self.assertFalse(caught.exception.raw_response["native_transport"]["complete"])
+        self.assertEqual(len(self.api.posts), 1)
 
     def test_normal_stop_drain_retains_terminal_proof_without_claiming_cancellation(self):
         self.api.mode = "normal"

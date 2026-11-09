@@ -28,6 +28,8 @@ from .ollama import OllamaCancelled, OllamaError, _strict_json, deadline_error
 
 
 _MAX_RESPONSE = 4_000_000
+# Token-framed SSE has substantially more overhead than decoded model text.
+_MAX_STREAM_RESPONSE = 32_000_000
 _MAX_STREAM_LINE = 1_048_576
 _TOKEN_COUNT_POLICY = "strata-openai-native-token-count-v1"
 _CLEANUP_POLICY = "strata-serial-stop-done-v1"
@@ -579,8 +581,8 @@ class StrataClient:
                 })
             while True:
                 line = response.readline(_MAX_STREAM_LINE + 1)
-                if len(wire) + len(line) > _MAX_RESPONSE:
-                    wire.extend(line[:_MAX_RESPONSE - len(wire)])
+                if len(wire) + len(line) > _MAX_STREAM_RESPONSE:
+                    wire.extend(line[:_MAX_STREAM_RESPONSE - len(wire)])
                     raise StrataError("Strata transport exceeded its response bound")
                 wire.extend(line)
                 if cancel.is_set():
@@ -653,20 +655,20 @@ class StrataClient:
             connection.close()
             finished.set()
             watcher.join(timeout=.2)
-        if failure is None and protocol is not None:
-            protocol_receipt, protocol_confirmed = self._wait_protocol_receipt(protocol, body["model"], terminal_reason=final)
+        if protocol is not None and dispatched:
+            # Closing a failed stream can cancel the native request. Retain the
+            # failure while independently checking its bound cleanup receipt.
+            protocol_receipt, protocol_confirmed = self._wait_protocol_receipt(
+                protocol, body["model"], terminal_reason=final if failure is None else None)
             if protocol_confirmed:
                 attempts = 1
-            else:
+                if failure is not None:
+                    final = protocol_receipt["native_done_reason"]
+            elif failure is None:
                 failure = StrataError("Strata did not confirm request-bound native completion", diagnostics={
                     "failure_category": "native_completion_unverified",
                 })
         if failure is not None:
-            if protocol is not None and dispatched and isinstance(failure, StrataCancelled) and cancel.is_set():
-                protocol_receipt, protocol_confirmed = self._wait_protocol_receipt(protocol, body["model"])
-                if protocol_confirmed:
-                    final = protocol_receipt["native_done_reason"]
-                    attempts = 1
             failure.diagnostics = {**failure.diagnostics,
                                    "native_completion": "terminal" if protocol_confirmed else "unknown" if dispatched else "not_started",
                                    "automatic_retry": False}
