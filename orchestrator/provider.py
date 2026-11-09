@@ -112,6 +112,8 @@ class NativeProvider:
         if self.config.backend == "strata" and isinstance(final.get("strata_native_transport"), dict):
             result["native_transport"] = final["strata_native_transport"]
         if self.config.backend == "strata":
+            if isinstance(final.get("strata_native"), dict):
+                result["native"] = final["strata_native"]
             for source, target in (("strata_native_protocol", "native_protocol"),
                                    ("strata_native_protocol_request", "native_protocol_request")):
                 if isinstance(final.get(source), dict):

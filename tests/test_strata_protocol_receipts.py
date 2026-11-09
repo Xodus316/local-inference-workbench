@@ -271,6 +271,12 @@ class StrataProtocolTests(unittest.TestCase):
         self.assertEqual(result["native_protocol"]["request_id"], REQUEST_ID)
         self.assertEqual(result["native_protocol_request"]["request_id"], REQUEST_ID)
         self.assertEqual(self.api.posts[-1][2]["X-Strata-Protocol-Request-ID"], REQUEST_ID)
+        self.assertEqual(result["native"], {
+            "backend": "strata", "attempts": 1, "terminal_state": "stop",
+            "cleanup_confirmed": True, "native_done_reason": "stop",
+            "cancellation_exercised": False, "cancellation_requested": False,
+            "handler_finished": True, "admission_released": True,
+        })
 
     def test_known_cancel_preserves_partial_transport_and_actual_done_reason(self):
         error = self.cancelled()

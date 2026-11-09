@@ -532,7 +532,9 @@ class StrataClient:
             if protocol_confirmed:
                 value["native"].update(attempts=1, terminal_state=protocol_receipt["native_terminal_state"],
                                        cleanup_confirmed=True, native_done_reason=protocol_receipt["native_done_reason"],
-                                       cancellation_exercised=protocol_receipt["native_done_reason"] == "cancel")
+                                       cancellation_exercised=protocol_receipt["native_done_reason"] == "cancel",
+                                       cancellation_requested=protocol_receipt["cancellation_requested"],
+                                       handler_finished=True, admission_released=True)
             return value
         try:
             data = json.dumps(body, ensure_ascii=False, allow_nan=False).encode("utf-8")
@@ -671,4 +673,5 @@ class StrataClient:
                "eval_count": usage.get("completion_tokens"), "strata_native_attempts": attempts,
                "strata_native_transport": receipt()["native_transport"],
                **({"strata_native_protocol": protocol_receipt,
+                   "strata_native": receipt()["native"],
                    "strata_native_protocol_request": receipt()["native_protocol_request"]} if protocol is not None else {})}
