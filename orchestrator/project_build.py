@@ -34,6 +34,7 @@ def offline_project_contract():
         "sandbox_tmpfs_mb": 2048, "sandbox_memory_mb": 6144,
         "sandbox_tmpfs_noexec": True,
         "sandbox_nofile": 1024,
+        "sandbox_pids_limit": 256,
         "sandbox_protocol": {
             "application_directory_env": "APP_PROJECT_DIR",
             "http_base_url_env": "API_BASE_URL",
@@ -70,7 +71,8 @@ def project_executor(runtime, state):
         settings = {**bundle["build"], "temporary_mb": contract["sandbox_tmpfs_mb"],
                     "memory_mb": contract["sandbox_memory_mb"],
                     "temporary_noexec": contract["sandbox_tmpfs_noexec"],
-                    "open_files": contract["sandbox_nofile"]}
+                    "open_files": contract["sandbox_nofile"],
+                    "process_limit": contract["sandbox_pids_limit"]}
         return DockerBuildExecutor(runtime.store.directory, SimpleNamespace(**settings))
     return executor
 

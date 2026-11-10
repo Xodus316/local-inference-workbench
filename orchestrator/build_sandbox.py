@@ -231,7 +231,7 @@ class DockerBuildExecutor:
                 "--security-opt",
                 "no-new-privileges",
                 "--pids-limit",
-                "128",
+                str(getattr(self.config, "process_limit", 128)),
                 "--memory",
                 f"{self.config.memory_mb}m",
                 "--memory-swap",

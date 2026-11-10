@@ -61,8 +61,8 @@ that every possible selection fits a model.
 The Docker sandbox keeps `/workspace` read-only, networking disabled and the
 existing cleanup checks. This profile provides 6,144 MiB memory and 2,048 MiB
 temporary space with explicit `noexec` without changing the ordinary Build's
-temporary mount options. Its approval-bound open-file limit is 1,024; ordinary
-Builds retain 256. A
+temporary mount options. Its approval-bound limits are 1,024 open files and
+256 processes; ordinary Builds retain 256 open files and 128 processes. A
 trusted image entry point can stage application sources into temporary storage,
 build with preinstalled offline dependencies, start a disposable database on
 container loopback and run the frozen tests from the read-only original source.

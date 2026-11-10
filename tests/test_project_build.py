@@ -180,6 +180,10 @@ class ProjectBoundsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             project_enabled(changed)
         changed = copy.deepcopy(bundle)
+        changed["build_contract"]["sandbox_pids_limit"] = 512
+        with self.assertRaises(ValueError):
+            project_enabled(changed)
+        changed = copy.deepcopy(bundle)
         changed["build_contract"]["sandbox_nofile"] = 2048
         with self.assertRaises(ValueError):
             project_enabled(changed)
@@ -357,6 +361,7 @@ class ProjectFlowTests(unittest.TestCase):
         self.assertEqual(executor.config.temporary_mb, 2048)
         self.assertTrue(executor.config.temporary_noexec)
         self.assertEqual(executor.config.open_files, 1024)
+        self.assertEqual(executor.config.process_limit, 256)
         self.assertEqual(self.runtime.config.build.model_dump(), original)
         artifact = ProjectProject(summary="Synthetic project", files=[manifest("api/App.java"), TEST])
         directory = executor.materialize(row["id"], 0, artifact)
@@ -366,7 +371,7 @@ class ProjectFlowTests(unittest.TestCase):
         args = executor._bounded_container.call_args.args[0]
         for option, expected in (("--tmpfs", "/tmp:rw,nosuid,nodev,noexec,size=2048m"),
                                  ("--memory", "6144m"), ("--memory-swap", "6144m"),
-                                 ("--pids-limit", "128"), ("--ulimit", "nofile=1024:1024"),
+                                 ("--pids-limit", "256"), ("--ulimit", "nofile=1024:1024"),
                                  ("--network", "none")):
             self.assertEqual(args[args.index(option) + 1], expected)
         self.assertIn("--read-only", args)
@@ -376,6 +381,7 @@ class ProjectFlowTests(unittest.TestCase):
         ordinary.test(row["id"], 0, directory, [COMMAND], image="sha256:" + "a" * 64)
         ordinary_args = ordinary._bounded_container.call_args.args[0]
         self.assertEqual(ordinary_args[ordinary_args.index("--ulimit") + 1], "nofile=256:256")
+        self.assertEqual(ordinary_args[ordinary_args.index("--pids-limit") + 1], "128")
         self.assertEqual(ordinary_args[ordinary_args.index("--tmpfs") + 1], "/tmp:rw,nosuid,nodev,size=64m")
 
 
