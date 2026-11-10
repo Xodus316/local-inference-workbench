@@ -104,10 +104,15 @@ diagnostic and rejected response on the next permitted coverage call. Every such
 call consumes the existing `max_test_coverage_repairs` budget; exhausted budgets
 stop before implementation. Strengthening uses its own existing bound. Dispatch,
 admission and unknown native-completion failures never authorize another call.
-Path collisions, incorrect criterion indexes, invalid syntax, absent test methods
-and undiscoverable references are checked before an addition is accepted. A
+Path collisions, incorrect criterion indexes, absent test methods and
+undiscoverable references are checked before an addition is accepted. A new
+Python file with a syntax error may enter the structurally merged draft only
+after path, criterion and unittest-reference grammar checks pass. Its exact
+parser diagnostics then go to the existing syntax-repair stage and separate
+budget; the suite cannot freeze until syntax and references validate. Invalid
+addition feedback retains structured parser diagnostics when available. A
 coverage addition may address a subset of the missing criteria; remaining gaps
-still consume the same bounded budget.
+still consume the same bounded coverage budget.
 
 Frontend coverage must reference a discoverable Python `Class.test_method` that
 actually invokes the supplied offline DOM tools with a bounded subprocess timeout

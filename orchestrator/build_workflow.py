@@ -302,11 +302,22 @@ class BuildRun:
             stage = self.bounded(label, limit)
             # Dispatch and native receipt failures are outside the validation catch: never replay them.
             new = self.ask(stage, "test_author", BuildTestCoverageRepair, instruction, **inputs)
+            diagnostics = []
             try:
                 value, corrections = normalized_manifest(new, suite.implementation_files, additions=True)
                 self.stages[stage]["manifest_corrections"] = corrections
                 addition = BuildTestCoverageRepair.model_validate(value)
-                addition, refs = coverage.correct_test_references(addition, qualify_classes=True)
+                result = extend_suite(suite, addition, criteria,
+                                      self.suite_type, self.artifact_type, self.project_type)
+                try:
+                    addition, refs = coverage.correct_test_references(addition, qualify_classes=True)
+                except coverage.TestSyntaxError as error:
+                    diagnostics = error.diagnostics
+                    # Only structurally valid NEW Python tests enter the dedicated syntax-repair path.
+                    # Their exact reference grammar must already be discoverable; nothing is frozen here.
+                    validate_discovery_suite(result)
+                    self.stages[stage]["syntax_handoff"] = {"diagnostics": diagnostics}
+                    return result
                 self.stages[stage]["reference_corrections"] = refs
                 result = extend_suite(suite, addition, criteria,
                                       self.suite_type, self.artifact_type, self.project_type)
@@ -316,6 +327,10 @@ class BuildRun:
             except ValueError as error:
                 failure = {"validation_error": public_error(error), "rejected_addition": new}
                 self.stages[stage]["validation_failure"] = {"message": failure["validation_error"]}
+                details = diagnostics or getattr(error, "diagnostics", [])
+                if details:
+                    failure["diagnostics"] = details
+                    self.stages[stage]["validation_failure"]["diagnostics"] = details
                 if self.counters[label] >= self.limits[limit]:
                     raise
                 # A different, known-terminal invalid answer may be corrected only within the original

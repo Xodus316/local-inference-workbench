@@ -20,6 +20,10 @@ UI_COVERAGE = {"criterion": 2, "test_file": UI_TEST["path"], "test_name": "UI.te
                "scenario": "Navigate without credentials", "expected_result": "Login route",
                "catches": "Missing authentication guard"}
 GOOD = {"files": [UI_TEST], "coverage": [UI_COVERAGE]}
+BROKEN_UI = {**UI_TEST, "content": (
+    "import unittest\nclass UI(unittest.TestCase):\n"
+    "    def test_route(self):\n        script = 'describe(\"route\", () => {\n"
+    "            expect(true).toBe(true)\n        })'\n        self.assertTrue(script)\n")}
 
 
 def suite():
@@ -53,6 +57,8 @@ class CoverageModels(Models):
         self.second_addition = GOOD
         self.unknown = False
         self.coverage_admission_failure = False
+        self.syntax_file = UI_TEST
+        self.syntax_unknown = False
 
     def admit(self, model, settings, payload, stage):
         super().admit(model, settings, payload, stage)
@@ -70,6 +76,10 @@ class CoverageModels(Models):
             value = self.first_addition
         elif self.stage == "build_tests_coverage_2":
             value = self.second_addition
+        elif self.stage.startswith("build_tests_syntax_"):
+            if self.syntax_unknown:
+                raise OSError("Synthetic lost syntax-repair completion")
+            value = {"files": [self.syntax_file]}
         else:
             return super().complete(*args)
         return {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(value)}}]}
@@ -111,15 +121,33 @@ class AdditionCorrectionTests(unittest.TestCase):
         self.assertIn("Python unittest wrapper", run.seen[0][1])
         self.assertIn("bounded subprocess timeout", run.seen[0][1])
 
-    def test_invalid_python_and_missing_method_reference_are_correctable(self):
-        for bad in (
-            {"files": [{**UI_TEST, "content": "def invalid(\n"}], "coverage": [UI_COVERAGE]},
-            {"files": [UI_TEST], "coverage": [{**UI_COVERAGE, "test_name": "UI.test_absent"}]},
-        ):
-            with self.subTest(bad=bad):
-                run = direct_run([bad, GOOD])
-                self.assertEqual(run.additions(suite(), {2}).files[-1].model_dump(), UI_TEST)
-                self.assertIn("addition_feedback", run.seen[1][2])
+    def test_missing_method_reference_is_corrected_within_coverage_budget(self):
+        bad = {"files": [UI_TEST], "coverage": [{**UI_COVERAGE, "test_name": "UI.test_absent"}]}
+        run = direct_run([bad, GOOD])
+        self.assertEqual(run.additions(suite(), {2}).files[-1].model_dump(), UI_TEST)
+        self.assertIn("addition_feedback", run.seen[1][2])
+
+    def test_new_python_syntax_failure_is_handed_off_without_another_coverage_call(self):
+        bad = {"files": [BROKEN_UI], "coverage": [UI_COVERAGE]}
+        original = suite()
+        before = original.model_dump()
+        run = direct_run([bad], budget=1)
+        result = run.additions(original, {2})
+        self.assertEqual(result.files[-1].model_dump(), BROKEN_UI)
+        self.assertEqual(original.model_dump(), before)
+        self.assertEqual(len(run.seen), 1)
+        diagnostics = run.stages["build_tests_coverage_1"]["syntax_handoff"]["diagnostics"]
+        self.assertEqual(diagnostics[0]["path"], "tests/test_ui.py")
+        self.assertIn("unterminated string", diagnostics[0]["message"])
+
+    def test_syntax_does_not_bypass_discovery_and_invalid_feedback_retains_diagnostics(self):
+        bad = {"files": [BROKEN_UI], "coverage": [{**UI_COVERAGE, "test_name": "UI route"}]}
+        run = direct_run([bad, GOOD])
+        self.assertEqual(run.additions(suite(), {2}).files[-1].model_dump(), UI_TEST)
+        self.assertNotIn("syntax_handoff", run.stages["build_tests_coverage_1"])
+        feedback = run.seen[1][2]["addition_feedback"]
+        self.assertIn("discoverable Python", feedback["validation_error"])
+        self.assertEqual(feedback["diagnostics"][0]["path"], "tests/test_ui.py")
 
     def test_partial_requested_coverage_can_use_later_existing_attempt(self):
         run = direct_run([GOOD])
@@ -192,6 +220,38 @@ class CoverageGraphTests(unittest.TestCase):
         row = self.execute()
         self.assertEqual(row["status"], "failed")
         self.assertEqual([c["stage"] for c in row["calls"]], ["build_plan", "build_tests", "build_tests_coverage_1", "build_tests_coverage_2"])
+        self.assertEqual(self.executor.tests, [])
+
+    def test_embedded_dom_source_syntax_uses_existing_syntax_budget_then_reaches_qwen(self):
+        self.models.first_addition = {"files": [BROKEN_UI], "coverage": [UI_COVERAGE]}
+        row = self.execute()
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        self.assertEqual([c["stage"] for c in row["calls"]], ["build_plan", "build_tests",
+            "build_tests_coverage_1", "build_tests_syntax_1", "build_project_plan", "implement_group_1", "implement_group_2"])
+        repair = next(payload for stage, _, _, payload in self.models.seen if stage == "build_tests_syntax_1")
+        data = json.loads(repair["messages"][1]["content"])
+        self.assertEqual([file["path"] for file in data["files"]], ["tests/test_ui.py"])
+        self.assertEqual(data["diagnostics"][0]["path"], "tests/test_ui.py")
+        self.assertIn("unterminated string", data["diagnostics"][0]["message"])
+        self.assertEqual(self.executor.tests, [[TEST, UI_TEST]])
+
+    def test_unresolved_syntax_repair_never_spends_another_coverage_call(self):
+        self.models.first_addition = {"files": [BROKEN_UI], "coverage": [UI_COVERAGE]}
+        self.models.syntax_file = BROKEN_UI
+        self.runtime.config.build.max_test_syntax_repairs = 1
+        row = self.execute()
+        self.assertEqual(row["status"], "failed", row.get("result"))
+        self.assertEqual([c["stage"] for c in row["calls"]], ["build_plan", "build_tests",
+            "build_tests_coverage_1", "build_tests_syntax_1"])
+        self.assertEqual(self.executor.tests, [])
+
+    def test_unknown_syntax_repair_completion_is_not_replayed(self):
+        self.models.first_addition = {"files": [BROKEN_UI], "coverage": [UI_COVERAGE]}
+        self.models.syntax_unknown = True
+        row = self.execute()
+        self.assertEqual(row["status"], "blocked", row.get("result"))
+        self.assertEqual([c["stage"] for c in row["calls"]], ["build_plan", "build_tests",
+            "build_tests_coverage_1", "build_tests_syntax_1"])
         self.assertEqual(self.executor.tests, [])
 
     def test_unknown_completion_and_admission_failure_never_dispatch_a_second_addition(self):
