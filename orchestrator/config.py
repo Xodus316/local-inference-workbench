@@ -16,7 +16,7 @@ DEFAULT_ROLES = {
     "editor": "qwen3.8:27b-mtp-q4_K_M",
     "reviewer": "gemma4:31b-it-qat",
     "test_author": "gemma4:31b-iq4_xs",
-    "implementer": "hf.co/unsloth/Qwen3-Coder-Next-GGUF:UD-IQ1_M",
+    "implementer": "qwen3.8:27b-mtp-q4_K_M",
     "repairer": "qwen3.8:27b-mtp-q4_K_M",
 }
 
@@ -213,7 +213,7 @@ class Config(Record):
     def generation_for(self, role):
         defaults = {}
         if role in {"implementer", "repairer"}:
-            defaults = {"context": 98304, "think": None if role == "implementer" else "xhigh"}
+            defaults = {"context": 98304, "think": "xhigh"}
         profile = self.generation.get(role)
         overrides = profile.model_dump(exclude_unset=True) if profile else {}
         return Generation.model_validate({**defaults, **overrides})

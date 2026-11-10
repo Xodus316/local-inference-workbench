@@ -9,7 +9,7 @@
     "editor": "qwen3.8:27b-mtp-q4_K_M",
     "reviewer": "gemma4:31b-it-qat",
     "test_author": "gemma4:31b-iq4_xs",
-    "implementer": "hf.co/unsloth/Qwen3-Coder-Next-GGUF:UD-IQ1_M",
+    "implementer": "qwen3.8:27b-mtp-q4_K_M",
     "repairer": "qwen3.8:27b-mtp-q4_K_M"
   },
   "generation": {
@@ -20,7 +20,7 @@
     "editor": {"context": 32768, "think": false},
     "reviewer": {"context": 32768, "think": false},
     "test_author": {"context": 32768, "think": true},
-    "implementer": {"context": 98304, "think": null},
+    "implementer": {"context": 98304, "think": "xhigh"},
     "repairer": {"context": 98304, "think": "xhigh"}
   },
   "build": {"enabled": true, "image": "python:3.13-alpine"},

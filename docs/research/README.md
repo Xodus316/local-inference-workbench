@@ -24,7 +24,7 @@ Run `python scripts/verify-benchmark-evidence.py` from the repository root to ch
 | Verified | Both Q4 readers followed by the local PPLX decision adapter | The decider selected a more complete clean-code explanation twice. On another brief it selected a weaker answer. Sequential operation fit the measured hardware. |
 | Deep | Gemma 31B QAT | Existing difficult-reasoning profile. Direct fallback accuracy remains an open measurement. |
 | Standalone planning | Gemma 26B A4B MTP Q4_K_M | Four ready plans across two repetitions of the same two briefs. |
-| From-scratch Build | Gemma 26B Q4 plans, Gemma 31B IQ4_XS writes tests, Coder-Next IQ1 implements and Qwen 27B xhigh repairs | Measured first-pass speed, independent controls and reproduced failures guided the split. |
+| From-scratch Build | Gemma 26B Q4 plans, Gemma 31B IQ4_XS writes tests, Qwen 27B xhigh implements and conditionally repairs | The current coding roles share a 98,304-token profile. Earlier Coder-Next comparisons remain historical evidence. |
 | Existing-repository edits | Gemma 12B investigation, Qwen 27B patch, Gemma 31B QAT review | A live edit exercise verified the whole path through a working patch and execution checks. |
 | Interactive chat | Gemma 12B initially, with manual model selection | Responsive text results and functional checks for history, uploads, model switching and stopping. |
 

@@ -41,7 +41,7 @@ A useful evaluation sequence is to run the tests on a trusted control, try a sma
 
 ## From-scratch Build
 
-**Coder-Next first, Qwen 27B xhigh for a reproduced failure.** On a turn-based combat CLI, both models received the same plan and frozen tests. Coder-Next UD-IQ1_M produced its implementation in 30.3 seconds and Qwen 27B MTP Q4_K_M took 326.7 seconds. Both passed all eight generated tests. Independent checks separated them.
+**Qwen 27B xhigh implements and conditionally repairs in the current configuration.** The retained comparisons below document the earlier Coder-Next-first approach. On a turn-based combat CLI, both models received the same plan and frozen tests. Coder-Next UD-IQ1_M produced its implementation in 30.3 seconds and Qwen 27B MTP Q4_K_M took 326.7 seconds. Both passed all eight generated tests. Independent checks separated them.
 
 | First-pass check | Coder-Next IQ1 | Qwen 27B xhigh |
 |---|---:|---:|
@@ -49,7 +49,7 @@ A useful evaluation sequence is to run the tests on a trusted control, try a sma
 | Invalid inputs | 4/8 | 8/8 |
 | Seeded comparisons with the reference implementation | 946/1,000 | 1,000/1,000 |
 
-On the separate inventory CLI, Coder-Next also delivered in about 30 seconds. A held-out name ending in a newline exposed a validator defect. Once a regression reproduced it, Qwen repaired the implementation in one xhigh call. It then passed 26 frozen tests and 31 held-out inputs, and its tests detected six sampled implementation mutations. These two examples explain the role split. An initial pass costs little, and a reproduced defect gives the more expensive repair model a precise target. Detection still depends on the suite. The implementation and repair roles use a 98,304-token window without a separate output cap. Coder-Next uses its native generation mode.
+On the separate inventory CLI, Coder-Next also delivered in about 30 seconds. A held-out name ending in a newline exposed a validator defect. Once a regression reproduced it, Qwen repaired the implementation in one xhigh call. It then passed 26 frozen tests and 31 held-out inputs, and its tests detected six sampled implementation mutations. These examples motivated the earlier role split: an inexpensive initial pass followed by a repair targeted at a reproduced defect. Detection still depends on the suite. The current implementation and repair roles both use Qwen xhigh with a 98,304-token window and no separate output cap; the historical Coder-Next calls used native generation mode.
 
 **Gemma 31B IQ4_XS writes independent tests.** On a fresh expiration-based store, its first suite accepted both correct controls and detected all ten seeded defects. On inventory, its first suite contained invalid Python quoting, and several success fixtures used order IDs containing digits even though the specification allowed only lowercase letters. That experiment required human fixture and coverage corrections. The planner and test author each use thinking at 32,768 context.
 

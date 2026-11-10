@@ -38,7 +38,7 @@ docker image inspect python:3.13-alpine
 ollama list
 ```
 
-Check the four model names in `roles` against the installed tags. The example uses Gemma 26B Q4 for `planner`, Gemma 31B IQ4_XS for `test_author`, Qwen3-Coder-Next for `implementer` and Qwen 27B xhigh for `repairer`. If your local tag differs, enter it in **Configuration**, save, then restart the idle service. The example enables thinking for both Gemma roles with a 32,768-token context. The coding roles use 98,304. Coder-Next uses its native generation mode and Qwen repair uses xhigh. The Build profiles have no separate output cap. See the [example configuration](../config.example.json) for the exact settings.
+Check the four model names in `roles` against the installed tags. The example uses Gemma 26B Q4 for `planner`, Gemma 31B IQ4_XS for `test_author`, and Qwen 27B for both `implementer` and `repairer`. If your local tag differs, enter it in **Configuration**, save, then restart the idle service. The example enables thinking for both Gemma roles with a 32,768-token context. Both coding roles use xhigh and a 98,304-token context. Repair runs only when the frozen tests expose a failure. The Build profiles have no separate output cap. See the [example configuration](../config.example.json) for the exact settings.
 
 The example tag `gemma4:31b-iq4_xs` is a local alias. Point `test_author` to your installed IQ4_XS package or alias with thinking support. Use a different model for test authorship than for implementation and repair. The repair package must support the configured reasoning effort.
 

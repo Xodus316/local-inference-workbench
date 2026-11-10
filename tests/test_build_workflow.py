@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Event
 from time import monotonic
 
-from orchestrator.config import Config
+from orchestrator.config import Config, Generation
 from orchestrator.runtime import Runtime
 from orchestrator.store import digest
 
@@ -137,11 +137,10 @@ class BuildWorkflowTests(unittest.TestCase):
         for stage, model, settings, payload in self.models.seen:
             self.assertNotIn("independent-reference-only", json.dumps(payload))
             self.assertIsNone(settings["output_tokens"])
-            if stage == "repair_1":
+            if stage in {"implement", "repair_1"}:
+                self.assertEqual(model, "qwen3.8:27b-mtp-q4_K_M")
                 self.assertEqual(settings["think"], "xhigh")
                 self.assertEqual(settings["context"], 98304)
-            if stage == "implement":
-                self.assertIsNone(settings["think"])
             if stage == "build_strengthen_1":
                 self.assertNotIn('"execution"', payload["messages"][1]["content"])
         output = row["result"]["output"]
@@ -152,6 +151,17 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertEqual([x["status"] for x in output["verification"]["controls"]], ["passed", "passed"])
         self.assertEqual([x["status"] for x in output["verification"]["strength"]], ["review_required", "passed"])
         self.assertEqual([x["status"] for x in output["verification"]["baselines"]], ["failed", "passed", "passed"])
+
+    def test_explicit_implementation_model_and_native_profile_remain_available(self):
+        self.runtime.config.roles["implementer"] = "custom:implementer"
+        self.runtime.config.generation["implementer"] = Generation(context=65536, think=None)
+        row = self.execute()
+        self.assertEqual(row["status"], "completed", row["result"])
+        _, model, settings, _ = next(call for call in self.models.seen if call[0] == "implement")
+        self.assertEqual(model, "custom:implementer")
+        self.assertEqual(settings["context"], 65536)
+        self.assertIsNone(settings["think"])
+        self.assertIsNone(settings["output_tokens"])
 
     def test_repair_cannot_write_any_frozen_test(self):
         self.models.tamper = True

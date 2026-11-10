@@ -2,6 +2,8 @@
 
 Gemma 26B A4B MTP Q4_K_M produced eight ready plans in eight submissions across four blinded comparisons of the same two briefs. Coder-Next produced the fastest first implementation in the matched combat comparisons, while Qwen 27B xhigh more often passed the independent checks on its first attempt. Those observations led to different roles for planning, initial implementation and repair. The independent checks that changed those decisions are described below.
 
+The current configuration uses Qwen 27B xhigh for both implementation and conditional repair. The earlier Coder-Next comparisons below retain their original settings and results.
+
 ## Blind planning on two briefs
 
 One brief allocated integer credits by proportional weight. Floor division allocated the initial credits, and the largest fractional remainders determined who got the leftover credits, with ties broken by ID. The other brief calculated usage from out-of-order meter readings. A plan had to validate every event, keep the last input at each meter and timestamp, and state a provisional rule for a meter reset. Multiple reset policies were acceptable if the examples followed the stated rule.
