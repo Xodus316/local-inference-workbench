@@ -1,8 +1,14 @@
 """Bounded model outputs for planning, independent tests and implementation."""
 from pathlib import PurePosixPath
-from typing import ClassVar
+from typing import ClassVar, Literal
 from pydantic import Field, model_validator
 from .schemas import Record
+
+
+UnittestDiscoveryCommand = Literal[
+    "python -m unittest discover -s tests -v",
+    "python3 -m unittest discover -s tests -v",
+]
 
 
 class BuildPlan(Record):

@@ -7,11 +7,12 @@ import hashlib
 import json
 import re
 import time
+from typing import get_args
 
-from .build_models import BuildFile, BuildProject
+from .build_models import BuildFile, BuildProject, UnittestDiscoveryCommand
 from .store import digest
 
-COMMANDS = ("python -m unittest discover -s tests -v", "python3 -m unittest discover -s tests -v")
+COMMANDS = get_args(UnittestDiscoveryCommand)
 
 
 def mutation_key(artifact, mutation):

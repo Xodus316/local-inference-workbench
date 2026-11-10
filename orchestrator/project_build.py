@@ -10,7 +10,7 @@ from typing import ClassVar
 from pydantic import Field, model_validator
 
 from .build_models import (BuildArtifact, BuildFile, BuildPlan, ReviewedBuildTestSuite,
-                           RepairAdvice)
+                           RepairAdvice, UnittestDiscoveryCommand)
 from .build_sandbox import DockerBuildExecutor, validate_artifact
 from .build_workflow import (BuildRun, TEST_BRIEF, actionable_failure, assemble, compact_suite,
                              normalized_manifest, public_error, validate_baseline)
@@ -121,6 +121,7 @@ class TestManifest(BuildArtifact):
 class ProjectTestSuite(ReviewedBuildTestSuite):
     manifest_type: ClassVar[type[BuildArtifact]] = TestManifest
     implementation_files: list[str] = Field(min_length=1, max_length=128)
+    commands: list[UnittestDiscoveryCommand] = Field(min_length=1, max_length=1)
 
 
 class ProjectProject(BuildArtifact):
@@ -292,7 +293,10 @@ def terminal_group_plan_feedback(runtime, state, stage, declared):
 PROJECT_TEST_BRIEF = TEST_BRIEF.replace(
     "Build verifies Python software; describe its public interface in assumptions so another model can implement it.",
     "The application may use a non-Python stack. Author Python unittest black-box acceptance tests against "
-    "the application API and offline frontend commands supplied by the pinned image. The trusted image may "
+    "the application API and frontend. Set commands to a one-item list containing the exact Python "
+    "unittest discovery command. Run every frontend check inside a discoverable Python unittest case. "
+    "For Vitest checks, have the Python case invoke the image's installed Vitest with subprocess and "
+    "assert a successful exit status. The trusted image may "
     "bootstrap the application before tests. Describe precise application paths and interfaces in assumptions. "
     "A frontend build alone does not verify UI behavior; use executable DOM checks when the image supplies "
     "their dependencies, and state any UI behavior not tested. Keep the independent test source within "

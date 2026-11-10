@@ -17,6 +17,7 @@ from orchestrator.project_build import (POLICY, ProjectArtifact, ProjectProject,
 from orchestrator.runtime import Runtime
 from orchestrator.schemas import Request
 from orchestrator.store import digest, encoded
+from orchestrator.wire import wire_schema
 
 
 COMMAND = "python3 -m unittest discover -s tests -v"
@@ -130,6 +131,22 @@ class Executor:
 
 
 class ProjectBoundsTests(unittest.TestCase):
+    def test_project_test_author_schema_requires_one_unittest_discovery_command(self):
+        variants = ["python -m unittest discover -s tests -v", COMMAND]
+        suite = {"implementation_files": ["api/App.java"], "files": [TEST],
+                 "coverage": [COVERAGE], "assumptions": []}
+        schema = wire_schema(ProjectTestSuite)["properties"]["commands"]
+        self.assertEqual(schema["minItems"], 1)
+        self.assertEqual(schema["maxItems"], 1)
+        self.assertCountEqual(schema["items"]["enum"], variants)
+        for command in variants:
+            with self.subTest(command=command):
+                self.assertEqual(ProjectTestSuite.model_validate(
+                    {**suite, "commands": [command]}).commands, [command])
+        for commands in ([], variants, [COMMAND, "vitest run"], ["vitest run"], [COMMAND + " "]):
+            with self.subTest(commands=commands), self.assertRaises(ValidationError):
+                ProjectTestSuite.model_validate({**suite, "commands": commands})
+
     def test_default_limits_stay_exact_and_project_components_are_independent(self):
         with self.assertRaises(ValidationError):
             BuildArtifact(summary="Default", files=[manifest("a", "a" * 16001)])
