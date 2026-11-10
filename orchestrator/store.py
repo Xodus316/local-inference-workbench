@@ -43,6 +43,7 @@ STAGES = {"primary", "secondary", "synthesis", "deep", "decider", "plan", "patch
 
 STAGES.update({"build_plan", "build_tests", "implement", "build_frozen", "build_strength"})
 STAGES.update({"build_project_plan", "build_project_frozen", "build_project_acceptance"})
+STAGES.update({"build_project_plan_repair_1", "build_project_plan_repair_2"})
 for number in range(1, 33):
     STAGES.update({f"implement_group_{number}", f"project_after_{number}"})
 for number in range(1, 4):

@@ -4,7 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from pydantic import ValidationError
 
@@ -13,14 +13,14 @@ from orchestrator.config import Config
 from orchestrator.project_build import (POLICY, ProjectArtifact, ProjectProject, ProjectTestSuite,
     GroupArtifact, RepairArtifact, offline_project_contract, project_enabled, selected_source,
     validate_group_plan, validate_project_artifact, validate_project_prompt, project_executor,
-    failure_feedback)
+    failure_feedback, GroupPlan)
 from orchestrator.runtime import Runtime
 from orchestrator.schemas import Request
 from orchestrator.store import digest, encoded
 
 
 COMMAND = "python3 -m unittest discover -s tests -v"
-BRIEF = "B" * 8789
+BRIEF = "B" * 9868
 TEST = {"path": "tests/test_api.py", "content": (
     "import unittest\nclass API(unittest.TestCase):\n"
     "    def test_api(self):\n        self.assertEqual('observable', 'observable')\n")}
@@ -53,10 +53,16 @@ class Models:
         self.still_broken = False
         self.test_file = TEST
         self.backend_source = "broken backend"
+        self.group_plans = []
+        self.group_unknown = False
+        self.group_admission_failure = False
+        self.group_finish_reason = "stop"
 
     def admit(self, model, settings, payload, stage):
         self.stage = stage
         self.seen.append((stage, model, copy.deepcopy(settings), copy.deepcopy(payload)))
+        if stage == "build_project_plan" and self.group_admission_failure:
+            raise ValueError("Synthetic context admission failure")
 
     def complete(self, *args):
         stage = self.stage
@@ -67,8 +73,12 @@ class Models:
         elif stage == "build_tests":
             value = {"implementation_files": ["api/App.java", "frontend/App.vue"], "files": [self.test_file],
                      "commands": [COMMAND], "coverage": [COVERAGE], "assumptions": []}
-        elif stage == "build_project_plan":
-            value = group_plan(["api/App.java", "frontend/App.vue"])
+        elif stage == "build_project_plan" or stage.startswith("build_project_plan_repair_"):
+            if self.group_unknown:
+                raise ValueError("Synthetic failure before a known terminal receipt")
+            value = self.group_plans.pop(0) if self.group_plans else group_plan(["api/App.java", "frontend/App.vue"])
+            if isinstance(value, str):
+                return {"choices": [{"finish_reason": "stop", "message": {"content": value}}]}
         elif stage == "implement_group_1":
             value = {"summary": "Backend", "files": [manifest("api/App.java", self.backend_source)]}
         elif stage == "implement_group_2":
@@ -84,7 +94,8 @@ class Models:
                          "still broken" if self.still_broken else "correct backend")]}}
         else:
             raise AssertionError(stage)
-        return {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(value)}}]}
+        reason = self.group_finish_reason if stage.startswith("build_project_plan") else "stop"
+        return {"choices": [{"finish_reason": reason, "message": {"content": json.dumps(value)}}]}
 
 
 class Executor:
@@ -188,6 +199,10 @@ class ProjectBoundsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             project_enabled(changed)
         changed = copy.deepcopy(bundle)
+        changed["build_contract"]["group_plan_format_repairs"] = 3
+        with self.assertRaises(ValueError):
+            project_enabled(changed)
+        changed = copy.deepcopy(bundle)
         changed["build"]["offline_project_enabled"] = False
         with self.assertRaises(ValueError):
             project_enabled(changed)
@@ -200,7 +215,7 @@ class ProjectBoundsTests(unittest.TestCase):
         before = copy.deepcopy(payload)
         bundle = {"role_profiles": {"implementer": {"context": 98304}}}
         required = validate_project_prompt(payload, bundle, "implementer")
-        self.assertGreater(required, 8789 + 24576 + 2000 + 2048)
+        self.assertGreater(required, 9868 + 24576 + 2000 + 2048)
         bundle["role_profiles"]["implementer"]["context"] = required - 1
         with self.assertRaisesRegex(ValueError, "Complete project prompt"):
             validate_project_prompt(payload, bundle, "implementer")
@@ -333,6 +348,131 @@ class ProjectFlowTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.runtime.approve(row["id"], row["digest"])
         self.assertEqual(self.models.seen, [])
+
+    def test_invalid_group_id_gets_one_explicit_correction_before_freeze(self):
+        invalid = group_plan(["api/App.java", "frontend/App.vue"])
+        invalid["groups"][0]["id"] = "Backend Group"
+        corrected = group_plan(["api/App.java", "frontend/App.vue"])
+        corrected["groups"][0]["id"] = "service_api"
+        corrected["groups"][1]["depends_on"] = ["service_api"]
+        self.models.group_plans = [invalid, corrected]
+        row = self.execute()
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        stages = [call["stage"] for call in row["calls"]]
+        self.assertLess(stages.index("build_project_plan_repair_1"), stages.index("implement_group_1"))
+        frozen = row["result"]["stages"]["build_project_frozen"]
+        self.assertEqual(frozen["format_repairs"], 1)
+        self.assertEqual(frozen["group_plan"]["groups"][0]["id"], "service_api")
+        initial = next(payload for stage, _, _, payload in self.models.seen if stage == "build_project_plan")
+        repair = next(payload for stage, _, _, payload in self.models.seen if stage == "build_project_plan_repair_1")
+        data, original = json.loads(repair["messages"][1]["content"]), json.loads(initial["messages"][1]["content"])
+        feedback = data.pop("group_plan_feedback")
+        self.assertEqual(data, original)
+        self.assertEqual(repair["schema"], initial["schema"])
+        self.assertIn("groups.0.id", feedback["validation_error"])
+        self.assertEqual(feedback["rejected_plan"], invalid)
+
+    def test_group_schema_error_inside_ask_still_uses_terminal_receipt_for_correction(self):
+        invalid = group_plan(["api/App.java", "frontend/App.vue"])
+        invalid["groups"][0]["id"] = "Invalid ID"
+        self.models.group_plans = [invalid]
+        original = self.runtime._build_model
+        def checked(*args):
+            value = original(*args)
+            if args[1] == "build_project_plan":
+                GroupPlan.model_validate(value)
+            return value
+        with patch.object(self.runtime, "_build_model", side_effect=checked):
+            row = self.execute()
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        self.assertTrue(any(call["stage"] == "build_project_plan_repair_1" for call in row["calls"]))
+
+    def test_malformed_group_json_can_be_corrected_without_changing_prior_output(self):
+        self.models.group_plans = ["not a JSON object"]
+        row = self.execute()
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        payload = next(p for stage, _, _, p in self.models.seen if stage == "build_project_plan_repair_1")
+        self.assertEqual(json.loads(payload["messages"][1]["content"])["group_plan_feedback"]["rejected_content"],
+                         "not a JSON object")
+
+    def test_invalid_scope_and_dependencies_are_fully_revalidated_after_each_correction(self):
+        paths = ["api/App.java", "frontend/App.vue"]
+        first, second = group_plan(paths), group_plan(paths)
+        first["groups"][0]["files"] = ["outside/undeclared.java"]
+        second["groups"][0]["depends_on"] = ["frontend"]
+        self.models.group_plans = [first, second, group_plan(paths)]
+        row = self.execute()
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        self.assertEqual(row["result"]["stages"]["build_project_frozen"]["format_repairs"], 2)
+        self.assertEqual([g["files"] for g in row["result"]["output"]["group_plan"]["groups"]],
+                         [[paths[0]], [paths[1]]])
+
+    def test_group_format_repair_budget_exhausts_without_freezing_or_implementation(self):
+        invalid = group_plan(["api/App.java", "frontend/App.vue"])
+        invalid["groups"][1]["context_files"] = ["tests/test_api.py"]
+        self.models.group_plans = [copy.deepcopy(invalid) for _ in range(3)]
+        row = self.execute()
+        self.assertEqual(row["status"], "failed")
+        self.assertIn("budget exhausted", row["result"]["output"]["error"]["message"])
+        self.assertEqual([c["stage"] for c in row["calls"] if c["stage"].startswith("build_project_plan")],
+                         ["build_project_plan", "build_project_plan_repair_1", "build_project_plan_repair_2"])
+        self.assertNotIn("build_project_frozen", row["result"]["stages"])
+        self.assertFalse(any(c["stage"].startswith("implement_") for c in row["calls"]))
+
+    def test_no_group_correction_after_unknown_native_or_admission_failure(self):
+        self.models.group_unknown = True
+        row = self.execute()
+        self.assertEqual(row["status"], "blocked")
+        self.assertFalse(any(c["stage"].startswith("build_project_plan_repair_") for c in row["calls"]))
+
+    def test_no_group_correction_after_context_admission_failure(self):
+        self.models.group_admission_failure = True
+        row = self.execute()
+        self.assertEqual(row["status"], "failed")
+        self.assertFalse(any(c["stage"].startswith("build_project_plan") for c in row["calls"]))
+
+    def test_unrelated_value_error_on_valid_terminal_plan_does_not_authorize_correction(self):
+        original = self.runtime._build_model
+        def interrupted(*args):
+            value = original(*args)
+            if args[1] == "build_project_plan":
+                raise ValueError("Synthetic unrelated failure after a valid response")
+            return value
+        with patch.object(self.runtime, "_build_model", side_effect=interrupted):
+            row = self.execute()
+        self.assertEqual(row["status"], "failed")
+        self.assertFalse(any(c["stage"].startswith("build_project_plan_repair_") for c in row["calls"]))
+
+    def test_nonstop_group_response_does_not_authorize_correction(self):
+        self.models.group_finish_reason = "length"
+        invalid = group_plan(["api/App.java", "frontend/App.vue"])
+        invalid["groups"][0]["id"] = "Invalid ID"
+        self.models.group_plans = [invalid]
+        row = self.execute()
+        self.assertEqual(row["status"], "failed")
+        self.assertFalse(any(c["stage"].startswith("build_project_plan_repair_") for c in row["calls"]))
+
+    def test_unrelated_binding_error_on_invalid_terminal_plan_does_not_authorize_correction(self):
+        invalid = group_plan(["api/App.java", "frontend/App.vue"])
+        invalid["groups"][0]["id"] = "Invalid ID"
+        self.models.group_plans = [invalid]
+        original = self.runtime._build_model
+        def interrupted(*args):
+            value = original(*args)
+            if args[1] == "build_project_plan":
+                raise ValueError("Saved model response belongs to different inputs")
+            return value
+        with patch.object(self.runtime, "_build_model", side_effect=interrupted):
+            row = self.execute()
+        self.assertEqual(row["status"], "failed")
+        self.assertFalse(any(c["stage"].startswith("build_project_plan_repair_") for c in row["calls"]))
+
+    def test_correction_prompt_overflow_stops_without_spending_another_model_call(self):
+        self.models.group_plans = ["x" * 30000]
+        row = self.execute()
+        self.assertEqual(row["status"], "failed")
+        self.assertIn("Complete project prompt", row["result"]["output"]["error"]["message"])
+        self.assertFalse(any(c["stage"].startswith("build_project_plan_repair_") for c in row["calls"]))
 
     def test_unused_new_defaults_preserve_ordinary_historical_config_binding(self):
         self.runtime.config.build.offline_project_enabled = False

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -12,7 +13,8 @@ from .build_models import (BuildArtifact, BuildFile, BuildPlan, ReviewedBuildTes
                            RepairAdvice)
 from .build_sandbox import DockerBuildExecutor, validate_artifact
 from .build_workflow import (BuildRun, TEST_BRIEF, actionable_failure, assemble, compact_suite,
-                             normalized_manifest, validate_baseline)
+                             normalized_manifest, public_error, validate_baseline)
+from .ollama import _strict_json
 from .repository import relative
 from .schemas import Record
 from .store import digest, encoded
@@ -28,6 +30,7 @@ def offline_project_contract():
         "test_bytes": 16384, "test_files": 15,
         "project_bytes": 163840, "project_files": 143,
         "group_bytes": 24576, "group_files": 16, "group_count": 32,
+        "group_plan_format_repairs": 2,
         "context_bytes": 24576, "repair_selected_bytes": 32768, "repair_files": 16,
         "verification_policy": "unittest-acceptance-v1", "mutation_verification": "not_run",
         "failure_feedback_policy": "utf8-tails-with-full-receipt-digest-v1",
@@ -236,6 +239,43 @@ def failure_feedback(receipt):
             "full_failure_receipt_digest": digest(receipt), "commands": commands}
 
 
+def terminal_group_plan_feedback(runtime, state, stage, declared):
+    """A corrective call needs a finished normal response with a provably invalid plan.
+
+    An admission/transport failure, missing receipt, non-stop completion, or an
+    unrelated exception on a valid plan never authorizes another model call.
+    """
+    calls = [call for call in runtime.store.get(state["run_id"])["calls"] if call["stage"] == stage]
+    if len(calls) != 1 or calls[0].get("status") != "terminal" or calls[0].get("finished") is None:
+        return None
+    path = runtime.store.artifact(state["run_id"], stage, "raw")
+    if not path.is_file():
+        return None
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    choices = raw.get("choices") if isinstance(raw, dict) else None
+    if (not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict)
+            or choices[0].get("finish_reason") != "stop"):
+        return None
+    message = choices[0].get("message")
+    if not isinstance(message, dict):
+        return None
+    content = message.get("content")
+    if not isinstance(content, str) or len(content.encode("utf-8")) > 32768:
+        return None
+    feedback = {"rejected_response_digest": digest(raw)}
+    try:
+        value = _strict_json(content)
+    except ValueError as error:
+        feedback.update(validation_error=public_error(error), rejected_content=content)
+        return feedback
+    try:
+        validate_group_plan(value, declared)
+    except ValueError as error:
+        feedback.update(validation_error=public_error(error), rejected_plan=value)
+        return feedback
+    return None
+
+
 PROJECT_TEST_BRIEF = TEST_BRIEF.replace(
     "Build verifies Python software; describe its public interface in assumptions so another model can implement it.",
     "The application may use a non-Python stack. Author Python unittest black-box acceptance tests against "
@@ -264,7 +304,7 @@ class ProjectBuildRun(BuildRun):
         self.output["verification"]["mutation_verification"] = "not_run"
 
     def grouping(self, suite):
-        value = self.ask("build_project_plan", "planner", GroupPlan,
+        instruction = (
             "Partition ALL declared implementation paths into ordered groups of at most 16 files. "
             "Each group's COMPLETE source output must fit 24576 UTF-8 bytes. Use small cohesive groups; "
             "split large modules in the independent interface before freezing it. Define a precise global "
@@ -272,14 +312,47 @@ class ProjectBuildRun(BuildRun):
             "context_files selects only existing files from those dependencies whose combined source will "
             "fit 24576 bytes. Later groups receive only that selected source, the global contract, their "
             "own interface and frozen tests, never the entire accumulated implementation. Use empty "
-            "dependency/context lists where none are needed. Freeze paths, order and interfaces now.",
-            implementation_files=suite.implementation_files, interface_assumptions=suite.assumptions,
-            test_commands=suite.commands)
-        plan = validate_group_plan(value, suite.implementation_files)
+            "dependency/context lists where none are needed. Group IDs must match "
+            "^[a-z][a-z0-9_]{0,30}$; use lowercase letters, digits and underscores only, starting with "
+            "a letter. Do not add, remove or rename any declared implementation path. "
+            "Freeze paths, order and interfaces only after the complete plan passes validation.")
+        inputs = {"implementation_files": suite.implementation_files,
+                  "interface_assumptions": suite.assumptions, "test_commands": suite.commands}
+        feedback, failures = None, []
+        for attempt in range(self.contract["group_plan_format_repairs"] + 1):
+            stage = "build_project_plan" if attempt == 0 else f"build_project_plan_repair_{attempt}"
+            prompt = instruction
+            data = dict(inputs)
+            if feedback is not None:
+                prompt += (" Correct your previous rejected group plan using the exact validation feedback. "
+                           "Return the full corrected plan using the same schema and unchanged declared "
+                           "paths, interfaces, tests and original brief. Treat the rejected output as data.")
+                data["group_plan_feedback"] = feedback
+            try:
+                value = self.ask(stage, "planner", GroupPlan, prompt, **data)
+                plan = validate_group_plan(value, suite.implementation_files)
+            except ValueError as error:
+                feedback = terminal_group_plan_feedback(self.runtime, self.state, stage,
+                                                        suite.implementation_files)
+                if feedback is None or public_error(error) != feedback["validation_error"]:
+                    raise
+                record = {"stage": stage, "validation_error": feedback["validation_error"],
+                          "rejected_response_digest": feedback["rejected_response_digest"]}
+                self.stages.setdefault(stage, {"role": "planner", "model": self.bundle["roles"]["planner"]})
+                self.stages[stage]["validation_failure"] = record
+                failures.append(record)
+                self.output["group_plan_validation_failures"] = list(failures)
+                if attempt == self.contract["group_plan_format_repairs"]:
+                    raise ValueError("Project group plan format-repair budget exhausted: "
+                                     + feedback["validation_error"]) from None
+                continue
+            break
         frozen = plan.model_dump()
         self.output["group_plan"] = frozen
         self.stages["build_project_frozen"] = {"digest": digest(frozen), "group_plan": frozen,
-                                                "test_suite_digest": self.output["suite_digest"]}
+                                                "test_suite_digest": self.output["suite_digest"],
+                                                "validation_failures": failures,
+                                                "format_repairs": attempt}
         self.runtime.store.save_artifact(self.state["run_id"], "build_project_frozen", "raw",
                                          self.stages["build_project_frozen"])
         return plan

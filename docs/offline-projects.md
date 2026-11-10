@@ -31,6 +31,16 @@ paths. After test validation, the planner partitions those paths into at most
 32 ordered groups with explicit interfaces, earlier dependencies and selected
 source files. The group plan and suite are frozen before implementation.
 
+If a normally completed group-plan response fails JSON, schema or complete plan
+validation, the planner may make at most two explicit format corrections. Each
+correction receives the same brief, approved plan, declared interfaces, commands
+and schema, plus the precise error and complete bounded rejected response. IDs
+and paths are never normalized into validity. A plan is frozen only after all
+partition, path and dependency checks pass. The contract binds this two-call
+budget. Admission failures, missing or uncertain native receipts, non-stop
+completions and unrelated exceptions never authorize a correction. Earlier raw
+responses remain unchanged.
+
 Each implementation call receives the complete original brief, approved plan and
 frozen tests, the cross-file contract and at most 24,576 bytes of selected prior
 source. It returns exactly its group's paths. The runtime validates and retains
