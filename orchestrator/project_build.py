@@ -64,6 +64,8 @@ def project_enabled(bundle):
         raise ValueError("Offline projects require an independent test author and configured repair role")
     if bundle.get("request", {}).get("control_files"):
         raise ValueError("Offline projects do not accept reference implementations")
+    from .project_environment import validate_project_environment
+    validate_project_environment(bundle)
     return True
 
 
@@ -313,6 +315,16 @@ class ProjectBuildRun(BuildRun):
         self.contract = self.bundle["build_contract"]
         self.limits = {**self.limits, "max_test_fixture_repairs": self.contract["max_test_fixture_repairs"]}
         self.brief["execution_contract"] = copy.deepcopy(self.contract["sandbox_protocol"])
+        from .project_environment import validate_project_environment
+        self.environment = validate_project_environment(self.bundle)
+        if self.environment is not None:
+            self.brief["project_environment"] = copy.deepcopy(self.environment)
+            self.brief["environment_instructions"] = (
+                "Use the operator's declared image capabilities. required_application_files must all be "
+                "declared and implemented. python_modules/tools inventories are authoritative when non-null; "
+                "null means unverified, not available. An api_root base URL already includes path_prefix; "
+                "append endpoint-relative paths without repeating it. frontend_http_server describes an "
+                "already running server, not whether offline frontend build/DOM tools are available.")
         self.output["build_contract"] = copy.deepcopy(self.contract)
         self.output["verification"]["policy"] = self.contract["verification_policy"]
         self.output["verification"]["mutation_verification"] = "not_run"
@@ -321,12 +333,30 @@ class ProjectBuildRun(BuildRun):
         from .project_fixture_checks import diagnostics
         return super().fixture_problems(suite) + diagnostics(suite)
 
+    def validate_suite(self, suite):
+        from .project_environment import validate_suite_environment
+        validate_suite_environment(suite, self.environment)
+
     def validate_fixture_repair(self, original_files, revised_files, diagnostics):
         from .project_fixture_checks import validate_repair
         super().validate_fixture_repair(original_files, revised_files, diagnostics)
         validate_repair(original_files, revised_files, diagnostics)
 
     def grouping(self, suite):
+        reused = getattr(self, "reuse", None)
+        if reused is not None and reused.group_plan is not None:
+            plan = reused.group_plan
+            frozen = plan.model_dump()
+            self.output["group_plan"] = frozen
+            self.stages["build_project_frozen"] = {
+                "digest": digest(frozen), "group_plan": frozen,
+                "test_suite_digest": self.output["suite_digest"],
+                "validation_failures": [], "format_repairs": 0,
+                "reused_from": reused.provenance["source"],
+            }
+            self.runtime.store.save_artifact(self.state["run_id"], "build_project_frozen", "raw",
+                                             self.stages["build_project_frozen"])
+            return plan
         instruction = (
             "Partition ALL declared implementation paths into ordered groups of at most 16 files. "
             "Each group's COMPLETE source output must fit 24576 UTF-8 bytes. Use small cohesive groups; "
@@ -383,7 +413,20 @@ class ProjectBuildRun(BuildRun):
     def implement_groups(self, plan, suite):
         files = []
         interfaces = {g.id: g.interface for g in plan.groups}
+        reused = getattr(self, "reuse", None)
         for index, group in enumerate(plan.groups, 1):
+            if reused is not None and index <= len(reused.groups):
+                artifact = reused.groups[index - 1]
+                files.extend(artifact.files)
+                accumulated = ProjectArtifact(summary="Incremental offline project", files=files)
+                self.stages[f"implement_group_{index}"] = {
+                    "role": "implementer", "model": self.bundle["roles"]["implementer"],
+                    "group_id": group.id, "accumulated_digest": digest(accumulated.model_dump()),
+                    "reused_from": reused.provenance["source"],
+                }
+                self.runtime.store.save_artifact(self.state["run_id"], f"project_after_{index}",
+                                                 "raw", accumulated.model_dump())
+                continue
             context = selected_source(files, group.context_files, self.contract["context_bytes"]) if group.context_files else []
             dependencies = {key: interfaces[key] for key in group.depends_on}
             if len(encoded(dependencies).encode("utf-8")) > 8192:
@@ -434,16 +477,39 @@ class ProjectBuildRun(BuildRun):
         return replace_selected(artifact, repaired.artifact, selection.files)
 
     def execute(self):
-        plan = BuildPlan.model_validate(self.ask("build_plan", "planner", BuildPlan,
-            "Design a from-scratch offline application implementation plan. Preserve every requested "
-            "behavior in observable numbered acceptance criteria. Use the specified stack and exact API "
-            "and UI contracts. Implementation will use bounded ordered file groups, up to 128 files and "
-            "131072 UTF-8 bytes total. Independent Python black-box tests are authored before source."))
+        from .project_reuse import load_project_reuse
+        self.reuse = load_project_reuse(self.bundle)
+        if self.reuse is not None:
+            if self.reuse.provenance["source"]["run_id"] == self.state["run_id"]:
+                raise ValueError("Checkpoint reuse requires a fresh run and new approval")
+            plan = self.reuse.plan
+            self.stages["build_plan"] = {"role": "planner", "model": self.bundle["roles"]["planner"],
+                                         "reused_from": self.reuse.provenance["source"]}
+            self.output["reuse"] = self.reuse.provenance
+        else:
+            plan = BuildPlan.model_validate(self.ask("build_plan", "planner", BuildPlan,
+                "Design a from-scratch offline application implementation plan. Preserve every requested "
+                "behavior in observable numbered acceptance criteria. Use the specified stack and exact API "
+                "and UI contracts. Implementation will use bounded ordered file groups, up to 128 files and "
+                "131072 UTF-8 bytes total. Independent Python black-box tests are authored before source."))
         self.output["plan"] = plan.model_dump()
-        raw = self.ask("build_tests", "test_author", ProjectTestSuite, self.test_brief)
-        value, fixes = normalized_manifest(raw, raw.get("implementation_files") if isinstance(raw, dict) else None)
-        self.stages["build_tests"]["manifest_corrections"] = fixes
-        suite = self.check_suite(ProjectTestSuite.model_validate(value))
+        if self.reuse is not None and self.reuse.suite is not None:
+            suite = self.reuse.suite
+            from .build_coverage import validate_test_coverage
+            self.output.update(suite=suite.model_dump(), suite_digest=digest(suite.model_dump()))
+            self.stages["build_frozen"] = {"digest": self.output["suite_digest"],
+                "coverage": validate_test_coverage(suite, plan.acceptance_criteria),
+                "reference_corrections": [], "trusted_control": "not_supplied",
+                "reused_from": self.reuse.provenance["source"]}
+        else:
+            raw = self.ask("build_tests", "test_author", ProjectTestSuite, self.test_brief)
+            value, fixes = normalized_manifest(raw, raw.get("implementation_files") if isinstance(raw, dict) else None)
+            self.stages["build_tests"]["manifest_corrections"] = fixes
+            suite = self.check_suite(ProjectTestSuite.model_validate(value))
+        self.runtime.store.save_artifact(self.state["run_id"], "build_frozen", "raw", {
+            **self.stages["build_frozen"], "plan_digest": digest(plan.model_dump()),
+            "suite": suite.model_dump(), "suite_digest": self.output["suite_digest"],
+        })
         grouping = self.grouping(suite)
         artifact = self.implement_groups(grouping, suite)
         while True:

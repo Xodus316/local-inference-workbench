@@ -105,6 +105,8 @@ class Runtime(CodeBuild, Stages):
             if request.build_profile is not None:
                 from .project_build import offline_project_contract, project_enabled
                 bundle["build_contract"] = offline_project_contract()
+                if self.config.build.project_environment is not None:
+                    bundle["project_environment"] = self.config.build.project_environment.model_dump()
                 project_enabled(bundle)
         with self.management:
             return self.store.get(self.store.create(bundle))
@@ -115,6 +117,11 @@ class Runtime(CodeBuild, Stages):
         # An unused optional backend adds no authority to historical approvals.
         if current.get("llama_cpp") is None:
             candidates.append({key: value for key, value in current.items() if key != "llama_cpp"})
+        if current["build"]["project_environment"] is None:
+            for candidate in list(candidates):
+                legacy = copy.deepcopy(candidate)
+                legacy["build"].pop("project_environment")
+                candidates.append(legacy)
         # These opt-in fields add no authority when left at their historical
         # defaults. Keep ordinary pre-profile approvals usable without extending
         # the exception to an enabled profile or a changed sandbox allowance.

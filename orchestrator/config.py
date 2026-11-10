@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from .schemas import Record
+from .project_environment import ProjectEnvironment
 
 DEFAULT_ROLES = {
     "fast_primary": "gemma4:12b",
@@ -156,6 +157,7 @@ class Research(Record):
 class BuildConfig(Record):
     enabled: bool = True
     offline_project_enabled: bool = False
+    project_environment: ProjectEnvironment | None = None
     temporary_mb: int = Field(default=64, ge=64, le=2048)
     image: str = Field(default="python:3.13-alpine", min_length=1, max_length=300)
     max_repair_attempts: int = Field(default=3, ge=0, le=3)

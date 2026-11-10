@@ -204,6 +204,9 @@ class BuildRun:
     def fixture_problems(self, suite):
         return fixture_diagnostics(suite)
 
+    def validate_suite(self, suite):
+        """Optional profile-specific preflight after syntax and discovery validation."""
+
     def validate_fixture_repair(self, original_files, revised_files, diagnostics):
         original = coverage.python_test_names({f.path: f.content for f in original_files})
         revised = coverage.python_test_names({f.path: f.content for f in revised_files})
@@ -311,6 +314,7 @@ class BuildRun:
                 suite = self.additions(suite, set(error.missing))
                 continue
             validate_discovery_suite(suite)
+            self.validate_suite(suite)
             if problems:
                 if locked_paths.intersection(d["path"] for d in problems):
                     raise ValueError("Static fixture diagnostics implicate a previously frozen test")

@@ -12,6 +12,11 @@ contract and the immutable image ID into the approval digest. It starts no model
 The configured planner, independent test author, implementer and repairer retain
 their configured native generation profiles and the existing workflow deadline.
 
+An optional operator-provided [image environment contract](project-environments.md)
+freezes required application paths, available packages/tools and URL/server
+semantics into approval and every stage's inputs. Its static preflight rejects
+clear compatibility conflicts before implementation without executing tests.
+
 | Component | UTF-8 source bytes | Files |
 | --- | ---: | ---: |
 | Complete implementation | 131,072 | 128 |
@@ -105,6 +110,11 @@ expected-failure markers are rejected. Unresolved diagnostics or an uncertain
 model completion stop the build before tests are frozen. Ordinary Builds retain
 their existing fixture policy and budget. These checks catch specific fixture
 mistakes; they do not establish helper correctness or complete test quality.
+
+A trusted host can import validated completed stages into a fresh approval using
+the [project checkpoint API](project-checkpoints.md). This never resumes an old
+run or retries an uncertain inference; frozen tests and source provenance remain
+bound to the new approval, and sandbox acceptance runs again.
 
 The result reports `unittest-acceptance-v1` and
 `mutation_verification: "not_run"`. Passing acceptance tests does not establish
