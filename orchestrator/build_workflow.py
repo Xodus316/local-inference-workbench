@@ -72,8 +72,15 @@ def extend_suite(suite, addition, permitted, suite_type=ReviewedBuildTestSuite,
                  artifact_type=BuildArtifact, project_type=BuildProject):
     new_paths = {f.path for f in addition.files}
     referenced = {entry.test_file for entry in addition.coverage}
-    if new_paths != referenced or not {entry.criterion for entry in addition.coverage} <= permitted:
-        raise ValueError("Additions require test references in new files for the requested criteria")
+    existing = {f.path.casefold() for f in suite.files}
+    collisions = sorted(path for path in new_paths if path.casefold() in existing)
+    unrequested = sorted({entry.criterion for entry in addition.coverage} - permitted)
+    if collisions or unrequested or new_paths != referenced:
+        raise ValueError(
+            "Coverage additions require NEW files and references for requested criteria only; "
+            f"existing_paths={collisions}, unrequested_criteria={unrequested}, "
+            f"unreferenced_files={sorted(new_paths - referenced)}, absent_files={sorted(referenced - new_paths)}"
+        )
     merged = suite.model_dump()
     merged["files"].extend(f.model_dump() for f in addition.files)
     merged["coverage"].extend(c.model_dump() for c in addition.coverage)
@@ -266,25 +273,54 @@ class BuildRun:
         return self.suite_type.model_validate(merged)
 
     def additions(self, suite, criteria, *, observations=None):
+        # Existing commands/references cannot be changed by an additive response. Reject an invalid
+        # immutable starting interface before spending its repair budget on an unrelated correction.
+        validate_discovery_suite(suite)
         strengthen = observations is not None
         label, limit = ("build_strengthen", "max_test_strengthening_attempts") if strengthen else (
             "build_tests_coverage", "max_test_coverage_repairs")
-        stage = self.bounded(label, limit)
         inputs = {"draft": compact_suite(suite), "requested_criteria": sorted(criteria)}
         if strengthen:
             inputs["surviving_edits"] = [
                 {key: m[key] for key in ("path", "line", "family", "original", "replacement")}
                 for m in observations
             ]
-        new = self.ask(stage, "test_author", BuildTestCoverageRepair,
-                       self.test_brief + " Add only NEW test files and their coverage references. Leave existing files "
-                       "unchanged. Each new file must contain an executable assertion that discriminates the "
-                       "specified behavior. Derive expectations from the brief; mutation evidence can be fallible.",
-                       **inputs)
-        value, corrections = normalized_manifest(new, suite.implementation_files, additions=True)
-        self.stages[stage]["manifest_corrections"] = corrections
-        return extend_suite(suite, BuildTestCoverageRepair.model_validate(value), criteria,
-                            self.suite_type, self.artifact_type, self.project_type)
+        instruction = (
+            self.test_brief + " Return ONLY new test files and coverage entries whose criterion is in "
+            "requested_criteria. Do not return a complete suite, existing paths, existing coverage, commands "
+            "or implementation_files. Existing files and assertions are immutable, even if you notice a "
+            "problem. Each new file needs a coverage reference and an executable assertion that discriminates "
+            "the requested behavior. Coverage must reference discoverable tests/test_*.py files with exact "
+            "Class.test_method names run by the unchanged unittest command. Standalone TypeScript/Vitest "
+            "references are not executable by unittest. For offline UI checks, write a Python unittest wrapper "
+            "that invokes available Node/Vitest tools with a bounded subprocess timeout and asserts successful "
+            "execution; embed any needed temporary DOM test/config source inside that Python file. Use the "
+            "declared image paths and dependencies only. Derive expectations from the brief; mutation evidence "
+            "can be fallible."
+        )
+        while True:
+            stage = self.bounded(label, limit)
+            # Dispatch and native receipt failures are outside the validation catch: never replay them.
+            new = self.ask(stage, "test_author", BuildTestCoverageRepair, instruction, **inputs)
+            try:
+                value, corrections = normalized_manifest(new, suite.implementation_files, additions=True)
+                self.stages[stage]["manifest_corrections"] = corrections
+                addition = BuildTestCoverageRepair.model_validate(value)
+                addition, refs = coverage.correct_test_references(addition, qualify_classes=True)
+                self.stages[stage]["reference_corrections"] = refs
+                result = extend_suite(suite, addition, criteria,
+                                      self.suite_type, self.artifact_type, self.project_type)
+                coverage.validate_coverage_references(addition)
+                validate_discovery_suite(result)
+                return result
+            except ValueError as error:
+                failure = {"validation_error": public_error(error), "rejected_addition": new}
+                self.stages[stage]["validation_failure"] = {"message": failure["validation_error"]}
+                if self.counters[label] >= self.limits[limit]:
+                    raise
+                # A different, known-terminal invalid answer may be corrected only within the original
+                # approval-bound coverage/strengthening budget. The draft stays unchanged until acceptance.
+                inputs["addition_feedback"] = failure
 
     def control(self, suite):
         control = self.bundle["request"]["control_files"]

@@ -93,6 +93,25 @@ not pass. Python wrappers may exercise HTTP endpoints or invoke offline frontend
 checks. A frontend build demonstrates compilation, not UI behavior. Add executable
 DOM checks when available and report remaining coverage limits.
 
+Coverage repair returns only new test files and coverage for the requested
+criterion indexes. Existing test source, assertions, references and commands stay
+unchanged. A normally completed but invalid addition receives its exact validation
+diagnostic and rejected response on the next permitted coverage call. Every such
+call consumes the existing `max_test_coverage_repairs` budget; exhausted budgets
+stop before implementation. Strengthening uses its own existing bound. Dispatch,
+admission and unknown native-completion failures never authorize another call.
+Path collisions, incorrect criterion indexes, invalid syntax, absent test methods
+and undiscoverable references are checked before an addition is accepted. A
+coverage addition may address a subset of the missing criteria; remaining gaps
+still consume the same bounded budget.
+
+Frontend coverage must reference a discoverable Python `Class.test_method` that
+actually invokes the supplied offline DOM tools with a bounded subprocess timeout
+and asserts the result. Standalone TypeScript/Vitest files are not discovered by
+the frozen unittest command. A Python wrapper can embed its temporary DOM test and
+configuration rather than submitting unreferenced support files. These static
+checks establish executable references, not correct UI assertions or coverage.
+
 Before freezing tests, this profile runs narrow static checks under
 `unittest-http-fixtures-v1`. They flag class credentials left at `None` when one
 test writes an instance token and a different instance consumes it as a Bearer

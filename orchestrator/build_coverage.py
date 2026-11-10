@@ -107,16 +107,8 @@ def correct_test_references(draft, *, qualify_classes=False):
     return type(draft).model_validate(value), corrections
 
 
-def validate_test_coverage(suite, criteria):
-    expected = set(range(1, len(criteria) + 1))
-    covered = {entry.criterion for entry in suite.coverage}
-    if expected - covered and not covered - expected:
-        raise MissingCoverageError(expected - covered)
-    if covered != expected:
-        raise ValueError(
-            f"Test coverage must reference every acceptance criterion exactly by index; "
-            f"missing={sorted(expected - covered)}, unknown={sorted(covered - expected)}"
-        )
+def validate_coverage_references(suite):
+    """Check an addition's references without requiring every plan criterion yet."""
     files = {item.path: item.content for item in suite.files}
     python_names = python_test_names(files)
     for entry in suite.coverage:
@@ -133,6 +125,19 @@ def validate_test_coverage(suite, criteria):
             raise ValueError(
                 "Test coverage references a name absent from its test file"
             )
+
+
+def validate_test_coverage(suite, criteria):
+    expected = set(range(1, len(criteria) + 1))
+    covered = {entry.criterion for entry in suite.coverage}
+    if expected - covered and not covered - expected:
+        raise MissingCoverageError(expected - covered)
+    if covered != expected:
+        raise ValueError(
+            f"Test coverage must reference every acceptance criterion exactly by index; "
+            f"missing={sorted(expected - covered)}, unknown={sorted(covered - expected)}"
+        )
+    validate_coverage_references(suite)
     return {
         "criteria": len(expected),
         "cases": len(suite.coverage),
