@@ -199,6 +199,16 @@ class BuildRun:
     project_type = BuildProject
     suite_type = ReviewedBuildTestSuite
     test_brief = TEST_BRIEF
+    fixture_repair_constraints = ""
+
+    def fixture_problems(self, suite):
+        return fixture_diagnostics(suite)
+
+    def validate_fixture_repair(self, original_files, revised_files, diagnostics):
+        original = coverage.python_test_names({f.path: f.content for f in original_files})
+        revised = coverage.python_test_names({f.path: f.content for f in revised_files})
+        if any(not names <= revised[path] for path, names in original.items()):
+            raise ValueError("Fixture repair removed or renamed a test method")
 
     def __init__(self, runtime, state):
         self.runtime = runtime
@@ -238,17 +248,16 @@ class BuildRun:
         replacements = BuildTestSyntaxRepair.model_validate(self.ask(
             stage, "test_author", BuildTestSyntaxRepair,
             f"Repair only the indicated {issue} in the named test files. Preserve observable assertions, "
-            "coverage, expected behavior, test names and commands. Return complete corrected files for exactly those paths.",
+            "coverage, expected behavior, test names and commands. Return complete corrected files for exactly those paths."
+            + (self.fixture_repair_constraints if fixture else ""),
             files=[f.model_dump() for f in suite.files if f.path in paths], diagnostics=diagnostics,
             required_tests=[c.test_name for c in suite.coverage if c.test_file in paths]))
         changed = {f.path: f for f in replacements.files}
         if set(changed) != paths or len(changed) != len(replacements.files):
             raise ValueError("Test repair must return exactly the indicated test files")
         if fixture:
-            original = coverage.python_test_names({f.path: f.content for f in suite.files if f.path in paths})
-            revised = coverage.python_test_names({f.path: f.content for f in replacements.files})
-            if any(not names <= revised[path] for path, names in original.items()):
-                raise ValueError("Fixture repair removed or renamed a test method")
+            self.validate_fixture_repair([f for f in suite.files if f.path in paths],
+                                         replacements.files, diagnostics)
         merged = suite.model_dump()
         merged["files"] = [changed.get(f.path, f).model_dump() for f in suite.files]
         return self.suite_type.model_validate(merged)
@@ -292,7 +301,7 @@ class BuildRun:
             try:
                 suite, corrections = coverage.correct_test_references(suite, qualify_classes=True)
                 review = coverage.validate_test_coverage(suite, criteria)
-                problems = fixture_diagnostics(suite)
+                problems = self.fixture_problems(suite)
             except coverage.TestSyntaxError as error:
                 if locked_paths.intersection(d["path"] for d in error.diagnostics):
                     raise ValueError("Previously frozen test source failed syntax validation")

@@ -88,6 +88,24 @@ not pass. Python wrappers may exercise HTTP endpoints or invoke offline frontend
 checks. A frontend build demonstrates compilation, not UI behavior. Add executable
 DOM checks when available and report remaining coverage limits.
 
+Before freezing tests, this profile runs narrow static checks under
+`unittest-http-fixtures-v1`. They flag class credentials left at `None` when one
+test writes an instance token and a different instance consumes it as a Bearer
+credential, and unconditional JSON decoding in a urllib response helper used by
+a DELETE test. Valid empty HTTP 204 bodies must be handled without suppressing
+malformed nonempty JSON. Independent setup must initialize its own credentials;
+tests cannot share instance state through execution order.
+
+The approval-bound contract permits at most two fixture repair calls to the
+independent test author before implementation. Only diagnosed helper or setup
+bodies may change; an absent standard `setUp` or `setUpClass` may be added. Every
+test method's full syntax tree, all assertion expressions, imports, unrelated
+code, test names, coverage and commands remain unchanged. New unittest skip or
+expected-failure markers are rejected. Unresolved diagnostics or an uncertain
+model completion stop the build before tests are frozen. Ordinary Builds retain
+their existing fixture policy and budget. These checks catch specific fixture
+mistakes; they do not establish helper correctness or complete test quality.
+
 The result reports `unittest-acceptance-v1` and
 `mutation_verification: "not_run"`. Passing acceptance tests does not establish
 complete requirement coverage or semantic correctness. This profile does not

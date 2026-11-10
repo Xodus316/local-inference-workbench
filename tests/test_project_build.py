@@ -57,6 +57,8 @@ class Models:
         self.group_unknown = False
         self.group_admission_failure = False
         self.group_finish_reason = "stop"
+        self.fixture_repairs = []
+        self.fixture_unknown = False
 
     def admit(self, model, settings, payload, stage):
         self.stage = stage
@@ -73,6 +75,10 @@ class Models:
         elif stage == "build_tests":
             value = {"implementation_files": ["api/App.java", "frontend/App.vue"], "files": [self.test_file],
                      "commands": [COMMAND], "coverage": [COVERAGE], "assumptions": []}
+        elif stage.startswith("build_tests_fixture_"):
+            if self.fixture_unknown:
+                raise OSError("Synthetic unknown fixture repair receipt")
+            value = {"files": [self.fixture_repairs.pop(0) if self.fixture_repairs else self.test_file]}
         elif stage == "build_project_plan" or stage.startswith("build_project_plan_repair_"):
             if self.group_unknown:
                 raise ValueError("Synthetic failure before a known terminal receipt")
@@ -371,6 +377,50 @@ class ProjectFlowTests(unittest.TestCase):
         self.assertEqual(repair["schema"], initial["schema"])
         self.assertIn("groups.0.id", feedback["validation_error"])
         self.assertEqual(feedback["rejected_plan"], invalid)
+
+    def fixture_sources(self):
+        from test_project_fixture_checks import HTTP, FIXED_HTTP
+        original = {**TEST, "content": HTTP.replace("test_delete", "test_api")}
+        revised = {**TEST, "content": FIXED_HTTP.replace("test_delete", "test_api")}
+        return original, revised
+
+    def test_fixture_repair_is_independent_and_completes_before_freeze_and_implementation(self):
+        self.models.test_file, revised = self.fixture_sources()
+        self.models.fixture_repairs = [revised]
+        self.runtime.config.build.max_test_fixture_repairs = 0
+        row = self.execute()
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        stages = [call["stage"] for call in row["calls"]]
+        self.assertLess(stages.index("build_tests_fixture_1"), stages.index("build_project_plan"))
+        self.assertEqual(row["result"]["output"]["suite"]["files"], [revised])
+        repair = next(payload for stage, _, _, payload in self.models.seen if stage == "build_tests_fixture_1")
+        data = json.loads(repair["messages"][1]["content"])
+        self.assertEqual(data["prompt"], BRIEF)
+        self.assertEqual(data["files"], [self.models.test_file])
+        self.assertEqual(data["plan"], row["result"]["output"]["plan"])
+        self.assertIn("complete syntax tree", repair["messages"][0]["content"])
+        self.assertEqual(self.runtime.config.build.max_test_fixture_repairs, 0)
+        self.assertEqual(self.executor.tests, [[revised], [revised]])
+
+    def test_two_unresolved_fixture_repairs_exhaust_without_freezing_or_implementation(self):
+        self.models.test_file, _ = self.fixture_sources()
+        row = self.execute()
+        self.assertEqual(row["status"], "failed")
+        self.assertIn("fixture repair budget exhausted", row["result"]["output"]["error"]["message"])
+        self.assertEqual([c["stage"] for c in row["calls"]],
+                         ["build_plan", "build_tests", "build_tests_fixture_1", "build_tests_fixture_2"])
+        self.assertNotIn("build_frozen", row["result"]["stages"])
+        self.assertIsNone(row["result"]["output"]["suite"])
+        self.assertEqual(self.executor.tests, [])
+
+    def test_unknown_fixture_repair_does_not_authorize_a_second_call(self):
+        self.models.test_file, _ = self.fixture_sources()
+        self.models.fixture_unknown = True
+        row = self.execute()
+        self.assertEqual(row["status"], "blocked")
+        self.assertEqual([c["stage"] for c in row["calls"]],
+                         ["build_plan", "build_tests", "build_tests_fixture_1"])
+        self.assertEqual(self.executor.tests, [])
 
     def test_group_schema_error_inside_ask_still_uses_terminal_receipt_for_correction(self):
         invalid = group_plan(["api/App.java", "frontend/App.vue"])

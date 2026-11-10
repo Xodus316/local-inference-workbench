@@ -31,6 +31,7 @@ def offline_project_contract():
         "project_bytes": 163840, "project_files": 143,
         "group_bytes": 24576, "group_files": 16, "group_count": 32,
         "group_plan_format_repairs": 2,
+        "test_fixture_policy": "unittest-http-fixtures-v1", "max_test_fixture_repairs": 2,
         "context_bytes": 24576, "repair_selected_bytes": 32768, "repair_files": 16,
         "verification_policy": "unittest-acceptance-v1", "mutation_verification": "not_run",
         "failure_feedback_policy": "utf8-tails-with-full-receipt-digest-v1",
@@ -285,7 +286,12 @@ PROJECT_TEST_BRIEF = TEST_BRIEF.replace(
     "their dependencies, and state any UI behavior not tested. Keep the independent test source within "
     "16384 UTF-8 bytes and 15 files. Declare ALL implementation paths, up to 128, each small enough "
     "for a 24576-byte implementation group. Do not include binary "
-    "files, dependency caches or lockfiles already provisioned by the image.")
+    "files, dependency caches or lockfiles already provisioned by the image. "
+    "unittest creates a fresh instance for every test method: never depend on self.token or other "
+    "instance assignments made by an earlier test. Independently initialize class credentials in "
+    "setUpClass (write cls.token, using a separate unique fixture user), or authenticate per case in setUp. "
+    "HTTP helpers must read response bytes before JSON decoding and return None for an empty 204 body; "
+    "malformed nonempty JSON must still fail. Test methods must not depend on execution order.")
 
 
 class ProjectBuildRun(BuildRun):
@@ -293,15 +299,32 @@ class ProjectBuildRun(BuildRun):
     project_type = ProjectProject
     suite_type = ProjectTestSuite
     test_brief = PROJECT_TEST_BRIEF
+    fixture_repair_constraints = (
+        " Keep every test method's complete syntax tree and every assertion exactly unchanged, including "
+        "calls, expected values, decorators and control flow. Change only the diagnosed setup/helper bodies. "
+        "You may add setUp or a classmethod setUpClass where absent, but no other methods, imports, class "
+        "attributes, skips or executable top-level statements. Initialize separate fixture credentials "
+        "without editing test cases or their users. Do not add, remove or rewrite assertions."
+    )
 
     def __init__(self, runtime, state):
         super().__init__(runtime, state)
         project_enabled(self.bundle)
         self.contract = self.bundle["build_contract"]
+        self.limits = {**self.limits, "max_test_fixture_repairs": self.contract["max_test_fixture_repairs"]}
         self.brief["execution_contract"] = copy.deepcopy(self.contract["sandbox_protocol"])
         self.output["build_contract"] = copy.deepcopy(self.contract)
         self.output["verification"]["policy"] = self.contract["verification_policy"]
         self.output["verification"]["mutation_verification"] = "not_run"
+
+    def fixture_problems(self, suite):
+        from .project_fixture_checks import diagnostics
+        return super().fixture_problems(suite) + diagnostics(suite)
+
+    def validate_fixture_repair(self, original_files, revised_files, diagnostics):
+        from .project_fixture_checks import validate_repair
+        super().validate_fixture_repair(original_files, revised_files, diagnostics)
+        validate_repair(original_files, revised_files, diagnostics)
 
     def grouping(self, suite):
         instruction = (
