@@ -78,7 +78,7 @@ unusual manifests can still exceed context; storage limits are not a guarantee
 that every possible selection fits a model.
 
 The Docker sandbox keeps `/workspace` read-only, networking disabled and the
-existing cleanup checks. This profile provides 6,144 MiB memory and 2,048 MiB
+existing cleanup checks. This profile provides 16,384 MiB memory and 2,048 MiB
 temporary space with explicit `noexec` without changing the ordinary Build's
 temporary mount options. Its approval-bound limits are 1,024 open files and
 256 processes; ordinary Builds retain 256 open files and 128 processes. A

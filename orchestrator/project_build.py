@@ -35,7 +35,7 @@ def offline_project_contract():
         "context_bytes": 24576, "repair_selected_bytes": 32768, "repair_files": 16,
         "verification_policy": "unittest-acceptance-v1", "mutation_verification": "not_run",
         "failure_feedback_policy": "utf8-tails-with-full-receipt-digest-v1",
-        "sandbox_tmpfs_mb": 2048, "sandbox_memory_mb": 6144,
+        "sandbox_tmpfs_mb": 2048, "sandbox_memory_mb": 16384,
         "sandbox_tmpfs_noexec": True,
         "sandbox_nofile": 1024,
         "sandbox_pids_limit": 256,

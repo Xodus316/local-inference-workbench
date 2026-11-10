@@ -168,7 +168,7 @@ class BuildConfig(Record):
     max_test_mutations: int = Field(default=6, ge=1, le=12)
     mutation_timeout_seconds: int = Field(default=15, ge=1, le=60)
     test_timeout_seconds: int = Field(default=120, ge=1, le=900)
-    memory_mb: int = Field(default=1024, ge=256, le=8192)
+    memory_mb: int = Field(default=1024, ge=256, le=16384)
     cpus: float = Field(default=2.0, ge=0.25, le=8.0)
 
     @field_validator("image")

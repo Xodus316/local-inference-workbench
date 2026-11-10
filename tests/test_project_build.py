@@ -547,7 +547,7 @@ class ProjectFlowTests(unittest.TestCase):
         self.runtime.build_executor = DockerBuildExecutor(self.runtime.store.directory, self.runtime.config.build)
         original = self.runtime.config.build.model_dump()
         executor = project_executor(self.runtime, {"run_id": row["id"]})
-        self.assertEqual(executor.config.memory_mb, 6144)
+        self.assertEqual(executor.config.memory_mb, 16384)
         self.assertEqual(executor.config.temporary_mb, 2048)
         self.assertTrue(executor.config.temporary_noexec)
         self.assertEqual(executor.config.open_files, 1024)
@@ -560,7 +560,7 @@ class ProjectFlowTests(unittest.TestCase):
         executor.test(row["id"], 0, directory, [COMMAND], image="sha256:" + "a" * 64)
         args = executor._bounded_container.call_args.args[0]
         for option, expected in (("--tmpfs", "/tmp:rw,nosuid,nodev,noexec,size=2048m"),
-                                 ("--memory", "6144m"), ("--memory-swap", "6144m"),
+                                 ("--memory", "16384m"), ("--memory-swap", "16384m"),
                                  ("--pids-limit", "256"), ("--ulimit", "nofile=1024:1024"),
                                  ("--network", "none")):
             self.assertEqual(args[args.index(option) + 1], expected)
@@ -570,6 +570,7 @@ class ProjectFlowTests(unittest.TestCase):
         ordinary._bounded_container = executor._bounded_container
         ordinary.test(row["id"], 0, directory, [COMMAND], image="sha256:" + "a" * 64)
         ordinary_args = ordinary._bounded_container.call_args.args[0]
+        self.assertEqual(ordinary_args[ordinary_args.index("--memory") + 1], "1024m")
         self.assertEqual(ordinary_args[ordinary_args.index("--ulimit") + 1], "nofile=256:256")
         self.assertEqual(ordinary_args[ordinary_args.index("--pids-limit") + 1], "128")
         self.assertEqual(ordinary_args[ordinary_args.index("--tmpfs") + 1], "/tmp:rw,nosuid,nodev,size=64m")
