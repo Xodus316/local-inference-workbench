@@ -239,7 +239,7 @@ class DockerBuildExecutor:
                 "--cpus",
                 str(self.config.cpus),
                 "--ulimit",
-                "nofile=256:256",
+                f"nofile={getattr(self.config, 'open_files', 256)}:{getattr(self.config, 'open_files', 256)}",
                 "--tmpfs",
                 "/tmp:rw,nosuid,nodev," + ("noexec," if getattr(self.config, "temporary_noexec", False) else "")
                 + f"size={getattr(self.config, 'temporary_mb', 64)}m",
