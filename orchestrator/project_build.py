@@ -188,8 +188,18 @@ def validate_group_plan(value, declared):
         if not set(group.depends_on) <= groups.keys():
             raise ValueError("Group dependencies must name earlier groups")
         permitted_context = {p for dependency in group.depends_on for p in groups[dependency].files}
-        if len(set(group.context_files)) != len(group.context_files) or not set(group.context_files) <= permitted_context:
-            raise ValueError("Group context must select files from its declared earlier dependencies")
+        invalid_context = {path: owners.get(path, "no earlier owner")
+                           for path in sorted(set(group.context_files) - permitted_context)}
+        duplicates = sorted(path for path in set(group.context_files) if group.context_files.count(path) > 1)
+        if duplicates or invalid_context:
+            required = sorted({owners[path] for path in invalid_context if path in owners})
+            raise ValueError(
+                f"Group {group.id}: context_files must select distinct files from DIRECT depends_on groups; "
+                f"invalid_context_files_and_owners={invalid_context}, "
+                f"missing_direct_depends_on={required}, duplicate_context_files={duplicates}. "
+                "List each selected file's owning group directly in depends_on, even when that owner is "
+                "already a transitive dependency; otherwise remove the context file."
+            )
         for path in group.files:
             if path != relative(path) or path not in expected or path.casefold() in seen:
                 raise ValueError("Group paths must exactly partition the declared implementation interface")
@@ -293,7 +303,14 @@ PROJECT_TEST_BRIEF = TEST_BRIEF.replace(
     "instance assignments made by an earlier test. Independently initialize class credentials in "
     "setUpClass (write cls.token, using a separate unique fixture user), or authenticate per case in setUp. "
     "HTTP helpers must read response bytes before JSON decoding and return None for an empty 204 body; "
-    "malformed nonempty JSON must still fail. Test methods must not depend on execution order.")
+    "malformed nonempty JSON must still fail. Test methods must not depend on execution order. "
+    "Cases may share an application/database: create unique fixtures and compare your own fixture IDs, "
+    "never assume global collections or reports are empty or your row is first. Missing-resource checks "
+    "on protected endpoints must send a valid JWT. UI unittest helpers must use correctly bound self/cls "
+    "variables. When the image provides Vitest/jsdom for frontend/, use a temporary Vitest configuration "
+    "with root=APP_PROJECT_DIR/frontend, jsdom environment and globals enabled; resolve imports against "
+    "that root using absolute frontend source paths in temporary tests (root does not retarget relative "
+    "imports). Enable the supplied Vue SFC plugin when available and use only declared available tools.")
 
 
 class ProjectBuildRun(BuildRun):
@@ -363,7 +380,9 @@ class ProjectBuildRun(BuildRun):
             "split large modules in the independent interface before freezing it. Define a precise global "
             "cross-file API contract and each group's interface. depends_on names earlier group IDs only; "
             "context_files selects only existing files from those dependencies whose combined source will "
-            "fit 24576 bytes. Later groups receive only that selected source, the global contract, their "
+            "fit 24576 bytes. Every selected context file's direct owning group MUST appear in depends_on, "
+            "even when that owner is already a transitive dependency through another group. Later groups "
+            "receive only that selected source, the global contract, their "
             "own interface and frozen tests, never the entire accumulated implementation. Use empty "
             "dependency/context lists where none are needed. Group IDs must match "
             "^[a-z][a-z0-9_]{0,30}$; use lowercase letters, digits and underscores only, starting with "

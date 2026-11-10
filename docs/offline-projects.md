@@ -35,6 +35,10 @@ Python `unittest.TestCase` black-box acceptance tests and declares all applicati
 paths. After test validation, the planner partitions those paths into at most
 32 ordered groups with explicit interfaces, earlier dependencies and selected
 source files. The group plan and suite are frozen before implementation.
+Every selected context file must belong to a group named directly in
+`depends_on`; transitive dependencies do not provide source access. Rejections
+name the consuming group, disallowed paths, their earlier owners and the missing
+direct dependencies so a correction can preserve the selected source explicitly.
 
 If a normally completed group-plan response fails JSON, schema or complete plan
 validation, the planner may make at most two explicit format corrections. Each
