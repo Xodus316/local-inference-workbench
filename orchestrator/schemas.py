@@ -96,6 +96,7 @@ class Request(Record):
     research: bool = False
     tests: list[str] = Field(default_factory=list, max_length=8)
     control_files: list[ControlFile] = Field(default_factory=list, max_length=40)
+    build_profile: Literal["offline-project-v1"] | None = None
     repository: str | None = None
     files: list[str] = Field(default_factory=list, max_length=24)
 
@@ -110,6 +111,8 @@ class Request(Record):
             raise ValueError("Repository scope requires plan or edit mode")
         if self.control_files and self.mode != "build":
             raise ValueError("Reference implementations require Build mode")
+        if self.build_profile is not None and (self.mode != "build" or self.control_files):
+            raise ValueError("The offline project profile requires a fresh Build without reference implementations")
         if self.tests and (self.mode != "edit" or len(set(self.tests)) != len(self.tests)):
             raise ValueError("Select distinct tests in edit mode")
         if self.research and self.mode not in {"balanced", "research"}:

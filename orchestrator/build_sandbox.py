@@ -241,7 +241,8 @@ class DockerBuildExecutor:
                 "--ulimit",
                 "nofile=256:256",
                 "--tmpfs",
-                "/tmp:rw,nosuid,nodev,size=64m",
+                "/tmp:rw,nosuid,nodev," + ("noexec," if getattr(self.config, "temporary_noexec", False) else "")
+                + f"size={getattr(self.config, 'temporary_mb', 64)}m",
                 "--mount",
                 mount,
                 "--workdir",

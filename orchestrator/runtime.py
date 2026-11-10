@@ -1,4 +1,5 @@
 """Bounded workflow queue, digest-bound approvals and a durable model-call journal."""
+import copy
 import json
 import os
 import queue
@@ -101,6 +102,10 @@ class Runtime(CodeBuild, Stages):
                 implementation_files(BuildArtifact(summary="Trusted reference", files=packed["control_files"]))
             bundle["sandbox"] = self.build_executor.preflight()
             bundle["build"] = self.config.build.model_dump()
+            if request.build_profile is not None:
+                from .project_build import offline_project_contract, project_enabled
+                bundle["build_contract"] = offline_project_contract()
+                project_enabled(bundle)
         with self.management:
             return self.store.get(self.store.create(bundle))
 
@@ -110,6 +115,17 @@ class Runtime(CodeBuild, Stages):
         # An unused optional backend adds no authority to historical approvals.
         if current.get("llama_cpp") is None:
             candidates.append({key: value for key, value in current.items() if key != "llama_cpp"})
+        # These opt-in fields add no authority when left at their historical
+        # defaults. Keep ordinary pre-profile approvals usable without extending
+        # the exception to an enabled profile or a changed sandbox allowance.
+        if (bundle.get("request", {}).get("build_profile") is None
+                and current["build"]["offline_project_enabled"] is False
+                and current["build"]["temporary_mb"] == 64):
+            for candidate in list(candidates):
+                legacy = copy.deepcopy(candidate)
+                legacy["build"].pop("offline_project_enabled")
+                legacy["build"].pop("temporary_mb")
+                candidates.append(legacy)
         if any(digest(candidate) == bundle["config_digest"] for candidate in candidates):
             return True
         # Prior releases had a single search provider. An existing search approval

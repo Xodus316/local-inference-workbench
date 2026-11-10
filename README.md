@@ -40,6 +40,11 @@ See [model choices by role](#model-choices-by-role) for the lineup and benchmark
 
 To build a new program, choose **Open Build** in the desktop panel or **Build a Python project** in the workflow selector. The [Build walkthrough](docs/using-the-workbench.md#build-a-python-project) covers Docker setup, a sample request, verification receipts and downloading generated files.
 
+The API also offers an opt-in [offline project profile](docs/offline-projects.md)
+for larger applications in a preprovisioned toolchain image. It implements bounded
+file groups and selected-file repairs while retaining independent frozen tests,
+native call ownership and approval bindings. Operator enablement is required.
+
 On Windows, launch `.\.venv\Scripts\python -m orchestrator.desktop --config config.local.json` from the checkout. The panel can start and stop its service, open the workflow and chat interfaces, edit local configuration and show recent runs, resident models and NVIDIA GPU measurements. The desktop interface uses Tk. Starting the service from a terminal is also supported.
 
 ### Optional capabilities

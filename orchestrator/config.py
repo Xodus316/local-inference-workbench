@@ -155,6 +155,8 @@ class Research(Record):
 
 class BuildConfig(Record):
     enabled: bool = True
+    offline_project_enabled: bool = False
+    temporary_mb: int = Field(default=64, ge=64, le=2048)
     image: str = Field(default="python:3.13-alpine", min_length=1, max_length=300)
     max_repair_attempts: int = Field(default=3, ge=0, le=3)
     max_test_syntax_repairs: int = Field(default=2, ge=0, le=3)

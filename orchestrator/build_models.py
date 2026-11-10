@@ -49,6 +49,7 @@ class BuildTestFile(BuildFile):
 
 
 class BuildTestSuite(Record):
+    manifest_type: ClassVar[type[BuildArtifact]] = BuildArtifact
     implementation_files: list[str] = Field(min_length=1, max_length=40,
         description="Implementation path names only; another model writes their source after test validation.")
     files: list[BuildTestFile] = Field(min_length=1, max_length=15,
@@ -70,7 +71,7 @@ class BuildTestSuite(Record):
                 raise ValueError(
                     "Independent tests belong under tests/; Python test files must be named test_*.py"
                 )
-        BuildArtifact(summary="Independent tests", files=self.files)
+        type(self).manifest_type(summary="Independent tests", files=self.files)
         return self
 
 

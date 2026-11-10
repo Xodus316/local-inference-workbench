@@ -42,6 +42,11 @@ STAGES = {"primary", "secondary", "synthesis", "deep", "decider", "plan", "patch
           "research_queries", "research", "web_search_1", "web_search_2"}
 
 STAGES.update({"build_plan", "build_tests", "implement", "build_frozen", "build_strength"})
+STAGES.update({"build_project_plan", "build_project_frozen", "build_project_acceptance"})
+for number in range(1, 33):
+    STAGES.update({f"implement_group_{number}", f"project_after_{number}"})
+for number in range(1, 4):
+    STAGES.add(f"repair_{number}_select")
 for number in range(16):
     for prefix in ("build_tests_syntax", "build_tests_coverage", "build_tests_fixture", "repair", "build_verify", "build_control", "build_strengthen", "build_strength"):
         STAGES.add(f"{prefix}_{number}")
