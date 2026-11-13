@@ -274,3 +274,7 @@ Auto-compaction can summarize earlier turns and allow subsequent turns to
 continue. The default source budget is 7,680,000 UTF-8 bytes across up to 128
 files of at most 60,000 bytes each. The host's run deadline and the approved
 image, verification and test-suite constraints still apply.
+
+The [November coding workflow evaluation](coding-workflow-evaluation-2026-11.md)
+records the model comparisons, compiler and API checks, and the Commerce trial
+outcomes.
