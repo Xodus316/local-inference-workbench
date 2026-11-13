@@ -1,6 +1,10 @@
 """Narrow, non-executing HTTP/unittest fixture checks for offline projects."""
 import ast
+import builtins
 import copy
+import io
+import re
+import tokenize
 from collections import Counter
 
 from .build_coverage import parse_test_files
@@ -156,9 +160,76 @@ def _http_problems(filename, tree, cls):
     return problems
 
 
-def diagnostics(suite):
+def _closing_brace(source, opening):
+    fragment = source[opening:].decode("utf-8")
+    lines = fragment.splitlines(keepends=True)
+    depth = 0
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(fragment).readline):
+            if token.type != tokenize.OP or token.string not in {"{", "}"}:
+                continue
+            depth += 1 if token.string == "{" else -1
+            if depth == 0:
+                line, column = token.start
+                prefix = "".join(lines[:line - 1]) + lines[line - 1][:column]
+                return opening + len(prefix.encode("utf-8"))
+    except (SyntaxError, tokenize.TokenError):
+        return None
+    return None
+
+
+def _embedded_js_braces(source, tree):
+    # Be conservative: recognize an apparent object key only in a JS template,
+    # and leave names with any possible Python binding alone.
+    nodes = list(ast.walk(tree))
+    if any(isinstance(node, ast.alias) and node.name == "*"
+           or isinstance(node, ast.Name) and node.id == "exec" for node in nodes):
+        return []
+    names = set(vars(builtins))
+    names.update(node.id for node in nodes if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store))
+    names.update(node.arg for node in nodes if isinstance(node, ast.arg))
+    names.update(node.asname or node.name.split(".")[0] for node in nodes if isinstance(node, ast.alias))
+    names.update(node.name for node in nodes if isinstance(
+        node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.ExceptHandler, ast.MatchAs, ast.MatchStar)))
+    names.update(node.rest for node in nodes if isinstance(node, ast.MatchMapping))
+    encoded = source.encode("utf-8")
+    offsets = [0]
+    for line in encoded.splitlines(keepends=True):
+        offsets.append(offsets[-1] + len(line))
+    braces = []
+    for node in nodes:
+        if not isinstance(node, ast.JoinedStr):
+            continue
+        template = ast.get_source_segment(source, node) or ""
+        if not re.search(r"\b(?:const\s+\w+\s*=|export\s+default|(?:defineConfig|createVuetify|mount)\s*\()", template):
+            continue
+        for field in node.values:
+            if (not isinstance(field, ast.FormattedValue) or not isinstance(field.value, ast.Name)
+                    or field.value.id in names or field.format_spec is None or field.conversion != -1):
+                continue
+            key = field.value
+            start = offsets[key.lineno - 1] + key.col_offset
+            prefix = re.search(rb"\{\s*$", encoded[:start])
+            end = offsets[key.end_lineno - 1] + key.end_col_offset
+            if prefix is None or not re.match(rb"\s*:", encoded[end:]):
+                continue
+            opening = prefix.start()
+            closing = _closing_brace(encoded, opening)
+            if closing is not None:
+                braces.append((key.lineno, key.col_offset + 1, opening, closing))
+    return sorted(set(braces))
+
+
+def diagnostics(suite, *, python_version=None):
+    sources = {file.path: file.content for file in suite.files}
     problems = []
-    for filename, tree in parse_test_files({file.path: file.content for file in suite.files}).items():
+    for filename, tree in parse_test_files(sources, python_version=python_version).items():
+        for line, column, _, _ in _embedded_js_braces(sources[filename], tree):
+            problems.append({"path": filename, "line": line, "column": column, "policy": POLICY,
+                "kind": "embedded_js_braces",
+                "message": "This JavaScript object is parsed as Python f-string interpolation. "
+                           "Double just its opening and closing braces to keep it literal. "
+                           "Preserve JavaScript source and all intentional Python interpolations."})
         bases = _aliases(tree, "unittest", "TestCase")
         for cls in tree.body:
             if isinstance(cls, ast.ClassDef) and any(_name(base) in bases for base in cls.bases):
@@ -212,12 +283,22 @@ def _scaffold(tree, allowed, existing):
 
 def validate_repair(original_files, revised_files, problems):
     """Permit diagnosed setup/helper bodies only; preserve test ASTs and assertions."""
-    before = parse_test_files({file.path: file.content for file in original_files})
+    sources = {file.path: file.content for file in original_files}
+    before = parse_test_files(sources)
     after = parse_test_files({file.path: file.content for file in revised_files})
     if set(before) != set(after):
         raise ValueError("Fixture repair changed its Python file set")
     for path, tree in before.items():
-        allowed = {(item["class"], name) for item in problems if item.get("policy") == POLICY and item["path"] == path
+        findings = [item for item in problems if item.get("policy") == POLICY and item["path"] == path]
+        diagnosed = {(item["line"], item["column"]) for item in findings if item["kind"] == "embedded_js_braces"}
+        if diagnosed:
+            source = sources[path].encode("utf-8")
+            positions = {pos for line, column, opening, closing in _embedded_js_braces(sources[path], tree)
+                         if (line, column) in diagnosed for pos in (opening, closing)}
+            for pos in sorted(positions, reverse=True):
+                source = source[:pos] + source[pos:pos + 1] + source[pos:]
+            tree = parse_test_files({path: source.decode("utf-8")})[path]
+        allowed = {(item["class"], name) for item in findings if item["kind"] != "embedded_js_braces"
                    for name in ["setUp", "setUpClass", *item["helpers"]] if not name.startswith("test")}
         existing = {(cls.name, node.name) for cls in tree.body if isinstance(cls, ast.ClassDef)
                     for node in cls.body if isinstance(node, ast.FunctionDef)}

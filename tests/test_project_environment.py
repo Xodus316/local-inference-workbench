@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 from pydantic import ValidationError
 
+from orchestrator.build_coverage import TestSyntaxError
 from orchestrator.config import BuildConfig, Config
 from orchestrator.project_environment import (ProjectEnvironment, suite_environment_issues,
     validate_project_environment, validate_suite_environment)
@@ -49,6 +50,19 @@ class EnvironmentSchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_project_environment({"build": {"project_environment": {}}, "project_environment": {}})
 
+    def test_python_version_is_optional_and_bound_to_approval(self):
+        self.assertNotIn("python_version", environment())
+        value = environment(python_version="3.10")
+        self.assertEqual(value["python_version"], "3.10")
+        bundle = {"build": {"project_environment": value}, "project_environment": copy.deepcopy(value)}
+        self.assertEqual(validate_project_environment(bundle), value)
+        bundle["project_environment"]["python_version"] = "3.12"
+        with self.assertRaisesRegex(ValueError, "frozen for approval"):
+            validate_project_environment(bundle)
+        for version in ("3.10.12", "2.7", "3.latest", 310):
+            with self.subTest(version=version), self.assertRaises(ValidationError):
+                environment(python_version=version)
+
     def test_metadata_has_no_credentials_values_or_implementation_fields(self):
         for field in ("environment_values", "api_key", "source", "reference_implementation"):
             with self.subTest(field=field), self.assertRaises(ValidationError):
@@ -89,6 +103,12 @@ class SuiteEnvironmentTests(unittest.TestCase):
     def test_missing_required_declaration_stops_before_source_generation(self):
         with self.assertRaisesRegex(ValueError, "api/App.java"):
             validate_suite_environment(suite(paths=["frontend/App.vue"]), environment())
+
+    def test_checkpoint_environment_validation_checks_declared_python_grammar(self):
+        source = "value = f'/links/{item['id']}/click'\n"
+        with self.assertRaises(TestSyntaxError) as error:
+            validate_suite_environment(suite(source), environment(python_version="3.10"))
+        self.assertEqual(error.exception.diagnostics[0]["python_version"], "3.10")
 
     def test_stdlib_declared_dependencies_and_local_modules_are_allowed(self):
         source = "import json, urllib.request, unittest\nfrom helper import check\nimport requests\n" + TEST["content"]
@@ -195,6 +215,21 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         self.assertIn("requests", row["result"]["output"]["error"]["message"])
         self.assertNotIn("build_frozen", row["result"]["stages"])
         self.assertEqual(self.executor.tests, [])
+
+    def test_embedded_javascript_fixture_is_repaired_before_freeze(self):
+        from test_project_fixture_checks import UI, FIXED_UI
+
+        def test_file(source):
+            return {**TEST, "content": source.replace("class UI(", "class API(").replace("test_view", "test_api")}
+
+        self.runtime.config.build.project_environment.python_version = "3.10"
+        self.models.test_file = test_file(UI)
+        self.models.fixture_repairs = [test_file(FIXED_UI)]
+        row = self.execute()
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        self.assertEqual([call["stage"] for call in row["calls"]][:4],
+                         ["build_plan", "build_tests", "build_tests_fixture_1", "build_project_plan"])
+        self.assertEqual(row["result"]["output"]["suite"]["files"], [test_file(FIXED_UI)])
 
     def test_missing_required_file_stops_before_implementation(self):
         self.runtime.config.build.project_environment.required_application_files.append("api/bootstrap.gradle")

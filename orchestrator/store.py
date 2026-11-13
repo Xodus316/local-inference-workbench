@@ -13,6 +13,9 @@ from pathlib import Path
 from .backend_diagnostics import safe_backend_diagnostics
 
 
+MAX_ARTIFACT_BYTES = 33_000_000
+
+
 def _private_directory(path: Path):
     # Passing a POSIX mode to mkdir on Windows replaces the inherited user ACE
     # with an OWNER RIGHTS ACE. That is private, but it no longer matches the
@@ -44,13 +47,31 @@ STAGES = {"primary", "secondary", "synthesis", "deep", "decider", "plan", "patch
 STAGES.update({"build_plan", "build_tests", "implement", "build_frozen", "build_strength"})
 STAGES.update({"build_project_plan", "build_project_frozen", "build_project_acceptance"})
 STAGES.update({"build_project_plan_repair_1", "build_project_plan_repair_2"})
+STAGES.update({"build_tests_retry", "whole_self_tests", "whole_self_tests_retry", "whole_self_verify_0", "whole_self_verify_1",
+               "whole_self_verify_final", "whole_self_repair"})
+STAGES.update(f"whole_self_verify_final_{number}" for number in range(1, 4))
 for number in range(1, 33):
-    STAGES.update({f"implement_group_{number}", f"project_after_{number}"})
+    STAGES.update({f"implement_group_{number}", f"implement_group_{number}_scope_retry", f"project_after_{number}"})
 for number in range(1, 4):
-    STAGES.add(f"repair_{number}_select")
+    STAGES.update({f"repair_{number}_select", f"repair_{number}_edit_retry"})
 for number in range(16):
     for prefix in ("build_tests_syntax", "build_tests_coverage", "build_tests_fixture", "repair", "build_verify", "build_control", "build_strengthen", "build_strength"):
         STAGES.add(f"{prefix}_{number}")
+    STAGES.add(f"build_test_preflight_{number}")
+for number in range(4):
+    STAGES.add(f"build_code_review_{number}")
+    STAGES.update(f"build_code_review_{number}_chunk_{chunk}" for chunk in range(1, 17))
+    STAGES.update(f"build_code_review_{number}_chunk_{chunk}_citation_retry" for chunk in range(1, 17))
+for slot in range(1, 5):
+    STAGES.update(f"build_compile_checkpoint_{slot}_{attempt}" for attempt in range(3))
+    for attempt in range(1, 3):
+        stage = f"build_compile_repair_{slot}_{attempt}"
+        STAGES.update({stage, stage + "_select"})
+    for repair in range(1, 4):
+        STAGES.update(f"build_repair_compile_checkpoint_{repair}_{slot}_{attempt}" for attempt in range(3))
+        for attempt in range(1, 3):
+            stage = f"build_repair_compile_repair_{repair}_{slot}_{attempt}"
+            STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
 
 
 class Store:
@@ -204,7 +225,7 @@ class Store:
         target = self.artifact(run_id, stage, suffix)
         temporary = target.with_suffix(".tmp")
         data = encoded(value).encode("utf-8")
-        if len(data) > 33000000:
+        if len(data) > MAX_ARTIFACT_BYTES:
             raise ValueError("Artifact exceeds size bound")
         with open(temporary, "wb") as handle:
             handle.write(data)

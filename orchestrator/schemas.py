@@ -96,7 +96,7 @@ class Request(Record):
     research: bool = False
     tests: list[str] = Field(default_factory=list, max_length=8)
     control_files: list[ControlFile] = Field(default_factory=list, max_length=40)
-    build_profile: Literal["offline-project-v1"] | None = None
+    build_profile: Literal["offline-project-v1", "offline-project-reviewed-v1"] | None = None
     repository: str | None = None
     files: list[str] = Field(default_factory=list, max_length=24)
 

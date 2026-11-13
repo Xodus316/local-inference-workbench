@@ -6,7 +6,7 @@ import sys
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_serializer, model_validator
 
 from .build_coverage import parse_test_files
 from .repository import relative
@@ -15,6 +15,8 @@ from .schemas import Record
 POLICY = "offline-project-environment-v1"
 Name = Annotated[str, Field(pattern=r"^[A-Z][A-Z0-9_]{0,79}$")]
 Module = Annotated[str, Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$", max_length=120)]
+PythonVersion = Annotated[str, Field(pattern=r"^3\.(?:[7-9]|[1-9][0-9])$")]
+CheckName = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")]
 
 
 class ProjectTool(Record):
@@ -44,15 +46,55 @@ class ProjectAPI(Record):
         return value
 
 
+class ProjectVerification(Record):
+    policy: CheckName
+    required_checks: list[CheckName] = Field(min_length=1, max_length=24)
+
+    @field_validator("required_checks")
+    @classmethod
+    def distinct_checks(cls, checks):
+        if len(checks) != len(set(checks)):
+            raise ValueError("Required verification checks must be distinct")
+        return checks
+
+
+class ProjectCompileCheckpoint(Record):
+    name: CheckName
+    source_root: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$")
+    required_checks: list[CheckName] = Field(min_length=1, max_length=8)
+
+    @model_validator(mode="after")
+    def valid_component(self):
+        if relative(self.source_root) != self.source_root or self.source_root.casefold() == "tests":
+            raise ValueError("Compile checkpoints require a portable implementation directory")
+        if len(self.required_checks) != len(set(self.required_checks)):
+            raise ValueError("Required compile checks must be distinct")
+        return self
+
+
 class ProjectEnvironment(Record):
     """Metadata only: no arbitrary environment values, credentials or source fields."""
     policy: Literal["offline-project-environment-v1"] = POLICY
     required_application_files: list[str] = Field(default_factory=list, max_length=128)
     python_modules: list[Module] | None = Field(default=None, max_length=64)
+    python_version: PythonVersion | None = None
     tools: list[ProjectTool] | None = Field(default=None, max_length=64)
     api: ProjectAPI | None = None
     frontend_http_server: bool | None = None
     frontend_base_url_env: Name | None = None
+    verification: ProjectVerification | None = None
+    compile_checkpoints: list[ProjectCompileCheckpoint] | None = Field(default=None, min_length=1, max_length=4)
+
+    @model_serializer(mode="wrap")
+    def serialize_environment(self, handler):
+        value = handler(self)
+        if self.python_version is None:
+            value.pop("python_version", None)
+        if self.verification is None:
+            value.pop("verification", None)
+        if self.compile_checkpoints is None:
+            value.pop("compile_checkpoints", None)
+        return value
 
     @model_validator(mode="after")
     def bounded_portable_metadata(self):
@@ -66,6 +108,12 @@ class ProjectEnvironment(Record):
             raise ValueError("Tool capability names must be distinct")
         if (self.api is not None and self.frontend_base_url_env == self.api.base_url_env):
             raise ValueError("API and frontend URL variables must have different meanings")
+        if self.compile_checkpoints is not None:
+            names = {item.name for item in self.compile_checkpoints}
+            roots = {item.source_root.casefold() for item in self.compile_checkpoints}
+            if (self.verification is None or len(names) != len(self.compile_checkpoints)
+                    or len(roots) != len(self.compile_checkpoints)):
+                raise ValueError("Compile checkpoints require image verification and distinct names and directories")
         if len(json.dumps(self.model_dump(), ensure_ascii=False, separators=(",", ":")).encode("utf-8")) > 8192:
             raise ValueError("Project environment metadata exceeds 8192 UTF-8 bytes")
         return self
@@ -231,12 +279,18 @@ def suite_environment_issues(suite, environment):
     issues = [{"path": path, "kind": "missing_application_file",
                "message": "Required image bootstrap file is absent from the declared application interface"}
               for path in environment["required_application_files"] if path not in declared]
+    for checkpoint in environment.get("compile_checkpoints", []):
+        root = checkpoint["source_root"]
+        if not any(path.startswith(root + "/") for path in declared):
+            issues.append({"path": root, "kind": "missing_compile_component",
+                           "message": "No declared application files for the compile checkpoint"})
     local_modules = set()
     for path in [*declared, *(f.path for f in suite.files)]:
         if path.endswith(".py"):
             parts = path.removeprefix("tests/").split("/")
             local_modules.update({parts[0].removesuffix(".py"), PurePosixPath(path).stem})
-    for path, tree in parse_test_files({f.path: f.content for f in suite.files}).items():
+    for path, tree in parse_test_files({f.path: f.content for f in suite.files},
+                                      python_version=environment.get("python_version")).items():
         issues.extend(_import_issues(path, tree, environment, local_modules))
         issues.extend(_tool_issues(path, tree, environment))
         issues.extend(_api_issues(path, tree, environment["api"]))

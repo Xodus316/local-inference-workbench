@@ -11,11 +11,11 @@ from .project_environment import ProjectEnvironment
 DEFAULT_ROLES = {
     "fast_primary": "gemma4:12b",
     "fast_secondary": "qwen3.5:9b-q4_K_M",
-    "deep_reasoner": "gemma4:31b-it-qat",
+    "deep_reasoner": "gemma4:26b-a4b-it-mtp-q4_K_M",
     "decider": "pplx-decider:review-32k",
     "planner": "gemma4:26b-a4b-it-mtp-q4_K_M",
     "editor": "qwen3.8:27b-mtp-q4_K_M",
-    "reviewer": "gemma4:31b-it-qat",
+    "reviewer": "gemma4:26b-a4b-it-mtp-q4_K_M",
     "test_author": "gemma4:31b-iq4_xs",
     "implementer": "qwen3.8:27b-mtp-q4_K_M",
     "repairer": "qwen3.8:27b-mtp-q4_K_M",
@@ -218,6 +218,8 @@ class Config(Record):
         defaults = {}
         if role in {"implementer", "repairer"}:
             defaults = {"context": 98304, "think": "xhigh"}
+        elif role == "reviewer":
+            defaults = {"context": 65536, "think": True}
         profile = self.generation.get(role)
         overrides = profile.model_dump(exclude_unset=True) if profile else {}
         return Generation.model_validate({**defaults, **overrides})

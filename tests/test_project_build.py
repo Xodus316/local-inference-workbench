@@ -13,7 +13,7 @@ from orchestrator.config import Config
 from orchestrator.project_build import (POLICY, ProjectArtifact, ProjectProject, ProjectTestSuite,
     GroupArtifact, RepairArtifact, offline_project_contract, project_enabled, selected_source,
     validate_group_plan, validate_project_artifact, validate_project_prompt, project_executor,
-    failure_feedback, GroupPlan)
+    failure_feedback, GroupPlan, REVIEWED_POLICY)
 from orchestrator.runtime import Runtime
 from orchestrator.schemas import Request
 from orchestrator.store import digest, encoded
@@ -30,6 +30,10 @@ COVERAGE = {"criterion": 1, "test_file": TEST["path"], "test_name": "API.test_ap
             "catches": "A missing product"}
 DIAGNOSIS = {"diagnosis": ["Wrong response"], "changes": ["Correct response"],
              "verification": ["Run frozen tests"]}
+INVALID_REVIEW = {"findings": [{
+    "severity": "P1", "category": "security", "path": "api/App.java", "line": 99,
+    "evidence": "imaginary", "title": "Bad key", "description": "Key leaks.", "fix": "Remove key.",
+}]}
 
 
 def manifest(path, content="source"):
@@ -60,6 +64,9 @@ class Models:
         self.group_finish_reason = "stop"
         self.fixture_repairs = []
         self.fixture_unknown = False
+        self.syntax_repairs = []
+        self.review_responses = []
+        self.repair_selection = None
 
     def admit(self, model, settings, payload, stage):
         self.stage = stage
@@ -80,6 +87,8 @@ class Models:
             if self.fixture_unknown:
                 raise OSError("Synthetic unknown fixture repair receipt")
             value = {"files": [self.fixture_repairs.pop(0) if self.fixture_repairs else self.test_file]}
+        elif stage.startswith("build_tests_syntax_"):
+            value = {"files": [self.syntax_repairs.pop(0)]}
         elif stage == "build_project_plan" or stage.startswith("build_project_plan_repair_"):
             if self.group_unknown:
                 raise ValueError("Synthetic failure before a known terminal receipt")
@@ -92,9 +101,11 @@ class Models:
             if self.lost:
                 raise OSError("Synthetic lost receipt")
             value = {"summary": "Frontend", "files": [manifest("frontend/App.vue", "frontend source")]}
+        elif stage.startswith("build_code_review_"):
+            value = self.review_responses.pop(0) if self.review_responses else {"findings": []}
         elif stage.endswith("_select"):
             value = {"diagnosis": DIAGNOSIS,
-                     "files": ["tests/test_api.py" if self.overscope else "api/App.java"]}
+                     "files": self.repair_selection or ["tests/test_api.py" if self.overscope else "api/App.java"]}
         elif stage.startswith("repair_"):
             value = {"diagnosis": DIAGNOSIS, "artifact": {"summary": "Fixed backend", "files": [
                 manifest("tests/test_api.py" if self.tamper else "api/App.java",
@@ -110,6 +121,8 @@ class Executor:
         self.projects = []
         self.tests = []
         self.environment_failure = False
+        self.preflights = []
+        self.preflight_diagnostics = []
 
     def preflight(self):
         return {"engine": "docker", "image": "fixture:offline", "image_id": "sha256:" + "a" * 64}
@@ -117,6 +130,14 @@ class Executor:
     def materialize(self, run_id, attempt, project):
         self.projects.append(project.model_dump())
         return project
+
+    def preflight_tests(self, run_id, attempt, manifest, image, cancel, deadline):
+        self.preflights.append([f.model_dump() for f in manifest.files])
+        diagnostics = self.preflight_diagnostics.pop(0) if self.preflight_diagnostics else []
+        record = json.dumps({"python_version": "3.10", "diagnostics": diagnostics})
+        return {"status": "failed" if diagnostics else "passed", "commands": [{
+            "exit_code": 1 if diagnostics else 0, "timed_out": False, "cancelled": False,
+            "cleanup_confirmed": True, "stderr": "WORKBENCH_TEST_COMPILE " + record + "\n"}]}
 
     def test(self, run_id, attempt, project, commands, image, cancel, deadline, read_only_project):
         assert read_only_project
@@ -131,6 +152,19 @@ class Executor:
 
 
 class ProjectBoundsTests(unittest.TestCase):
+    def test_coding_agent_defaults_and_explicit_reviewer_overrides(self):
+        config = Config(generation={"reviewer": {"temperature": 0.0}})
+        self.assertEqual(config.roles["test_author"], "gemma4:31b-iq4_xs")
+        self.assertEqual(config.roles["deep_reasoner"], "gemma4:26b-a4b-it-mtp-q4_K_M")
+        self.assertEqual(config.roles["reviewer"], "gemma4:26b-a4b-it-mtp-q4_K_M")
+        self.assertEqual(config.generation_for("reviewer").context, 65536)
+        self.assertIs(config.generation_for("reviewer").think, True)
+        self.assertEqual(config.generation_for("reviewer").temperature, 0.0)
+        for role in ("implementer", "repairer"):
+            generation = config.generation_for(role)
+            self.assertEqual(config.roles[role], "qwen3.8:27b-mtp-q4_K_M")
+            self.assertEqual((generation.context, generation.think), (98304, "xhigh"))
+
     def test_project_test_author_schema_requires_one_unittest_discovery_command(self):
         variants = ["python -m unittest discover -s tests -v", COMMAND]
         suite = {"implementation_files": ["api/App.java"], "files": [TEST],
@@ -209,6 +243,9 @@ class ProjectBoundsTests(unittest.TestCase):
                   "build_contract": offline_project_contract(),
                   "roles": {"implementer": "fixture:code", "repairer": "fixture:code", "test_author": "fixture:tester"}}
         self.assertTrue(project_enabled(bundle))
+        for backend in ("strata", "llama-cpp"):
+            with self.subTest(backend=backend), self.assertRaisesRegex(ValueError, "independent models"):
+                project_enabled({**bundle, "backend": {"name": backend}})
         changed = copy.deepcopy(bundle)
         changed["build_contract"]["implementation_bytes"] += 1
         with self.assertRaises(ValueError):
@@ -269,12 +306,160 @@ class ProjectFlowTests(unittest.TestCase):
                                self.models, self.executor)
         self.addCleanup(self.runtime.close)
 
-    def execute(self):
-        row = self.runtime.prepare({"mode": "build", "prompt": BRIEF, "build_profile": POLICY})
+    def execute(self, profile=POLICY):
+        row = self.runtime.prepare({"mode": "build", "prompt": BRIEF, "build_profile": profile})
         self.assertEqual(self.models.seen, [])
         self.runtime.approve(row["id"], row["digest"])
         self.runtime.queue.join()
         return self.runtime.store.get(row["id"])
+
+    def test_review_blocker_triggers_repair_even_when_independent_tests_pass(self):
+        self.models.backend_source = "correct backend"
+        finding = {"severity": "P1", "category": "data_integrity", "path": "api/App.java",
+                   "line": 1, "evidence": "correct backend", "title": "Concurrent edits are lost",
+                   "description": "Two updates overwrite the same data.", "fix": "Use an atomic write."}
+        self.models.review_responses = [{"findings": [finding]}, {"findings": []}]
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        output = row["result"]["output"]
+        verification = output["verification"]
+        self.assertEqual(self.executor.preflights, [[TEST]])
+        self.assertEqual(self.executor.tests, [[TEST], [TEST]])
+        self.assertEqual([v["status"] for v in verification["baselines"]], ["passed", "passed"])
+        self.assertEqual([v["status"] for v in verification["code_reviews"]], ["changes_required", "passed"])
+        final = verification["code_reviews"][-1]
+        self.assertEqual(final["project_digest"], digest(output["artifact"]))
+        self.assertEqual(final["chunks"][0]["paths"], ["api/App.java", "frontend/App.vue"])
+        calls = {stage: (model, json.loads(payload["messages"][1]["content"]))
+                 for stage, model, _, payload in self.models.seen}
+        self.assertNotEqual(calls["build_code_review_0_chunk_1"][0], calls["implement_group_1"][0])
+        self.assertNotIn("failed_execution", calls["repair_1_select"][1])
+        self.assertEqual(calls["repair_1"][1]["independent_code_review"]["findings"], [finding])
+
+    def test_image_syntax_diagnostics_repair_before_source_generation(self):
+        draft = {**TEST, "content": TEST["content"] + "# first draft\n"}
+        self.models.test_file = draft
+        self.models.syntax_repairs = [TEST]
+        self.executor.preflight_diagnostics = [[{"path": TEST["path"], "line": 5, "message": "target syntax"}]]
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        self.assertEqual(self.executor.preflights, [[draft], [TEST]])
+        stages = [stage for stage, *_ in self.models.seen]
+        self.assertLess(stages.index("build_tests_syntax_1"), stages.index("implement_group_1"))
+        self.assertEqual(self.executor.tests, [[TEST], [TEST]])
+
+    def test_reviewed_profile_rejects_same_reviewer_and_implementer(self):
+        self.runtime.config.roles["reviewer"] = self.runtime.config.roles["implementer"]
+        with self.assertRaisesRegex(ValueError, "independent reviewer"):
+            self.runtime.prepare({"mode": "build", "prompt": BRIEF, "build_profile": REVIEWED_POLICY})
+        self.assertEqual(self.models.seen, [])
+
+    def test_unfounded_review_fails_closed_without_repair(self):
+        self.models.backend_source = "correct backend"
+        self.models.review_responses = [INVALID_REVIEW, INVALID_REVIEW]
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "review_required", row.get("result"))
+        output = row["result"]["output"]
+        self.assertIsNone(output["artifact"])
+        self.assertEqual(output["repair_attempts"], 0)
+        review = output["verification"]["code_reviews"][0]
+        self.assertEqual(review["status"], "incomplete")
+        self.assertEqual(review["chunks"], [])
+        self.assertEqual(review["findings"], [])
+        self.assertIn("at line 99", review["validation_failures"][0]["validation_error"])
+        self.assertEqual(review["validation_failures"][0]["stage"], "build_code_review_0_chunk_1_citation_retry")
+
+    def test_citation_retry_reviews_the_same_source_after_tests_pass(self):
+        self.models.backend_source = "correct backend"
+        self.models.review_responses = [INVALID_REVIEW, {"findings": []}]
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        review = row["result"]["output"]["verification"]["code_reviews"][0]
+        self.assertEqual(review["status"], "passed")
+        chunk = review["chunks"][0]
+        self.assertEqual(chunk["retry_of"], "build_code_review_0_chunk_1")
+        self.assertEqual(chunk["stage"], "build_code_review_0_chunk_1_citation_retry")
+        calls = {stage: json.loads(payload["messages"][1]["content"])
+                 for stage, _, _, payload in self.models.seen}
+        self.assertEqual(calls[chunk["stage"]]["implementation"], calls[chunk["retry_of"]]["implementation"])
+
+    def test_citation_retry_keeps_grounded_blocker_from_initial_review(self):
+        self.models.backend_source = "correct backend"
+        blocker = {"severity": "P1", "category": "data_integrity", "path": "api/App.java",
+                   "line": 1, "evidence": "correct backend", "title": "Concurrent edits are lost",
+                   "description": "Two updates overwrite the same data.", "fix": "Use an atomic write."}
+        self.models.review_responses = [{"findings": [*INVALID_REVIEW["findings"], blocker]}, {"findings": []}]
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        output = row["result"]["output"]
+        self.assertEqual(output["repair_attempts"], 1)
+        review = output["verification"]["code_reviews"][0]
+        self.assertEqual(review["status"], "changes_required")
+        self.assertEqual(review["findings"], [blocker])
+        self.assertEqual(review["chunks"][0]["findings_retained_from_initial_review"], 1)
+
+    def test_trusted_failure_reaches_repair_before_independent_review(self):
+        from orchestrator.project_environment import ProjectEnvironment
+
+        self.runtime.config.build.project_environment = ProjectEnvironment.model_validate(
+            {"verification": {"policy": "fixture-quality-v1", "required_checks": ["trusted-api"]}})
+        sandbox_test = self.executor.test
+
+        def test_with_trusted_checks(*args, **kwargs):
+            receipt = sandbox_test(*args, **kwargs)
+            status = receipt["status"]
+            result = {"policy": "fixture-quality-v1", "status": status, "cleanup_confirmed": True,
+                      "exit_code": receipt["commands"][0]["exit_code"], "checks": {"trusted-api": {"status": status}},
+                      "failures": ([{"stage": "trusted-api", "diagnostic_excerpt": "Expected 24 clicks, stored 2"}]
+                                   if status == "failed" else [])}
+            receipt["commands"][0]["stderr"] = ("test_api (test_api.API.test_api) ... ok\n\n"
+                "Ran 1 test in 0.01s\n\nOK\nOFFLINE_PROJECT_RESULT " + json.dumps(result) + "\n")
+            return receipt
+
+        self.executor.test = test_with_trusted_checks
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        output = row["result"]["output"]
+        self.assertEqual(output["repair_attempts"], 1)
+        self.assertEqual(self.executor.tests, [[TEST], [TEST]])
+        verification = output["verification"]
+        self.assertEqual([v["status"] for v in verification["baselines"]], ["failed", "passed"])
+        self.assertEqual([v["status"] for v in verification["code_reviews"]], ["passed"])
+        self.assertEqual(verification["code_reviews"][0]["project_digest"], digest(output["artifact"]))
+        calls = {stage: json.loads(payload["messages"][1]["content"])
+                 for stage, _, _, payload in self.models.seen}
+        self.assertNotIn("build_code_review_0_chunk_1", calls)
+        self.assertLess(list(calls).index("repair_1"), list(calls).index("build_code_review_1_chunk_1"))
+        self.assertEqual(calls["build_code_review_1_chunk_1"]["verification"], {
+            "status": "passed", "image_checks": {"trusted-api": "passed"},
+        })
+        for stage in ("repair_1_select", "repair_1"):
+            self.assertNotIn("independent_code_review", calls[stage])
+            target = calls[stage]["repair_target"]
+            self.assertEqual(target["check"], "trusted-api")
+            self.assertEqual(target["diagnostics"], ["Expected 24 clicks, stored 2"])
+            self.assertEqual(target["receipt_digest"], calls[stage]["failed_execution"]["full_failure_receipt_digest"])
+
+    def test_missing_required_image_check_cannot_pass_with_successful_unittest_log(self):
+        self.models.backend_source = "correct backend"
+        from orchestrator.project_environment import ProjectEnvironment
+        self.runtime.config.build.project_environment = ProjectEnvironment.model_validate(
+            {"verification": {"policy": "fixture-quality-v1", "required_checks": ["browser"]}})
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "review_required", row.get("result"))
+        output = row["result"]["output"]
+        self.assertEqual(output["verification"]["baselines"][0]["status"], "passed")
+        self.assertEqual(output["verification"]["code_reviews"], [])
+        self.assertIsNone(output["artifact"])
+
+    def test_settled_resource_failure_still_reviews_source_without_a_repair(self):
+        self.executor.environment_failure = True
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "review_required", row.get("result"))
+        output = row["result"]["output"]
+        self.assertEqual(output["verification"]["code_reviews"][0]["status"], "passed")
+        self.assertEqual(output["repair_attempts"], 0)
+        self.assertIsNone(output["artifact"])
 
     def test_groups_selected_repair_full_verification_and_no_mutation_claim(self):
         row = self.execute()
@@ -315,6 +500,17 @@ class ProjectFlowTests(unittest.TestCase):
                 setattr(self.models, field, False)
                 self.models.seen.clear()
                 self.executor.tests.clear()
+
+    def test_reviewed_repair_preserves_omitted_selected_files(self):
+        self.models.repair_selection = ["api/App.java", "frontend/App.vue"]
+        row = self.execute(REVIEWED_POLICY)
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        result = row["result"]
+        files = {item["path"]: item["content"] for item in result["output"]["artifact"]["files"]}
+        self.assertEqual(files["api/App.java"], "correct backend")
+        self.assertEqual(files["frontend/App.vue"], "frontend source")
+        self.assertEqual(result["stages"]["repair_1"]["selected_paths"], self.models.repair_selection)
+        self.assertEqual(result["stages"]["repair_1"]["replaced_paths"], ["api/App.java"])
 
     def test_unknown_native_completion_is_not_replayed(self):
         self.models.lost = True
@@ -591,6 +787,26 @@ class ProjectFlowTests(unittest.TestCase):
         self.assertEqual(ordinary_args[ordinary_args.index("--ulimit") + 1], "nofile=256:256")
         self.assertEqual(ordinary_args[ordinary_args.index("--pids-limit") + 1], "128")
         self.assertEqual(ordinary_args[ordinary_args.index("--tmpfs") + 1], "/tmp:rw,nosuid,nodev,size=64m")
+
+    def test_failed_sandbox_copy_does_not_launch_or_leave_partial_workspace(self):
+        from shutil import Error
+        from orchestrator.build_sandbox import DockerBuildExecutor
+
+        row = self.runtime.prepare({"mode": "build", "prompt": BRIEF, "build_profile": POLICY})
+        executor = DockerBuildExecutor(self.runtime.store.directory, self.runtime.config.build)
+        artifact = ProjectProject(summary="Synthetic project", files=[manifest("api/App.java"), TEST])
+        directory = executor.materialize(row["id"], 0, artifact)
+
+        def fail_after_writing(source, destination, **kwargs):
+            (destination / "partial").write_text("temporary", encoding="utf-8")
+            raise Error("copy failed")
+
+        with patch.object(executor, "_bounded_container") as launch, patch(
+            "orchestrator.build_sandbox.shutil.copytree", side_effect=fail_after_writing
+        ), self.assertRaisesRegex(Error, "copy failed"):
+            executor.test(row["id"], 0, directory, [COMMAND])
+        launch.assert_not_called()
+        self.assertEqual(set(directory.parent.iterdir()), {directory})
 
 
 if __name__ == "__main__":

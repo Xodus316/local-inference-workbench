@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import uuid
@@ -13,6 +15,38 @@ from pathlib import Path, PurePosixPath
 
 from .repository import relative
 from .build_models import BuildArtifact
+
+
+PYTHON_TEST_COMPILE = """
+import json
+from pathlib import Path
+import sys
+
+problems = []
+for path in sorted(Path("tests").rglob("*.py")):
+    try:
+        compile(path.read_bytes(), path.as_posix(), "exec", dont_inherit=True)
+    except SyntaxError as error:
+        problems.append({"path": path.as_posix(), "line": error.lineno or 1,
+                         "message": error.msg[:160]})
+result = {"python_version": ".".join(str(part) for part in sys.version_info[:2]),
+          "diagnostics": problems}
+print("WORKBENCH_TEST_COMPILE " + json.dumps(result, separators=(",", ":")), file=sys.stderr)
+sys.exit(1 if problems else 0)
+"""
+
+
+def final_json_record(output, marker):
+    """Read a final record emitted by an approved sandbox entry point."""
+    lines = output.rstrip().rsplit("\n", 1)
+    prefix = marker + " "
+    if not lines[-1].startswith(prefix):
+        return None
+    try:
+        value = json.loads(lines[-1][len(prefix):])
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def _reparse(path: Path) -> bool:
@@ -113,7 +147,7 @@ class DockerBuildExecutor:
         return project
 
     @staticmethod
-    def _bounded_container(args, timeout, name, cancel=None, deadline=None):
+    def _bounded_container(args, timeout, name, cancel=None, deadline=None, failure_stderr_bytes=4000):
         process = subprocess.Popen(
             args,
             stdin=subprocess.DEVNULL,
@@ -181,7 +215,7 @@ class DockerBuildExecutor:
         for reader in readers:
             reader.join(5)
         if exit_code != 0:
-            del buffers["stderr"][:-4000]
+            del buffers["stderr"][:-failure_stderr_bytes]
         return {
             "exit_code": exit_code,
             "timed_out": timed_out,
@@ -190,6 +224,11 @@ class DockerBuildExecutor:
             "stdout": bytes(buffers["stdout"]).decode("utf-8", errors="replace"),
             "stderr": bytes(buffers["stderr"]).decode("utf-8", errors="replace"),
         }
+
+    def preflight_tests(self, run_id, attempt, manifest, image, cancel, deadline):
+        project = self.materialize(run_id, attempt, manifest)
+        return self._run_commands(run_id, attempt, project, ["compile independent Python tests"],
+                                  image, cancel, deadline, True, compile_tests=True)
 
     def test(
         self,
@@ -202,12 +241,19 @@ class DockerBuildExecutor:
         deadline=None,
         read_only_project=True,
     ) -> dict:
+        return self._run_commands(run_id, attempt, project, commands, image, cancel, deadline,
+                                  read_only_project)
+
+    def _run_commands(self, run_id, attempt, project, commands, image, cancel, deadline,
+                      read_only_project, *, compile_tests=False):
+        uuid.UUID(run_id)
         results = []
+        scratch = self.directory / run_id
+        scratch.mkdir(parents=True, exist_ok=True)
         for index, command in enumerate(commands, 1):
-            copy = (
-                self.directory / run_id / f"test-{attempt}-{index}-{uuid.uuid4().hex}"
-            )
-            shutil.copytree(project, copy)
+            # Keep headroom for nested source paths on Windows. Reserve the short
+            # name atomically so failed copies can only remove their own workspace.
+            copy = Path(tempfile.mkdtemp(prefix="t-", dir=scratch))
             mount = f"type=bind,source={copy},target=/workspace"
             if read_only_project:
                 mount += ",readonly"
@@ -251,15 +297,17 @@ class DockerBuildExecutor:
                 "HOME=/tmp",
                 "--env",
                 "PYTHONDONTWRITEBYTECODE=1",
-                image or self.config.image,
-                "/bin/sh",
-                "-lc",
-                command,
             ]
+            if compile_tests:
+                args.extend(["--entrypoint", "python3", image, "-I", "-c", PYTHON_TEST_COMPILE])
+            else:
+                args.extend([image or self.config.image, "/bin/sh", "-lc", command])
             try:
-                result = self._bounded_container(
-                    args, self.config.test_timeout_seconds, name, cancel, deadline
-                )
+                shutil.copytree(project, copy, dirs_exist_ok=True)
+                failure_stderr_bytes = getattr(self.config, "failure_stderr_bytes", None)
+                options = {} if failure_stderr_bytes is None else {"failure_stderr_bytes": failure_stderr_bytes}
+                result = self._bounded_container(args, self.config.test_timeout_seconds,
+                                                 name, cancel, deadline, **options)
                 result["command_index"] = index
             finally:
                 shutil.rmtree(copy, ignore_errors=True)

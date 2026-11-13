@@ -35,8 +35,8 @@ Python `unittest.TestCase` black-box acceptance tests and declares all applicati
 paths. After test validation, the planner partitions those paths into at most
 32 ordered groups with explicit interfaces, earlier dependencies and selected
 source files. The group plan and suite are frozen before implementation.
-Every selected context file must belong to a group named directly in
-`depends_on`; transitive dependencies do not provide source access. Rejections
+Every file explicitly named in `context_files` must belong to a group named
+directly in `depends_on`. Rejections
 name the consuming group, disallowed paths, their earlier owners and the missing
 direct dependencies so a correction can preserve the selected source explicitly.
 
@@ -148,3 +148,129 @@ The result reports `unittest-acceptance-v1` and
 `mutation_verification: "not_run"`. Passing acceptance tests does not establish
 complete requirement coverage or semantic correctness. This profile does not
 claim Python mutation verification for another implementation stack.
+
+## Offline projects with independent code review
+
+Select `build_profile: "offline-project-reviewed-v1"` to use the same offline
+execution limits plus exact test compilation and independent source review.
+Configure the `reviewer` role with an explicit context and a model distinct from
+the implementer and repairer. The approved bundle binds the profile, role,
+generation settings, image, review bounds and blocking severities. The original
+`offline-project-v1` profile can still be selected.
+
+For each cross-group dependency, the planner selects the source files defining
+the interface and names the exported methods, payload fields and routes the
+consumer will use. When a group names dependencies and selects no files, the
+reviewed profile supplies complete files from direct dependencies first, followed
+by their upstream dependencies. Each addition must fit the existing source and
+prompt limits. The implementation stage records the supplied paths.
+
+An image environment can declare `compile_checkpoints`. Each checkpoint names
+a source directory and the compiler checks expected from the pinned image.
+The runner schedules it immediately after the last group that owns files in
+that directory. It runs `workbench-compile-checkpoint <name>` with only that
+component's source mounted read-only. The image must provide a matching
+compiler receipt. Final acceptance still runs on the assembled project.
+
+A conclusive compiler failure sends the diagnostics to the configured repairer.
+It may replace only existing files in that component, including files from
+earlier groups. The runner recompiles after each repair and allows up to two
+repairs per checkpoint. Later implementation groups receive the corrected
+source. An unresolved compiler failure or inconclusive receipt stops the run
+before another implementation group. Imported unchanged prefixes repeat these
+checks. A prefix changed by compiler repair can reuse the frozen plan and
+regenerate the implementation groups.
+
+Before freezing the generated tests, the executor mounts the test source
+read-only in the pinned image and compiles it using that image's Python
+interpreter. This does not import or run generated Python. Syntax diagnostics
+go to the independent test author within the existing repair budget. An optional
+`python_version` in the image environment declares the expected major and minor
+version. Static fixture checks also identify literal JavaScript object braces
+that would become Python expressions in a fixture f-string. A brace repair can
+escape only those diagnosed braces and must preserve test logic and assertions.
+
+After verification passes, the reviewer receives the brief, approved plan and
+contract, recorded image check statuses, and complete implementation files in
+bounded chunks. An actionable verification failure goes directly to repair.
+A settled but inconclusive run can still produce an advisory source review.
+The reviewer returns severity, category, path, source line, excerpt, impact and
+fix for each finding. The executor validates every excerpt and binds the review
+to the exact candidate and project digests. It records every chunk's paths,
+the structured findings, and deterministic warnings for compressed source.
+Reviews may be limited in their ability to compare files in different chunks.
+Review findings cite source and do not stand in for execution evidence.
+
+The reviewer may copy the display prefix into a quote or cite the wrong line.
+The executor can remove the prefix and resolve a verbatim quote to a unique
+line in the cited file. If a citation is still invalid after the tests pass,
+the reviewer gets one correction attempt with the same source chunk, within
+its context limit. A valid retry retains the initial review's grounded findings.
+The review records any unresolved rejection and continues with the remaining
+chunks. Confirmed verification failures can still go to the repairer. Delivery
+requires a passing verification and a complete review of the same candidate.
+
+P0 and P1 findings use the existing selected-file repair budget. The next
+candidate must pass verification and a fresh review. P2 and P3 findings are
+reported for follow-up. Unknown execution outcomes, invalid review evidence,
+or a context budget that cannot cover the full source cannot produce an
+approved delivery. An implementation repair still cannot alter frozen tests.
+A resource failure with confirmed cleanup can still produce source findings,
+but never authorizes an implementation repair or delivery by itself.
+
+When a verified image check fails, repair targets one currently failing check
+or a case recognized by the local verifier adapter. The last observed failure
+and its receipt digest remain available when a later check is skipped. When a
+case's diagnostics change, the repairer also sees the prior observation and its
+receipt digest. A verifier adapter can identify a bounded set of implementation
+files to include during file selection and provide case-specific diagnostic
+guidance. For a recognized failure with matching source and a proven repair
+scope, the adapter can select the editable files directly. The runner records
+that selection against the verified failure and exact source, and supplies any
+related source as read-only context. New approvals use exact text edits for
+these repairs and their compiler corrections. The runner matches each edit
+against the original source and applies disjoint edits in memory before
+compiling. A missing, ambiguous, overlapping, or out-of-scope edit is rejected.
+One invalid edit response can be corrected within the same scope. Other cases
+use ordinary file selection and replacement.
+Skipped checks stay pending until the verifier confirms a pass.
+Unrelated review findings stay out of that repair request. If the image declares compile
+checkpoints, the workflow compiles the changed components before running full
+verification again. A compiler correction keeps the original repair intent,
+uses only the preceding patch's selected files, and has its own bounded retries.
+
+Images may emit a final `OFFLINE_PROJECT_RESULT` JSON record with independent
+stage results, per-stage failure excerpts, and unavailable checks. The reviewed
+profile retains that record alongside the command output and sends relevant
+diagnostics to repair. An operator can declare `verification.policy` and
+`verification.required_checks` in the approved image environment. For these
+projects, a passing unittest log cannot substitute for a matching image
+receipt that marks every required check as passed. A frontend compile or DOM fixture gives no evidence
+about pixel layout. Real browser checks require a trusted image with a browser
+and executable interaction tests, or separately recorded browser verification.
+
+## Whole-project OpenCode trial
+
+A trusted host can bind `opencode-whole-project-v1` to a reviewed project
+approval. The normal Workbench API offers the grouped profiles described above.
+The whole-project path uses an approved flat inventory and one implementation
+session. It then authors and runs implementer smoke tests, gives the implementer
+one repair opportunity, and runs a separate suite authored by an independent
+model. Application repair receives sandbox failures and keeps the independent
+tests frozen. Delivery requires independent verification, source review and a
+final run of the implementer suite against the same candidate.
+
+The host supplies the three role-specific OpenCode workers. The tested
+integration uses OpenCode 1.19.0 on Windows, Git and a local Ollama backend.
+Approval binds the worker and model identities, context, thinking setting,
+auto-compaction and source budget. The host can receive worker events for live
+status, reasoning and tool activity. The worker verifies completion and cleanup
+before handing its result back. A lost completion receipt stops further
+inference until the backend is reconciled.
+
+Each whole-project worker uses its approved model context as its output
+ceiling. The configured context includes the prompt and generated tokens.
+Auto-compaction can summarize earlier turns and allow subsequent turns to
+continue. The default source budget is 7,680,000 UTF-8 bytes across up to 128
+files of at most 60,000 bytes each. The host's run deadline and the approved
+image, verification and test-suite constraints still apply.

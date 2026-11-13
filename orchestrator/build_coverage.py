@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import ast
+import io
+import token
+import tokenize
 from collections import Counter
 
 REFERENCE_POLICY = "file-local-test-reference-v2"
@@ -30,19 +33,51 @@ class MissingCoverageError(ValueError):
         )
 
 
-def parse_test_files(files):
+def _legacy_fstring_syntax(content, tree):
+    # Python 3.12 moved f-strings into the main grammar. On newer hosts,
+    # feature_version does not restore the older string tokenizer.
+    if not hasattr(token, "FSTRING_START"):
+        return
+    delimiters = []
+    for item in tokenize.generate_tokens(io.StringIO(content, newline=None).readline):
+        kind, source, (line, column) = item.type, item.string, item.start
+        enclosing = delimiters[:-1] if kind in (token.FSTRING_MIDDLE, token.FSTRING_END) else delimiters
+        if enclosing and kind in (token.STRING, token.FSTRING_START, token.FSTRING_MIDDLE, token.FSTRING_END):
+            if any(delimiter in source for delimiter in enclosing):
+                raise SyntaxError("f-string reuses its enclosing quotes", ("", line, column + 1, item.line))
+            if "\n" in source and any(len(delimiter) == 1 for delimiter in enclosing):
+                raise SyntaxError("multiline expression in a single-quoted f-string", ("", line, column + 1, item.line))
+        if delimiters and kind == token.COMMENT:
+            raise SyntaxError("comment inside an f-string expression", ("", line, column + 1, item.line))
+        if kind == token.NL and any(len(delimiter) == 1 for delimiter in delimiters):
+            raise SyntaxError("multiline expression in a single-quoted f-string", ("", line, column + 1, item.line))
+        if kind == token.FSTRING_START:
+            delimiters.append(source.lstrip("fFrR"))
+        elif kind == token.FSTRING_END:
+            delimiters.pop()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FormattedValue) and "\\" in (ast.get_source_segment(content, node.value) or ""):
+            raise SyntaxError("backslash inside an f-string expression",
+                              ("", node.lineno, node.col_offset + 1, ""))
+
+
+def parse_test_files(files, *, python_version=None):
+    feature = tuple(map(int, python_version.split("."))) if python_version else None
     trees, diagnostics = {}, []
     for path, content in files.items():
         if not path.endswith(".py"):
             continue
         try:
-            trees[path] = ast.parse(content)
+            trees[path] = ast.parse(content, feature_version=feature)
+            if feature is not None and feature < (3, 12):
+                _legacy_fstring_syntax(content, trees[path])
             # Compilation catches syntax that AST construction alone permits,
             # such as return/break outside a function/loop. It executes no code.
             compile(trees[path], path, "exec")
         except SyntaxError as error:
             diagnostics.append({"path": path, "line": error.lineno,
-                                "column": error.offset, "message": error.msg})
+                                "column": error.offset, "message": error.msg,
+                                **({"python_version": python_version} if python_version else {})})
     if diagnostics:
         raise TestSyntaxError(diagnostics)
     return trees

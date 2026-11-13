@@ -9,7 +9,7 @@ from orchestrator.config import Config
 from orchestrator.project_reuse import prepare_project_reuse, load_project_reuse
 from orchestrator.runtime import Runtime
 from orchestrator.store import digest, encoded
-from test_project_build import BRIEF, Models, Executor, POLICY, TEST
+from test_project_build import BRIEF, COVERAGE, Models, Executor, POLICY, REVIEWED_POLICY, TEST
 
 SOURCE_SDK = "a" * 40
 CURRENT_SDK = "b" * 40
@@ -187,6 +187,43 @@ class CheckpointReuseTests(unittest.TestCase):
             repaired["bundle"], source_sdk_revision=SOURCE_SDK, current_sdk_revision=CURRENT_SDK,
             through="tests")
         self.assertEqual(manifest["checkpoint"]["suite"]["files"], [TEST])
+
+    def test_reviewed_suite_preserves_authored_source_through_filename_correction_and_reuse(self):
+        corrected = {**TEST, "content": TEST["content"] + "\nif __name__ == '__main__':\n    unittest.main()\n"}
+        original_path = "tests/api_test.py"
+        original_complete = self.models.complete
+
+        def complete(*args):
+            result = original_complete(*args)
+            if self.models.stage == "build_tests":
+                message = result["choices"][0]["message"]
+                draft = json.loads(message["content"])
+                draft["files"] = [{**corrected, "path": original_path}]
+                draft["coverage"] = [{**COVERAGE, "test_file": original_path}]
+                message["content"] = json.dumps(draft)
+            return result
+
+        self.models.complete = complete
+        row = self.runtime.prepare({"mode": "build", "prompt": BRIEF, "build_profile": REVIEWED_POLICY})
+        self.runtime.approve(row["id"], row["digest"])
+        self.runtime.queue.join()
+        row = self.runtime.store.get(row["id"])
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        self.assertEqual(row["result"]["stages"]["build_tests"]["filename_corrections"],
+                         [{"from": original_path, "to": TEST["path"]}])
+        self.assertEqual(self.executor.preflights, [[corrected]])
+        self.assertEqual(self.executor.tests, [[corrected]])
+        self.assertEqual(row["result"]["output"]["suite"]["coverage"], [COVERAGE])
+
+        def retained(stage, suffix):
+            return self.runtime.store.artifact(row["id"], stage, suffix).read_bytes()
+
+        raw = json.loads(retained("build_tests", "raw"))
+        authored = json.loads(raw["choices"][0]["message"]["content"])
+        self.assertEqual(authored["files"], [{**corrected, "path": original_path}])
+        manifest = prepare_project_reuse(row, retained, row["bundle"], source_sdk_revision=SOURCE_SDK,
+                                         current_sdk_revision=CURRENT_SDK, through="tests")
+        self.assertEqual(manifest["checkpoint"]["suite"], row["result"]["output"]["suite"])
 
     def test_current_fixture_transition_guard_rejects_changed_assertions(self):
         from test_project_fixture_checks import HTTP, FIXED_HTTP

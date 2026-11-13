@@ -9,6 +9,7 @@ from pathlib import Path
 from orchestrator.build_models import ReviewedBuildTestSuite
 from orchestrator.build_workflow import BuildRun
 from orchestrator.config import Config
+from orchestrator.project_build import REVIEWED_POLICY, offline_project_contract
 from orchestrator.runtime import Runtime
 from test_project_build import BRIEF, COMMAND, COVERAGE, TEST, Executor, Models, POLICY
 
@@ -195,8 +196,8 @@ class CoverageGraphTests(unittest.TestCase):
                                self.models, self.executor)
         self.addCleanup(self.runtime.close)
 
-    def execute(self):
-        row = self.runtime.prepare({"mode": "build", "prompt": BRIEF, "build_profile": POLICY})
+    def execute(self, profile=POLICY):
+        row = self.runtime.prepare({"mode": "build", "prompt": BRIEF, "build_profile": profile})
         self.runtime.approve(row["id"], row["digest"])
         self.runtime.queue.join()
         return self.runtime.store.get(row["id"])
@@ -208,12 +209,40 @@ class CoverageGraphTests(unittest.TestCase):
             "build_tests_coverage_1", "build_tests_coverage_2", "build_project_plan", "implement_group_1", "implement_group_2"])
         self.assertEqual(self.executor.tests, [[TEST, UI_TEST]])
         for stage, model, settings, payload in self.models.seen:
+            if stage.startswith("build_tests_coverage_"):
+                self.assertNotIn("addition_budget", json.loads(payload["messages"][1]["content"]))
             if stage.startswith("implement_group"):
                 self.assertEqual(model, "qwen3.8:27b-mtp-q4_K_M")
                 self.assertEqual(settings["context"], 98304)
                 self.assertEqual(settings["think"], "xhigh")
                 self.assertEqual(json.loads(payload["messages"][1]["content"])["frozen_tests"]["files"], [TEST, UI_TEST])
         self.assertIn("validation_failure", row["result"]["stages"]["build_tests_coverage_1"])
+
+    def test_reviewed_addition_prompt_exposes_remaining_utf8_budget_on_retry(self):
+        contract = offline_project_contract(REVIEWED_POLICY)
+        remaining = 256
+        original = TEST["content"] + "# caf\u00e9 "
+        draft_padding = contract["test_bytes"] - remaining - len(original.encode("utf-8"))
+        self.models.test_file = {**TEST, "content": original + "x" * draft_padding}
+        oversized = UI_TEST["content"] + "# "
+        addition_padding = remaining + 1 - len(oversized.encode("utf-8"))
+        self.models.first_addition = {**GOOD, "files": [{**UI_TEST, "content": oversized + "x" * addition_padding}]}
+
+        row = self.execute(REVIEWED_POLICY)
+
+        self.assertEqual(row["status"], "completed", row.get("result"))
+        requests = [json.loads(payload["messages"][1]["content"])
+                    for stage, _, _, payload in self.models.seen if stage.startswith("build_tests_coverage_")]
+        self.assertEqual(len(requests), 2)
+        for request in requests:
+            budget = request["addition_budget"]
+            self.assertEqual(budget["max_utf8_bytes"], remaining)
+            self.assertEqual(budget["max_files"], contract["test_files"] - 1)
+            self.assertRegex(budget["suggested_path"], r"^tests/test_\w+\.py$")
+            self.assertNotEqual(budget["suggested_path"].casefold(), TEST["path"].casefold())
+            self.assertEqual(request["requested_criteria"], [2])
+        self.assertIn("byte manifest bound", requests[1]["addition_feedback"]["validation_error"])
+        self.assertEqual(self.executor.tests, [[self.models.test_file, UI_TEST]])
 
     def test_two_bad_known_responses_stop_before_implementation(self):
         self.models.second_addition = self.models.first_addition

@@ -103,8 +103,10 @@ class Runtime(CodeBuild, Stages):
             bundle["sandbox"] = self.build_executor.preflight()
             bundle["build"] = self.config.build.model_dump()
             if request.build_profile is not None:
-                from .project_build import offline_project_contract, project_enabled
-                bundle["build_contract"] = offline_project_contract()
+                from .project_build import EXACT_REPAIR_FORMAT, REVIEWED_POLICY, offline_project_contract, project_enabled
+                bundle["build_contract"] = offline_project_contract(request.build_profile)
+                if request.build_profile == REVIEWED_POLICY:
+                    bundle["project_repair_format"] = EXACT_REPAIR_FORMAT
                 if self.config.build.project_environment is not None:
                     bundle["project_environment"] = self.config.build.project_environment.model_dump()
                 project_enabled(bundle)

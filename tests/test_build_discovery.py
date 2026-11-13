@@ -3,7 +3,36 @@ import io
 import unittest
 from types import SimpleNamespace
 
-from orchestrator.build_discovery import covered_cases_ran, validate_discovery_suite
+from orchestrator.build_discovery import covered_cases_ran, normalize_authored_test_paths, validate_discovery_suite
+
+
+class AuthoredTestPathTests(unittest.TestCase):
+    def draft(self):
+        return {
+            "implementation_files": ["api/App.java"],
+            "files": [{"path": "tests/api_test.py", "content": "if __name__ == '__main__':\n    pass\n"}],
+            "coverage": [{"criterion": 1, "test_file": "tests/api_test.py", "test_name": "API.test_read",
+                          "scenario": "Read a product", "expected_result": "Product returned", "catches": "Empty reply"}],
+        }
+
+    def test_conflicting_path_and_ambiguous_coverage_are_rejected(self):
+        conflict = self.draft()
+        conflict["files"].append({"path": "tests/test_API.py", "content": ""})
+        with self.assertRaisesRegex(ValueError, "conflicts with an existing path"):
+            normalize_authored_test_paths(conflict)
+
+        ambiguous = self.draft()
+        ambiguous["coverage"].append({**ambiguous["coverage"][0], "test_file": "tests/test_api.py"})
+        with self.assertRaisesRegex(ValueError, "unambiguous references"):
+            normalize_authored_test_paths(ambiguous)
+
+    def test_filename_or_module_dependencies_are_rejected(self):
+        for source in ("from api_test import API", "import test_api", "path = __file__",
+                       "import importlib as loader\nmodule = loader.import_module(variable)"):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, "paths referenced by test source"):
+                draft = self.draft()
+                draft["files"][0]["content"] += source + "\n"
+                normalize_authored_test_paths(draft)
 
 
 class DiscoveryTests(unittest.TestCase):

@@ -38,9 +38,9 @@ docker image inspect python:3.13-alpine
 ollama list
 ```
 
-Check the four model names in `roles` against the installed tags. The example uses Gemma 26B Q4 for `planner`, Gemma 31B IQ4_XS for `test_author`, and Qwen 27B for both `implementer` and `repairer`. If your local tag differs, enter it in **Configuration**, save, then restart the idle service. The example enables thinking for both Gemma roles with a 32,768-token context. Both coding roles use xhigh and a 98,304-token context. Repair runs only when the frozen tests expose a failure. The Build profiles have no separate output cap. See the [example configuration](../config.example.json) for the exact settings.
+Check the model names in `roles` against the installed tags. The example uses Gemma 26B Q4 for `planner` and `reviewer`, the local Gemma 31B IQ4_XS thinking alias for `test_author`, and Qwen 27B for `implementer` and `repairer`. If your local tag differs, enter it in **Configuration**, save, then restart the idle service. The planner and test author use thinking at 32,768 tokens. The reviewer uses thinking at 65,536 tokens. The coding roles use xhigh at 98,304 tokens. The Build profiles have no separate output cap. See the [example configuration](../config.example.json) for the exact settings.
 
-The example tag `gemma4:31b-iq4_xs` is a local alias. Point `test_author` to your installed IQ4_XS package or alias with thinking support. Use a different model for test authorship than for implementation and repair. The repair package must support the configured reasoning effort.
+Use a package with thinking support for `test_author` when thinking is enabled. The test author and reviewer must be independent of implementation and repair. The repair package must support the configured reasoning effort.
 
 1. Choose **Open Build** in the desktop panel, or open the [Build form](http://127.0.0.1:8787/panel#mode=build) on the default port. Try this specification.
 

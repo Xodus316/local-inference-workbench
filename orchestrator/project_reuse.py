@@ -18,7 +18,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from . import build_coverage as coverage
-from .build_discovery import validate_discovery_suite
+from .build_discovery import normalize_authored_test_paths, validate_discovery_suite
 from .build_models import BuildPlan
 from .build_workflow import fixture_diagnostics, validate_paths
 from .ollama import _strict_json
@@ -64,14 +64,17 @@ def _revision(value):
 
 
 def _compatibility(bundle):
-    from .project_build import project_enabled
+    from .project_build import REVIEWED_POLICY, project_enabled
     from .project_environment import validate_project_environment
     _require(project_enabled(bundle), "Checkpoint reuse requires the explicit offline project profile")
     request = bundle["request"]
     _require(not bundle.get("web_research") and not request.get("research"), "Checkpoint reuse cannot change online inputs")
     image = bundle["sandbox"].get("image_id")
     _require(isinstance(image, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", image), "An immutable environment image is required")
-    roles = {role: bundle["roles"][role] for role in ("planner", "test_author", "implementer", "repairer")}
+    role_names = ("planner", "test_author", "implementer", "repairer")
+    if request["build_profile"] == REVIEWED_POLICY:
+        role_names += ("reviewer",)
+    roles = {role: bundle["roles"][role] for role in role_names}
     generation = bundle.get("role_profiles") or bundle.get("generation") or {}
     _require(all(isinstance(generation.get(role), dict) and generation[role] for role in roles), "Every reused role requires its exact frozen generation profile")
     return {"request": {key: copy.deepcopy(request.get(key)) for key in ("prompt", "sources", "control_files", "build_profile")},
@@ -82,7 +85,7 @@ def _compatibility(bundle):
 
 
 def _validate_checkpoint(value, bundle):
-    from .project_build import (GroupArtifact, ProjectArtifact, ProjectProject, ProjectTestSuite,
+    from .project_build import (ProjectArtifact, ProjectProject, ProjectTestSuite, group_artifact_type,
                                 selected_source, validate_group_plan)
     from .project_environment import validate_project_environment, validate_suite_environment
     _require(set(value) == {"plan", "suite", "group_plan", "groups"}, "Unexpected checkpoint fields")
@@ -96,8 +99,10 @@ def _validate_checkpoint(value, bundle):
         coverage.validate_test_coverage(suite, plan.acceptance_criteria)
         validate_discovery_suite(suite)
         from .project_fixture_checks import diagnostics
-        _require(not fixture_diagnostics(suite) and not diagnostics(suite), "Frozen test fixtures fail current validation")
-        validate_suite_environment(suite, validate_project_environment(bundle))
+        environment = validate_project_environment(bundle)
+        _require(not fixture_diagnostics(suite) and not diagnostics(
+            suite, python_version=(environment or {}).get("python_version")), "Frozen test fixtures fail current validation")
+        validate_suite_environment(suite, environment)
     if value["group_plan"] is not None:
         _require(suite is not None, "A group checkpoint requires frozen independent tests")
         grouping = validate_group_plan(value["group_plan"], suite.implementation_files)
@@ -105,7 +110,7 @@ def _validate_checkpoint(value, bundle):
     files = []
     for index, raw in enumerate(value["groups"]):
         _require(grouping is not None and index < len(grouping.groups), "Reused group is outside its frozen partition")
-        artifact = GroupArtifact.model_validate(raw)
+        artifact = group_artifact_type(bundle).model_validate(raw)
         group = grouping.groups[index]
         _require({f.path for f in artifact.files} == set(group.files), "Reused group changed its exact frozen file set")
         if group.context_files:
@@ -126,6 +131,75 @@ def _components(checkpoint):
         result["group_plan"] = checkpoint.group_plan.model_dump()
     result.update({f"group_{index}": group.model_dump() for index, group in enumerate(checkpoint.groups, 1)})
     return result
+
+
+def _compile_boundaries(bundle, group_plan):
+    owners = {path: index for index, group in enumerate(group_plan["groups"], 1) for path in group["files"]}
+    checkpoints = (bundle.get("project_environment") or {}).get("compile_checkpoints", [])
+    for slot, checkpoint in enumerate(checkpoints, 1):
+        prefix = checkpoint["source_root"] + "/"
+        paths = {path for path in owners if path.startswith(prefix)}
+        _require(paths, "Compile checkpoint has no files in the frozen group plan")
+        yield slot, max(owners[path] for path in paths), checkpoint, paths
+
+
+def _compile_request_bytes(bundle, index, checkpoint, paths, files):
+    from .project_build import ProjectArtifact
+    name = checkpoint["name"]
+    component = ProjectArtifact(summary=f"Compile checkpoint {name}",
+                                files=[file for file in files if file["path"] in paths])
+    _require({file.path for file in component.files} == paths, "Compile checkpoint requires the complete component")
+    return encoded({"image_id": bundle["sandbox"]["image_id"], "component_digest": digest(component.model_dump()),
+                    "checkpoint": checkpoint, "group_index": index,
+                    "command": f"workbench-compile-checkpoint {name}"}).encode("utf-8")
+
+
+def _validate_terminal_generation(status, receipts, index):
+    last = receipts[-1] if receipts else {}
+    stage = f"implement_group_{index}"
+    _require(status == "failed" and last.get("projected_stage") in {stage, stage + "_scope_retry"}
+             and last.get("status") == "terminal" and last.get("native_state") == "stop",
+             "Uncompiled reuse requires a failed run ending at the selected normally completed group")
+    _require(all(row["finished"] <= last["started"]
+                 and not row.get("projected_stage", row["stage"]).startswith("build_compile_repair_")
+                 for row in receipts[:-1]), "Uncompiled reuse cannot follow compile repair or later model execution")
+
+
+def _retain_pre_compile_checkpoint(bundle, group_plan, files, index, status, receipts, read_optional):
+    _validate_terminal_generation(status, receipts, index)
+    retained = None
+    for slot, boundary, checkpoint, paths in _compile_boundaries(bundle, group_plan):
+        if boundary < index:
+            continue
+        for attempt in range(bundle["build_contract"]["max_compile_repairs"] + 1):
+            stage = f"build_compile_checkpoint_{slot}_{attempt}"
+            request = read_optional(stage, "request")
+            _require(read_optional(stage, "raw") is None, "Uncompiled reuse requires no checkpoint execution receipt")
+            if request is not None:
+                _require(retained is None and boundary == index and attempt == 0,
+                         "Uncompiled reuse requires a single first-attempt request at the selected group boundary")
+                _require(request == _compile_request_bytes(bundle, index, checkpoint, paths, files),
+                         "Retained compile request differs from the approved component and source bytes")
+                retained = {"stage": stage, "request_sha256": _sha(request)}
+    _require(retained is not None, "Missing first-attempt request for the selected compile checkpoint")
+    _require(read_optional("build_verify_0", "request") is None and read_optional("build_verify_0", "raw") is None,
+             "Uncompiled reuse cannot follow final verification")
+    return retained
+
+
+def _validate_pre_compile_checkpoint(source, receipts, selection, checkpoint, bundle):
+    evidence = source["pre_compile_checkpoint"]
+    _require(isinstance(evidence, dict) and set(evidence) == {"stage", "request_sha256"}
+             and selection.through == "implementation", "Invalid pre-compile reuse provenance")
+    index = selection.completed_groups
+    _validate_terminal_generation(source["status"], receipts, index)
+    files = [file.model_dump() for group in checkpoint.groups for file in group.files]
+    for slot, boundary, configured, paths in _compile_boundaries(bundle, checkpoint.group_plan.model_dump()):
+        if boundary == index and evidence["stage"] == f"build_compile_checkpoint_{slot}_0":
+            expected = _sha(_compile_request_bytes(bundle, index, configured, paths, files))
+            _require(evidence["request_sha256"] == expected, "Pre-compile request provenance changed")
+            return
+    raise ValueError("Pre-compile reuse provenance does not name the selected group boundary")
 
 
 def load_project_reuse(bundle, *, current_sdk_revision=None):
@@ -180,6 +254,8 @@ def load_project_reuse(bundle, *, current_sdk_revision=None):
         for key in ("sha256", "source_approval_digest"):
             _require(isinstance(row[key], str) and re.fullmatch(r"[0-9a-f]{64}", row[key]), "Invalid original artifact hash")
         seen.add(name)
+    if "pre_compile_checkpoint" in source:
+        _validate_pre_compile_checkpoint(source, receipts, selection, checkpoint, bundle)
     return ProjectCheckpoint(checkpoint.plan, checkpoint.suite, checkpoint.group_plan, checkpoint.groups, copy.deepcopy(manifest))
 
 
@@ -220,6 +296,12 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
             loaded[key] = blob
         _require(len(loaded[key]) <= maximum, "Frozen checkpoint exceeds its bound")
         return loaded[key]
+
+    def optional_bytes(stage, suffix):
+        try:
+            return original_bytes(stage, suffix, 1_048_576)
+        except FileNotFoundError:
+            return None
 
     for call in calls:
         public = (project_call or (lambda value: value))(copy.deepcopy(call))
@@ -279,9 +361,33 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
         content = raw_values[stage]["choices"][0].get("message", {}).get("content")
         _require(isinstance(content, str), "Reused structured response has no final content")
         value = _strict_json(content)
-        from .project_build import GroupArtifact, GroupPlan
-        model_type = BuildPlan if component == "plan" else GroupPlan if component == "group_plan" else GroupArtifact
+        from .project_build import GroupPlan, group_artifact_type
+        model_type = (BuildPlan if component == "plan" else GroupPlan if component == "group_plan"
+                      else group_artifact_type(projected))
         return retained(component, stage, model_type.model_validate(value).model_dump(), model=True)
+
+    def implementation_value(index, group):
+        from .project_build import REVIEWED_POLICY, group_artifact_type, group_scope_feedback
+        stage = f"implement_group_{index}"
+        retry_stage = stage + "_scope_retry"
+        if retry_stage not in mapped:
+            return model_value(f"group_{index}", stage)
+        first, retry = mapped.get(stage, {}), mapped[retry_stage]
+        _require(projected["request"]["build_profile"] == REVIEWED_POLICY
+                 and first.get("status") == "terminal" and first.get("role") == "implementer"
+                 and first.get("model") == projected["roles"]["implementer"]
+                 and first["finished"] <= retry["started"], "Scope retry requires its prior approved native call")
+        feedback = group_scope_feedback(raw_values[stage], group_artifact_type(projected), group["files"])
+        _require(feedback is not None, "Scope retry requires a normally completed strict subset of the frozen files")
+        first_request = json.loads(original_bytes(original_stages[stage], "request", 1_048_576).decode("utf-8"))
+        retry_request = json.loads(original_bytes(original_stages[retry_stage], "request", 1_048_576).decode("utf-8"))
+        first_inputs = _strict_json(first_request["messages"][1]["content"])
+        retry_inputs = _strict_json(retry_request["messages"][1]["content"])
+        _require(first_inputs["group"] == group and "implementation_scope_feedback" not in first_inputs
+                 and retry_inputs == {**first_inputs, "implementation_scope_feedback": feedback}
+                 and retry_request["schema"] == first_request["schema"],
+                 "Scope retry changed its frozen implementation inputs")
+        return model_value(f"group_{index}", retry_stage)
 
     checkpoint = {"plan": model_value("plan", "build_plan"), "suite": None, "group_plan": None, "groups": []}
     if through != "plan":
@@ -295,7 +401,7 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
             # Reconstruct final independent source from the actual author/repair
             # receipts. A modified checkpoint with a recomputed suite digest must
             # not silently become a different frozen test suite.
-            from .project_build import ProjectTestSuite
+            from .project_build import ProjectTestSuite, REVIEWED_POLICY
             from .build_workflow import normalized_manifest
             authored = None
             for stage, call in mapped.items():
@@ -307,6 +413,8 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
                 value = _strict_json(raw_values[stage]["choices"][0]["message"]["content"])
                 if stage == "build_tests":
                     value, _ = normalized_manifest(value, value.get("implementation_files"))
+                    if projected["request"]["build_profile"] == REVIEWED_POLICY:
+                        value, _ = normalize_authored_test_paths(value)
                     authored = ProjectTestSuite.model_validate(value)
                 else:
                     _require(authored is not None, "Independent test repair precedes its author")
@@ -343,17 +451,35 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
         _require(grouped == frozen["group_plan"], "Frozen grouping differs from original normally completed response")
         checkpoint["group_plan"] = grouped
     files = []
+    pre_compile_checkpoint = None
+    compile_checkpoints = (projected.get("project_environment") or {}).get("compile_checkpoints")
+    if completed_groups:
+        _require(completed_groups <= len(checkpoint["group_plan"]["groups"]),
+                 "Reused group is outside its frozen partition")
     for index in range(1, completed_groups + 1):
-        group = model_value(f"group_{index}", f"implement_group_{index}")
+        group = implementation_value(index, checkpoint["group_plan"]["groups"][index - 1])
         checkpoint["groups"].append(group)
         files.extend(group["files"])
-        accumulated = json.loads(original_bytes(f"project_after_{index}", "raw", 1_048_576).decode("utf-8"))
-        _require(accumulated.get("files") == files, "Implementation prefix is not contiguous and unchanged")
+        try:
+            accumulated = json.loads(original_bytes(f"project_after_{index}", "raw", 1_048_576).decode("utf-8"))
+        except FileNotFoundError:
+            if index != completed_groups or not compile_checkpoints:
+                raise
+            pre_compile_checkpoint = _retain_pre_compile_checkpoint(
+                projected, checkpoint["group_plan"], files, index, source["status"], receipts, optional_bytes)
+            continue
+        if compile_checkpoints:
+            _require(accumulated.get("files") == files,
+                     "Implementation prefix changed after generation; reuse the plan and regenerate the corrected groups")
+        else:
+            _require(accumulated.get("files") == files, "Implementation prefix is not contiguous and unchanged")
     manifest = {"policy": POLICY, "source": {"run_id": source["id"], "approval_digest": original_digest,
         "bundle_digest": original_digest, "projection_digest": digest(projected), "status": source["status"],
         "sdk_revision": source_sdk_revision, "calls_digest": digest(calls), "result_digest": digest(source.get("result")),
         "native_receipts": receipts},
         "selection": selection.model_dump(), "compatibility_digest": digest(_compatibility(destination_bundle)),
         "validated_with_sdk_revision": current_sdk_revision, "checkpoint": checkpoint, "artifact_provenance": provenance}
+    if pre_compile_checkpoint is not None:
+        manifest["source"]["pre_compile_checkpoint"] = pre_compile_checkpoint
     load_project_reuse({**destination_bundle, "project_reuse": manifest}, current_sdk_revision=current_sdk_revision)
     return copy.deepcopy(manifest)

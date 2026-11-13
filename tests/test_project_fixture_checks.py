@@ -4,6 +4,7 @@ import copy
 import unittest
 from types import SimpleNamespace
 
+from orchestrator.build_coverage import TestSyntaxError, parse_test_files
 from orchestrator.build_models import BuildFile
 from orchestrator.build_workflow import BuildRun, fixture_diagnostics
 from orchestrator.project_build import (ProjectBuildRun, offline_project_contract,
@@ -49,6 +50,20 @@ class API(unittest.TestCase):
     def test_read(self):
         self.assertIn('Authorization', self.auth_header())
 '''
+UI = """import unittest
+
+class UI(unittest.TestCase):
+    def test_view(self):
+        path = 'frontend'
+        source = f'''
+import App from '{path}/src/App.vue'
+const vuetify = createVuetify({
+  theme: {{ defaultTheme: 'dark' }}
+})
+'''
+        self.assertIn('dark', source)
+"""
+FIXED_UI = UI.replace("createVuetify({", "createVuetify({{").replace("\n})\n", "\n}})\n")
 
 
 def files(source):
@@ -103,6 +118,36 @@ class FixtureDiagnosticsTests(unittest.TestCase):
         source = "raise RuntimeError('must not execute')\n" + HTTP
         self.assertEqual(len(diagnostics(suite(source))), 1)
 
+    def test_target_python_rejects_fstring_expressions_added_in_312(self):
+        invalid = [
+            "path = f'/links/{item['id']}/click'\n",
+            'path = f"{(1\n+2)}"\n',
+            'path = f"""{(1 # comment\n+2)}"""\n',
+            """path = f"{'\\n'.join(rows)}"\n""",
+        ]
+        for source in invalid:
+            with self.subTest(source=source), self.assertRaises(TestSyntaxError) as error:
+                diagnostics(suite(source), python_version="3.10")
+            problem, = error.exception.diagnostics
+            self.assertEqual((problem["path"], problem["python_version"]), ("tests/test_api.py", "3.10"))
+            self.assertGreater(problem["line"], 0)
+
+    def test_target_python_accepts_alternating_and_triple_quotes(self):
+        source = (
+            "path = f\"/links/{item['id']}/click\"\n"
+            'rendered = f"""{item["key"]:>10} {item[\'#\']}"""\n'
+            """text = f"{f'{item}'}"\n"""
+        )
+        self.assertIn("test.py", parse_test_files({"test.py": source}, python_version="3.10"))
+        self.assertEqual(diagnostics(suite(source), python_version="3.10"), [])
+
+    def test_embedded_js_fstring_mistake_detected_without_executing(self):
+        problem, = diagnostics(suite(UI), python_version="3.10")
+        self.assertEqual((problem["kind"], problem["line"]), ("embedded_js_braces", 9))
+        self.assertEqual(diagnostics(suite(FIXED_UI), python_version="3.10"), [])
+        self.assertEqual(diagnostics(suite("theme = 'custom'\n" + UI)), [])
+        self.assertEqual(diagnostics(suite("value = f'{missing:>10}'\n")), [])
+
 
 class FixtureRepairGuardTests(unittest.TestCase):
     def validate(self, original, revised):
@@ -114,6 +159,14 @@ class FixtureRepairGuardTests(unittest.TestCase):
         before = ast.parse(HTTP).body[-1].body[-1]
         after = ast.parse(FIXED_HTTP).body[-1].body[-1]
         self.assertEqual(ast.dump(before), ast.dump(after))
+
+    def test_js_brace_repair_preserves_other_interpolations_and_test_behavior(self):
+        self.validate(UI, FIXED_UI)
+        for revised in (UI, FIXED_UI.replace("{path}", "{'fake'}"),
+                        FIXED_UI.replace("'dark'", "'light'", 1),
+                        FIXED_UI.replace("self.assertIn('dark', source)", "pass")):
+            with self.subTest(revised=revised), self.assertRaises(ValueError):
+                self.validate(UI, revised)
 
     def test_setup_body_or_new_setup_can_initialize_independent_credentials(self):
         self.validate(AUTH, AUTH.replace("cls.token = None", "cls.token = 'fixture-token'"))
