@@ -91,7 +91,7 @@ def project_enabled(bundle):
     if (not roles.get("repairer") or not roles.get("implementer") or not roles.get("test_author")
             or roles["test_author"] in {roles["implementer"], roles["repairer"]}):
         raise ValueError("Offline projects require an independent test author and configured repair role")
-    if bundle.get("backend", {}).get("name") in {"strata", "llama-cpp"}:
+    if (bundle.get("backend") or {}).get("name") in {"strata", "llama-cpp"}:
         raise ValueError("Offline projects need a backend that can serve independent models for testing and implementation")
     if bundle.get("request", {}).get("control_files"):
         raise ValueError("Offline projects do not accept reference implementations")
