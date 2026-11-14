@@ -193,3 +193,62 @@ The fresh implementation completed in 1,878.8 seconds and generated 110,305 toke
 The last trusted API receipt passed two of three tests and failed the concurrent-click check because every click had to succeed. The independent Python suite saw HTTP 500 from reporting and tracked-URL operations. Its UI runner used an undefined `cls` in an instance method. One UI method only prepared JavaScript before returning, and the other used a placeholder assertion. The pinned image had no browser or driver. Source edits could address the API failures, while independently authored test code remained frozen. No full code-review receipt, final smoke recheck or delivery was produced. The fresh run and continuation consumed 2h 43m of active time in total.
 
 Evidence under `results/` includes each named run's `summary.json` and `terminal.json`, the fresh `implement.raw.json`, the continuation's `build_verify_0.raw.json` through `build_verify_2.raw.json` and `repair_3.raw.json`, and the matching backend cleanup receipts.
+
+## Commerce frontend model comparison, November 13
+
+The local arms replayed the same seven-file frontend request on the RTX 3090 through native Ollama, using 65,536 context, Q8 KV cache, and non-thinking generation. Each got one implementation response. Wall time includes the checks an arm reached and excludes downloads. System RAM figures are Ollama's reported model allocation outside the GPU. The Terra comparisons used the same approved file scope and compiler checks. Their inference time and token counts were unavailable.
+
+| Implementation | Approved files | Wall | Generated tokens | Decode | System RAM offload | Build / typecheck |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Coder-Next UD-IQ1_M | 7/7 | 64.6 s | 4,071 | 110.5 tok/s | 0 GiB | Failed / failed |
+| Coder-Next UD-IQ2_XXS | 7/7 | 68.3 s | 3,382 | 89.3 tok/s | 1.24 GiB | Failed / failed |
+| Coder-Next Q2_K | 2/7 | 44.6 s | 889 | 60.7 tok/s | 6.91 GiB | Unrun |
+| Coder-Next UD-IQ3_XXS | 7/7 | 94.8 s | 3,062 | 52.3 tok/s | 6.14 GiB | Failed / failed |
+| Coder-Next UD-IQ4_XS | 0/7 accepted | Stopped at 29m 21s | 36,253 at last backend sample | 24.8 tok/s at last sample | 15.47 GiB | Unrun |
+| GPT-6.1 Terra medium | 7/7 | 10.5 s compile only | — | — | — | Passed / passed |
+| GPT-6.1 Terra high | 7/7 | 8.7 s compile only | — | — | — | Passed / passed |
+
+The three complete Coder-Next drafts had an invalid `@mdi/font` import. Their type errors included Vuetify configuration, Vue Router types, or missing shared exports. Q2_K completed with only two approved files. IQ4_XS was stopped during generation with no complete response accepted. The compiler receipts for Terra cover the seven-file slice. The experiment did not measure browser behavior.
+
+Qwen 27B MTP Q4_K_M repaired the original IQ1 and IQ2 drafts at 98,304 context and xhigh. The first repair made both builds pass, with Vuetify type errors remaining. IQ1 took 550.8 s for repair and recheck at 51.8 tok/s, or 615.4 s including the draft. IQ2 took 368.2 s at 52.1 tok/s, or 436.5 s including the draft. An IQ1 second repair had already started when the comparison was narrowed to one pass. It passed both compiler checks in 779.6 s total. The IQ2 first compiler receipt survived backend shutdown, after which the runner recorded a terminal error.
+
+### Same-model drafting and repair
+
+Fresh Coder-Next responses at 65,536 context passed native generation but failed exact file scope. The runner dispatched no repairs for those drafts. Earlier seven-file drafts from each quant then received one scoped same-model repair at 98,304 context.
+
+| Quant | Fresh approved / extra files | Fresh wall / decode | Saved draft repair wall / decode | Repair outcome |
+| --- | --- | --- | --- | --- |
+| UD-IQ1_M | 0/7, 8 extra | 288.3 s / 106.3 tok/s | 275.5 s / 106.5 tok/s | Patch edited four out-of-scope files. Checks unrun. |
+| UD-IQ2_XXS | 5/7, 1 extra | 266.1 s / 88.5 tok/s | 254.8 s / 85.3 tok/s | Patch included an unchanged edit. Checks unrun. |
+| UD-IQ3_XXS | 6/7, 0 extra | 291.9 s / 57.7 tok/s | 307.7 s / 54.5 tok/s | Patch applied. Build and typecheck still failed. |
+
+Model loads took about 207–239 s in this later trial. Both the scope failures and the retained-draft repair results matter when comparing decode speed with elapsed time. The earlier in-scope drafts show that a valid response was possible. The fresh attempts show the one-call workflow had no path to correct an invalid file set before trying repair. All six trial backends confirmed unload and exited.
+
+Evidence in `results/coder-next-frontend-comparison-20261113.md`, `results/coder-next-frontend-repair-comparison-20261113.md`, the named quant comparison receipts, and the two Terra compiler summaries.
+
+## Commerce reference verification and independent tests, November 13
+
+The native full-project trials added trusted held-out checks to the pinned CPU image and ran generated tests against the reference before freezing them. The first CPU check exposed missing Vite environment types in the reference and a product timestamp assertion that compared MongoDB millisecond precision with the initial nanosecond response. The CPU check passed after those corrections. Five standalone reference checks passed on the subsequent reference and image revisions. The final pinned image passed all ten required checks. A separate jsdom smoke passed Login and Dashboard component checks, signed in against the real API, and navigated to a seeded product. The image has no browser or browser driver, so visual layout was unevaluated.
+
+Qwen 3.8 27B MTP Q4_K_M planned at 98,304 context with medium reasoning. Gemma 4 31B IQ4_XS wrote and repaired the independent tests at 65,536 context with thinking enabled. The prepared workflow also assigned Qwen 27B medium implementation, Qwen 27B application repair with medium first and xhigh escalation, and Gemma 4 26B A4B MTP Q4_K_M review with thinking. These full-project attempts ended before implementation, application repair, or review.
+
+### Coverage and the 16 KiB suite limit
+
+Early attempts exposed missing test files, invalid discovery filenames, and coverage references to absent methods. Coverage repair was updated to treat unsupported claims as uncovered and request executable additions. Other blockers included an undeclared npm invocation, a harness file error, and one coverage request whose full prompt and schema did not fit the test author's context. Separate attempts hit the 16 KiB UTF-8 source limit during initial authoring, defect repair, and coverage addition. The source-size limit and context admission are separate checks.
+
+One reference control passed 21 of 24 tests, with all three remaining UI failures caused by an unwritable Vite cache. A later control passed 13 of 14 tests, with a Vitest worker exit in the remaining check. Neither suite froze. The Commerce trial then raised the independent suite limit to 32 KiB. The whole-project OpenCode trial described above used its separate 16 KiB contract.
+
+### Four runs at 32 KiB
+
+| Run | Elapsed | Last generated suite on the reference | Terminal outcome |
+| --- | ---: | --- | --- |
+| CV5 | 22m 59.6s | 13 of 16 passed | Two wrappers pointed to missing Login and Dashboard specs. The third spec failed to load Vuetify CSS. Capturing stderr in a CPU replay exposed both causes. |
+| CV6 | 24m 30.8s | 18 of 21 passed | The new pinned Vitest runner exposed an assumed app factory, private view paths and brittle assertions. Login, CRUD and Reports UI still failed after two rewrites. |
+| CV7 | 15m 52.6s | 6 of 10 passed in the first control | All three UI checks imported unavailable Testing Library. An API report assertion selected another test's row. Test docstrings hid Vitest tracebacks from the repair prompt. The first rewrite introduced a Python syntax error before a second control. |
+| CV8 | 26m 12.1s | 11 of 12 passed | Login, Dashboard navigation, both Reports UI checks and all seven generated API tests passed. Product creation failed after the second rewrite. The reference gate stopped the run and the isolated model backend confirmed unload. |
+
+The local runner now accepts complete Vitest source on stdin, uses the app's Vite configuration with jsdom and Vuetify support, and carries combined output into the Python test receipt. Shared DOM helpers bootstrap the public Vue entry and interact with rendered controls. The workflow now preserves the failure headline for unittest cases with docstrings and routes a defect rewrite with invalid Python through bounded syntax repair before freezing.
+
+The final CV8 suite ran in 15.0 s and used 17,680 bytes across three source files, within the 32 KiB limit. Its product creation test hit a missing jsdom `visualViewport` API when opening the Vuetify dialog and expected an exact `Name` label where the reference renders `Name *`. The earlier sign-in and navigation smoke never opened that dialog. The proposed diagnostic is a CPU replay of the saved suite with viewport support and label matching that tolerates the required marker, followed by a check that saving a unique product closes the dialog and renders the persisted row. The remaining failure supplies no evidence for raising the suite limit to 64 KiB. No candidate was generated in these full-project attempts.
+
+Evidence in the `cv5` through `cv8` run summaries and reference control receipts, `ui-diagnosis/report.json`, `vui-77f18706/report.json`, and the final CPU reference report under `reference-image-check-20261113T201745`.
