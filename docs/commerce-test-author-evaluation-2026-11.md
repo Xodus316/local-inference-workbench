@@ -31,4 +31,20 @@ Qwen supplied 16,450 bytes across nine files and compiled all of them in the pin
 
 Gemma was faster in wall time despite lower decode throughput. Its initial suite failed three UI cases and two API cases on the reference. A separate thinking-off run with test repair reached 9/11 reference tests and ended after 587.4 s without a frozen suite. The thinking-on run also ended without a frozen suite.
 
-Qwen medium produced the stronger first draft after the import correction. Each row represents one sampled draft, and the Gemma baseline used the original prompt. Test counts vary because the models authored different suites. No draft in this comparison satisfied all the reference and coverage checks required to freeze it.
+Qwen medium produced the stronger first draft after the import correction. Each row represents one sampled draft, and the Gemma baseline used the original prompt. Test counts vary because the models authored different suites. No first-pass draft satisfied all the reference and coverage checks required to freeze it.
+
+## End-to-end Commerce runs
+
+The full runs reused the saved plan, trusted reference, pinned image, and 32 KiB test-source limit. Both used Qwen 3.8 27B at 98K for native implementation and repair, with Gemma 4 26B as the independent reviewer. The Qwen author arm explicitly approved the same model for test authoring and implementation. The Gemma 31B author ran with thinking off.
+
+| Attempt | Wall time | Outcome |
+| --- | ---: | --- |
+| Qwen 27B medium, initial | 5:34 | Returned reasoning without a final test draft and stopped at test authoring. |
+| Gemma 31B, thinking off | 11:52 | Passed 6/14 reference tests initially and 7/14 after repairs. The suite could not freeze. |
+| Qwen 27B medium, retry | 49:43 | Repaired its suite to 28/28 on the reference, froze nine test files, and generated 54 application files in 12 groups. Backend compilation, frontend build, and typecheck passed after three compile repairs. Full verification found a Spring Data repository declaration that prevented API startup. Repair selection then rejected a response containing prose where file paths were required. |
+| Qwen candidate with assisted backend repair | 22:59 | Passed runtime verification. Gemma flagged async form validation in Products and Categories, and Qwen repaired both views. Runtime verification passed again. The reviewer filled its context while repeating an unchanged source chunk. |
+| Recovery from the verified candidate | 6:45 | Completed with the same frozen suite, 28/28 generated tests, all required trusted checks, and zero blocking review findings. This time covers the final recovery and verification. |
+
+The repair handoff was changed to surface verified startup failures before downstream checks and restrict model selections to existing editable paths. A model-only recovery got the API to start but still failed registration and 24 frozen tests. A three-file assisted backend patch removed an invalid repository update declaration, aligned MVC routes with API authentication, and made tracked-URL click updates atomic. The patch passed the pinned CPU verification before it was used for review. The frozen suite stayed byte-identical through recovery.
+
+The final recovery reused three review receipts only after their full requests and cited source matched byte for byte. Gemma freshly reviewed the remaining chunk, which contained the two frontend changes. Delivery verified hashes for 54 application files and nine test files. The offline image exercised the UI with Vitest DOM. Review left nonblocking findings on logout handling and Affiliates sorting.
