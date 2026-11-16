@@ -70,3 +70,36 @@ Flash corrected an invalid plan in the same session and continued implementation
 Rates divide total generated tokens by measured backend time. Qwen decoded at 64.3 tok/s during planning, 64.1 during implementation, and 48.3 in its last completed repair turn. The native timings count actual generated tokens, including reasoning and tool calls, separately from speculative drafts. The totals omit untimed in-flight cancellations and exclude wall time spent in tools, tests, and restarts. Flash's two preliminary tool smoke requests are also excluded.
 
 Strata acknowledged Flash's cancellation during prefill. Automatic cleanup could not confirm the request because its verifier expected a first generated token. A follow-up check verified the cancellation, exited the remaining trial-owned processes, confirmed port closure, and observed the GPU return to its desktop memory baseline.
+
+## HyperQwen at 98K with medium reasoning
+
+HyperQwen served Qwen 3.8 27B AutoRound-fast W4A16 through vLLM 0.33.0 on the same RTX 3090 under Docker Desktop and WSL2. The profile used a 98,304-token window, medium reasoning, one active sequence, three probabilistic MTP drafts, PTH FlashAttention with an int8 GPU KV cache, and prefix caching. The launcher set vLLM's GPU memory utilization to 0.89, and the server reported a GPU KV pool of 174,684 tokens. Guidance rejected the auto-tool grammar on the first probe attempt. The completed probes and full trial used the pinned image's patched XGrammar backend and strict tool parameters. [HyperQwen revision](https://github.com/syv-ai/HyperQwen/tree/3d6c9543292efc17372b824071ef8d9f33366b21)
+
+### Warm request and OpenCode tool probes
+
+| Probe | Generated tokens | Decode | Including time to first token | Prompt cache reuse |
+| --- | ---: | ---: | ---: | ---: |
+| Short repeat, warmed by an identical request | 768 | 117.8 tok/s | 111.2 tok/s | 6,528 / 6,947 (94.0%) |
+| First long OpenCode request, cold | 206 | 110.2 tok/s | 5.0 tok/s | 0 / 39,763 |
+| Six warm OpenCode requests | 1,350 | 107.6 tok/s | 80.4 tok/s | 241,536 / 244,806 (98.7%) |
+
+The short request reached its 768-token cap while reasoning. Cache reuse dropped its time to first token from 6.11 s to 0.39 s. The first long request took 39.38 s to reach its first token. The six later requests took 0.37–0.99 s each. OpenCode streamed reasoning, wrote a line with literal quotation marks, read it back, and replaced it in the same session.
+
+### Full Commerce comparison
+
+The full trial used the same OpenCode 1.19.0 executable, context, reasoning level, Commerce brief, pinned verifier image, reference, and frozen 28-test suite as the Ollama control. Each stack kept one session with automatic compaction. HyperQwen used the AutoRound weights and three MTP drafts. Ollama used Q4_K_M and four MTP drafts. The comparison covers the serving stacks as configured.
+
+| Metric | HyperQwen | Ollama |
+| --- | ---: | ---: |
+| Total measured run | 1h 27m 49s, exhausted three repairs | 2h 00m 01s, deadline during repair |
+| Planning | 3m 34s | 8m 48s |
+| Implementation turn | 62m 24s, 81 planned files | 36m 46s, 80 planned files |
+| Generated tokens | 421,935 | 328,524 |
+| Native decode | 99.5 tok/s | 57.2 tok/s |
+| Including prompt time | 83.4 tok/s | 50.5 tok/s |
+| Best frozen test result | 21/28 | 10/28 |
+| Final verifier | Frontend build and typecheck passed. Gradle failed before runtime tests. | Frontend and backend builds, typecheck, startup, and persistence passed. Frozen tests finished at 10/28. |
+
+HyperQwen decoded about 74% faster and generated about 28% more tokens across the measured run. Two early implementation responses generated a combined 141,346 reasoning tokens before the first application writes. The first filled the context. OpenCode compacted the history and continued in the same session. All 81 planned files were present by about 59 minutes, and acceptance started at 66 minutes. HyperQwen completed 99 measured trial requests and reused 81.2% of their input tokens in aggregate. Its rates exclude startup and smoke checks. The inclusive rate uses engine time to first token for HyperQwen and logged prefill time for Ollama.
+
+HyperQwen's first repair fixed a Vuetify type error and a Java serializer signature. The next verifier passed both builds, typecheck, API startup, MongoDB and persistence, and 21 of 28 frozen tests. Tracked-click requests returned HTTP 500, and reporting tests failed. The trusted API and held-out suites also failed. Later changes to the tracked-click code introduced compilation errors. The final attempt stopped at a Java `Decimal128(String)` constructor error before the runtime suites. Both runs ended without an accepted delivery. The owned HyperQwen container stopped and released GPU memory.
