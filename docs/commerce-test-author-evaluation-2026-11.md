@@ -48,3 +48,25 @@ The full runs reused the saved plan, trusted reference, pinned image, and 32 KiB
 The repair handoff was changed to surface verified startup failures before downstream checks and restrict model selections to existing editable paths. A model-only recovery got the API to start but still failed registration and 24 frozen tests. A three-file assisted backend patch removed an invalid repository update declaration, aligned MVC routes with API authentication, and made tracked-URL click updates atomic. The patch passed the pinned CPU verification before it was used for review. The frozen suite stayed byte-identical through recovery.
 
 The final recovery reused three review receipts only after their full requests and cited source matched byte for byte. Gemma freshly reviewed the remaining chunk, which contained the two frontend changes. Delivery verified hashes for 54 application files and nine test files. The offline image exercised the UI with Vitest DOM. Review left nonblocking findings on logout handling and Affiliates sorting.
+
+## Single-session OpenCode comparison
+
+Each trial used one local model on the same RTX 3090 to plan, implement, test, and repair the same 14-criterion Commerce recreation in one OpenCode 1.19.0 session with automatic compaction. Each model wrote its own plan. The acceptance harness paired a pinned offline image with the fixed 28-test suite from the earlier Qwen run and the trusted checks. Model-authored self-tests were advisory and subject to the 32 KiB suite limit. The workflow assigned review to the same model.
+
+| Model and serving configuration | Planning | Implementation | End of run |
+| --- | ---: | --- | --- |
+| Qwen 3.8 27B MTP Q4_K_M, medium, 98,304 context, Ollama | 8:48 | Wrote all 80 planned files in 36:46, or 45:34 from the start. | Hit the two-hour deadline during candidate repair. The final acceptance attempt passed 10/28 frozen tests. |
+| Qwen3-Flash-Next IQ3_XXS, thinking off, 65,536 context, Strata | 16:11, including one plan repair | Wrote 40 of 76 planned files. | Stopped on request at 1:40:30 during implementation. Build, typecheck, and acceptance were pending. |
+
+Qwen's final candidate passed the frontend build and typecheck, backend build and packaging, API startup, and persistence checks. Trusted API and held-out checks failed. Several endpoints returned HTTP 200 for invalid input, missing records, or duplicate SKUs. Concurrent tracked clicks failed to persist the expected counts, revenue, and last-click timestamp. The offline verifier reported browser execution unavailable for this trial. The harness originally spent time on oversized optional tests and hit Windows path-length problems. Shorter staging paths and running fixed acceptance first resolved those harness issues. The run resumed with the original OpenCode session and model-authored files.
+
+Flash corrected an invalid plan in the same session and continued implementation after a scope check blocked an unplanned write. Automatic compaction reduced one prompt from about 45K tokens to 8.7K, cutting prefill from 129 seconds to 27 seconds. The Strata bridge disabled conversation checkpoints for these verified tool calls, so subsequent requests generally reused only the roughly 2,100-token shared prefix. Ollama restored longer prefixes during the Qwen run. The two trials compare the serving configurations as tested, including their different contexts, reasoning modes, and cache behavior.
+
+| Model | Timed requests | Generated tokens | Prefill time | Decode time | Decode | Including prefill |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Qwen 27B | 144 | 328,524 | 12:31 | 1:35:48 | 57.2 tok/s | 50.5 tok/s |
+| Flash-Next IQ3_XXS | 76 | 33,399 | 1:27:41 | 11:30 | 48.4 tok/s | 5.6 tok/s |
+
+Rates divide total generated tokens by measured backend time. Qwen decoded at 64.3 tok/s during planning, 64.1 during implementation, and 48.3 in its last completed repair turn. The native timings count actual generated tokens, including reasoning and tool calls, separately from speculative drafts. The totals omit untimed in-flight cancellations and exclude wall time spent in tools, tests, and restarts. Flash's two preliminary tool smoke requests are also excluded.
+
+Strata acknowledged Flash's cancellation during prefill. Automatic cleanup could not confirm the request because its verifier expected a first generated token. A follow-up check verified the cancellation, exited the remaining trial-owned processes, confirmed port closure, and observed the GPU return to its desktop memory baseline.
