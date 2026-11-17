@@ -4,6 +4,8 @@ The task was to author executable black-box tests for a 14-criterion Commerce Ca
 
 ## First drafts
 
+For the subsequent recovery campaign, see [Commerce recovery, November 16](commerce-recovery-evaluation-2026-11-16.md). That separate 12-criterion campaign reached passing backend and restart-persistence checks, but its restored UI regression cases still failed. The next attempt is prepared, not completed; it does not replace the historical results below.
+
 | Test author | Reasoning | Model time | Decode | First-pass result |
 | --- | --- | ---: | ---: | --- |
 | Gemma 4 31B IQ4_XS | Off | 199.8 s | 35.2 tok/s | Mapped 12/14 criteria and passed 7/12 reference tests. |

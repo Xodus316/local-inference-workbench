@@ -87,6 +87,8 @@ These are workload-specific defaults from small development experiments. The [sy
 
 The [benchmark index](docs/research/README.md#benchmark-results) links to the full comparisons, including per-attempt results, failure examples and assisted repairs.
 
+The [November 16 Commerce recovery report](docs/commerce-recovery-evaluation-2026-11-16.md) records the latest full-stack workflow development: backend and API-restart persistence checks passed, while seven UI regression cases and independent-test correction remain open. Attempt 011 is prepared, not started; the campaign has not produced an accepted end-to-end delivery. [Derived results and receipt hashes](benchmarks/reports/commerce-recovery-2026-11-16.json)
+
 The evidence does not establish that these are the best models for every role. The planning submissions repeat two briefs, Build comparisons have few independent samples, and assisted results are labeled separately. PPLX has no matched alternative-decider comparison here; Deep accuracy and comparative chat quality remain unmeasured. Model packages, generation budgets, loading state and scoring environments differ between experiments. [Evidence coverage and limitations](benchmarks/evidence/v1/README.md)
 
 ## Development
