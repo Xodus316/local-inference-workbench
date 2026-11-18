@@ -1,0 +1,2543 @@
+{
+  "schema": "commerce-workflow-public-summary-v1",
+  "report_date": "2026-11-17",
+  "timezone": "America/Los_Angeles",
+  "utc_window_start_inclusive": "2026-11-17T08:00:00Z",
+  "utc_window_end_exclusive": "2026-11-18T08:00:00Z",
+  "publication_scope": "Documentation and derived evidence only; experimental engine and adapter changes are not deployed by this publication.",
+  "campaign_status": "not_delivered",
+  "e2e_success": false,
+  "gpu_testing": "paused_pending_new_user_release",
+  "measurement_scope": "Iterative development of one recovered 76-file application under a 12-criterion plan; not independent fresh-run trials or a model ranking.",
+  "counting_policy": "Reference, candidate, synthetic controls and mocked CPU checks are separate. Repeated and overlapping batches must not be added into a unique-test count or aggregate success rate.",
+  "ui_execution": "Pinned Vitest/jsdom mounted UI integration with real HTTP services; real browser and visual-layout evaluation unavailable.",
+  "evidence_availability": "Allowlisted measurements and selected original receipt SHA-256 hashes. Raw journals, prompts, responses, private source and operational identifiers remain unpublished. Hashes alone do not permit independent replay.",
+  "hardware": "One RTX 3090, 24576 MiB; model roles sequential.",
+  "models": {
+    "gemma31-test-author": {
+      "model": "Gemma4 31B IQ4_XS",
+      "runtime": "Ollama/OpenCode",
+      "context_tokens": 65536,
+      "thinking": true,
+      "note": "Campaign011-015 actual native role test_author only; other configured roles not credited as invoked."
+    },
+    "north-thinking": {
+      "model": "North Mini Code1.0",
+      "quantization": "official Q4_K_M weights",
+      "runtime": "Ollama0.40.12/OpenCode",
+      "context_tokens": 98304,
+      "thinking": true,
+      "sampling": {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 20,
+        "min_p": 0.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "repetition_penalty": 1.0
+      },
+      "local_tag_derivation": "sampling parameters only; original weight blob unchanged",
+      "diagnosis_completion_limit": 8192,
+      "patch_completion_limit": 32768,
+      "reasoning_token_observability": "zero separately reported reasoning tokens is not proof of no internal reasoning"
+    },
+    "qwen27-medium": {
+      "model": "Qwen3.8 27B W4A16 AutoRound-fast",
+      "runtime": "HyperQwen/vLLM/OpenCode",
+      "context_tokens": 98304,
+      "thinking": "medium",
+      "sampling": "same explicit temperature1/top_p0.95/top_k20/neutral penalties as North",
+      "diagnosis_completion_limit": 8192,
+      "patch_completion_limit": 32768,
+      "diagnosis_reasoning_limit": 2048,
+      "patch_reasoning_limit": 8192
+    },
+    "qwen27-xhigh-author": {
+      "model": "Qwen3.8 27B W4A16 AutoRound-fast",
+      "runtime": "HyperQwen/vLLM/OpenCode",
+      "context_tokens": 98304,
+      "thinking": "xhigh",
+      "sampling": "same explicit temperature1/top_p0.95/top_k20/neutral penalties as North",
+      "diagnosis_reasoning_limit": 4096,
+      "diagnosis_completion_limit": 8192,
+      "patch_reasoning_limit": 16384,
+      "patch_completion_limit": 32768
+    },
+    "qwen27-medium-configured-no-native-call": {
+      "inherits": "qwen27-medium",
+      "native_calls": 0
+    }
+  },
+  "role_independence": "Later Qwen author, repairer and reviewer used fresh sessions with the same weights; not model-family independence.",
+  "morning_and_comparison_runs": [
+    {
+      "label": "campaign-011",
+      "start_pst": "2026-11-17T07:58:42-08:00",
+      "end_pst": "2026-11-17T08:10:48-08:00",
+      "time_basis": "closed workflow journal created/updated; includes CPU gates, excludes preparation between runs",
+      "status": "failed",
+      "native_calls": 1,
+      "normal_completed_native_calls": 1,
+      "settled_cancelled_calls": 0,
+      "model_profile": "gemma31-test-author",
+      "actual_call_roles": {
+        "test_author": 1
+      },
+      "reference_controls": [
+        {
+          "stage": "build_control_0",
+          "executed": 4,
+          "passed": 4,
+          "failures": 0,
+          "errors": 0,
+          "status": "passed",
+          "evidence": {
+            "receipt": "build_control_0.raw.json",
+            "sha256": "ddcd5c68ff522e377d24aa80a7a2a043c3057fafeb32d9b4d012b90b373c4491"
+          }
+        }
+      ],
+      "candidate_smoke": [
+        {
+          "stage": "whole_self_verify_2",
+          "status": "passed",
+          "evidence": {
+            "receipt": "whole_self_verify_2.raw.json",
+            "sha256": "5dc75f977f8dc2562b44f6c4328d124343d615c3e5cedd29b2621530b55a2636"
+          }
+        }
+      ],
+      "outcome": "Full-suite coverage correction changed existing manifest metadata; rejected. No application change.",
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "terminal.json",
+          "sha256": "6a490d8b3e69a31af1280ef86149b66a706efd65dcd4f53cb9f8c31a9b458d93"
+        },
+        {
+          "receipt": "summary.json",
+          "sha256": "28f3ffeda87202dd467f059926d65951ce94e38c45c848ab2b87198d1d93a47d"
+        }
+      ]
+    },
+    {
+      "label": "campaign-012",
+      "start_pst": "2026-11-17T08:23:46-08:00",
+      "end_pst": "2026-11-17T08:47:10-08:00",
+      "time_basis": "closed workflow journal created/updated; includes CPU gates, excludes preparation between runs",
+      "status": "review_required",
+      "native_calls": 5,
+      "normal_completed_native_calls": 5,
+      "settled_cancelled_calls": 0,
+      "model_profile": "gemma31-test-author",
+      "actual_call_roles": {
+        "test_author": 5
+      },
+      "reference_controls": [
+        {
+          "stage": "build_control_0",
+          "executed": 4,
+          "passed": 4,
+          "failures": 0,
+          "errors": 0,
+          "status": "passed",
+          "evidence": {
+            "receipt": "build_control_0.raw.json",
+            "sha256": "770d18b80e550e413dd670ba60ca2ae9355b57ff516153945782737c4d274b76"
+          }
+        },
+        {
+          "stage": "build_control_1",
+          "executed": 13,
+          "passed": 6,
+          "failures": 4,
+          "errors": 3,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_1.raw.json",
+            "sha256": "01e7fe3bdd04904627691a0b44f70859673caaa03e8775facf043daea2f0c89d"
+          }
+        },
+        {
+          "stage": "build_control_2",
+          "executed": 13,
+          "passed": 8,
+          "failures": 2,
+          "errors": 3,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_2.raw.json",
+            "sha256": "c3a4d47755f0558331f28a97df6016cedcf13eb2821610f8f8e0517025979703"
+          }
+        },
+        {
+          "stage": "build_control_3",
+          "executed": 13,
+          "passed": 8,
+          "failures": 2,
+          "errors": 3,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_3.raw.json",
+            "sha256": "19480a74887965d0d41af345637d0d4adac68df0ab4690f1cd8b6dd74a55730b"
+          }
+        }
+      ],
+      "candidate_smoke": [
+        {
+          "stage": "whole_self_verify_2",
+          "status": "passed",
+          "evidence": {
+            "receipt": "whole_self_verify_2.raw.json",
+            "sha256": "6ad2332dace26bfc463a901bf900595d722cc8bcb49ee5e9be25ae859bfd8efc"
+          }
+        }
+      ],
+      "outcome": "Patch-only coverage correction introduced the missing security criterion; per-file reference repairs left five failing/error cases. Native no-op/out-of-scope proposals were not salvaged.",
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "terminal.json",
+          "sha256": "be595b839d7c6fe10f2eb9ce009241834453d5fa28ef5f5046e111a9f9b10bc0"
+        },
+        {
+          "receipt": "summary.json",
+          "sha256": "3db7d32d6286cf229261c4f38d54525f4e7a9a75bfb4b7ea7d75b88c3f75afcd"
+        }
+      ]
+    },
+    {
+      "label": "campaign-013",
+      "start_pst": "2026-11-17T09:02:27-08:00",
+      "end_pst": "2026-11-17T09:41:26-08:00",
+      "time_basis": "closed workflow journal created/updated; includes CPU gates, excludes preparation between runs",
+      "status": "cancelled",
+      "native_calls": 3,
+      "normal_completed_native_calls": 2,
+      "settled_cancelled_calls": 1,
+      "model_profile": "gemma31-test-author",
+      "actual_call_roles": {
+        "test_author": 3
+      },
+      "reference_controls": [
+        {
+          "stage": "build_control_0",
+          "executed": 4,
+          "passed": 4,
+          "failures": 0,
+          "errors": 0,
+          "status": "passed",
+          "evidence": {
+            "receipt": "build_control_0.raw.json",
+            "sha256": "78a8afd26bfe6c28fbb0ec8d9fff75fd14d918ca639349b36c3f16b450736c41"
+          }
+        },
+        {
+          "stage": "build_control_1",
+          "executed": 13,
+          "passed": 8,
+          "failures": 2,
+          "errors": 3,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_1.raw.json",
+            "sha256": "0cf8e8a61bce4dfca7a39ae625880e6bda6cdb88e19a3952d5fd3a29aa3d0150"
+          }
+        },
+        {
+          "stage": "build_control_2",
+          "executed": 13,
+          "passed": 8,
+          "failures": 2,
+          "errors": 3,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_2.raw.json",
+            "sha256": "2120ba4cddd5296f1c309445cd882f9360bdecf3fbaa53b3e585f3d4702a1119"
+          }
+        }
+      ],
+      "candidate_smoke": [
+        {
+          "stage": "whole_self_verify_2",
+          "status": "passed",
+          "evidence": {
+            "receipt": "whole_self_verify_2.raw.json",
+            "sha256": "01557ad0bdaf57b86871863cb3cd724146a67c11b3681707fd0462b2a4b24128"
+          }
+        }
+      ],
+      "outcome": "Two normal method-level proposals were rejected as no-ops; third call was explicitly cancelled and settled, not a normal generation. No accepted test change.",
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "terminal.json",
+          "sha256": "53bbdd822332a6786e075d44f149b2566326c3732100e62f4e48142521845f97"
+        },
+        {
+          "receipt": "summary.json",
+          "sha256": "ffcb715717598fbadb9869affcc8d602412d0d29995ea55ec815434bb8da934d"
+        }
+      ]
+    },
+    {
+      "label": "campaign-014",
+      "start_pst": "2026-11-17T09:55:05-08:00",
+      "end_pst": "2026-11-17T10:04:11-08:00",
+      "time_basis": "closed workflow journal created/updated; includes CPU gates, excludes preparation between runs",
+      "status": "review_required",
+      "native_calls": 4,
+      "normal_completed_native_calls": 4,
+      "settled_cancelled_calls": 0,
+      "model_profile": "gemma31-test-author",
+      "actual_call_roles": {
+        "test_author": 4
+      },
+      "reference_controls": [
+        {
+          "stage": "build_control_0",
+          "executed": 4,
+          "passed": 4,
+          "failures": 0,
+          "errors": 0,
+          "status": "passed",
+          "evidence": {
+            "receipt": "build_control_0.raw.json",
+            "sha256": "6ced68ac944801ee7995340b3c94d9a0531df329ed0ebcf395f0839de2cd785e"
+          }
+        },
+        {
+          "stage": "build_control_1",
+          "executed": 13,
+          "passed": 8,
+          "failures": 2,
+          "errors": 3,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_1.raw.json",
+            "sha256": "58bcbde53666fe661452baef35c73b488ca3c192c5d0dbed4e964994552560b7"
+          }
+        },
+        {
+          "stage": "build_control_2",
+          "executed": 13,
+          "passed": 10,
+          "failures": 3,
+          "errors": 0,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_2.raw.json",
+            "sha256": "927494c98703e932c44dff99f9e05656df385ef621c04759c022b160bf0e9062"
+          }
+        },
+        {
+          "stage": "build_control_3",
+          "executed": 13,
+          "passed": 10,
+          "failures": 3,
+          "errors": 0,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_3.raw.json",
+            "sha256": "1e6f903ab9c4ea4320fc6ede904203a2c981654d7241c5e9fa93dab6f176431c"
+          }
+        }
+      ],
+      "candidate_smoke": [
+        {
+          "stage": "whole_self_verify_2",
+          "status": "passed",
+          "evidence": {
+            "receipt": "whole_self_verify_2.raw.json",
+            "sha256": "17dce90508c9ae18cc4de17cfa49e8336e43d9af68cbca5a460f548ff8c4e144"
+          }
+        }
+      ],
+      "outcome": "Bounded method-patch interface yielded three composed byte changes out of four proposals; some changes did not establish behavioral repair. Three reference cases remained failing.",
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "terminal.json",
+          "sha256": "8ad5c632c9925c11b4560e624b987cbfa45c20a314b0625df16fc5035bbf84a1"
+        },
+        {
+          "receipt": "summary.json",
+          "sha256": "e9aaad4442fc2e53c7b15058b091d45be327af6ba5a126b61a94d6a3c885aeec"
+        }
+      ]
+    },
+    {
+      "label": "campaign-015",
+      "start_pst": "2026-11-17T10:24:04-08:00",
+      "end_pst": "2026-11-17T10:35:00-08:00",
+      "time_basis": "closed workflow journal created/updated; includes CPU gates, excludes preparation between runs",
+      "status": "review_required",
+      "native_calls": 6,
+      "normal_completed_native_calls": 6,
+      "settled_cancelled_calls": 0,
+      "model_profile": "gemma31-test-author",
+      "actual_call_roles": {
+        "test_author": 6
+      },
+      "reference_controls": [
+        {
+          "stage": "build_control_0",
+          "executed": 4,
+          "passed": 4,
+          "failures": 0,
+          "errors": 0,
+          "status": "passed",
+          "evidence": {
+            "receipt": "build_control_0.raw.json",
+            "sha256": "06cf891dada20feded62b006276864ba044f2475df468a5001b372dadb4e8ede"
+          }
+        },
+        {
+          "stage": "build_control_1",
+          "executed": 13,
+          "passed": 10,
+          "failures": 3,
+          "errors": 0,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_1.raw.json",
+            "sha256": "371b023211a61570d4a1a11eab54bf4ce137ca7638d3f62d95cbe071c82eaae7"
+          }
+        },
+        {
+          "stage": "build_control_2",
+          "executed": 13,
+          "passed": 11,
+          "failures": 2,
+          "errors": 0,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_2.raw.json",
+            "sha256": "8c1c620f104b425f11f7aaea8f16a752965384f3e32350f10f4741a4c0fe83bc"
+          }
+        },
+        {
+          "stage": "build_control_3",
+          "executed": 13,
+          "passed": 11,
+          "failures": 2,
+          "errors": 0,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_3.raw.json",
+            "sha256": "2b6f06f8f592b38af1beb6ba224175794e5f81c94a25556d74b26a4e85f6fe61"
+          }
+        }
+      ],
+      "candidate_smoke": [
+        {
+          "stage": "whole_self_verify_2",
+          "status": "passed",
+          "evidence": {
+            "receipt": "whole_self_verify_2.raw.json",
+            "sha256": "36763df1b871561cf44997bfa0ef33552889d96b5bad76d531acad3c33dc07a3"
+          }
+        }
+      ],
+      "outcome": "Diagnosis-before-patch produced three diagnoses and three composed test patches; reports API improved, but Products and Reports UI still failed. This retained suite became the matched comparison baseline.",
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "terminal.json",
+          "sha256": "37a72430395baac9b1a4b2b9a22fa0d15e7b35cc9676c98700590b5d0a76f50b"
+        },
+        {
+          "receipt": "summary.json",
+          "sha256": "21c23dd68ae16575414297b492fec59ae470f77840a86069fd2d9c5e43e66c66"
+        }
+      ]
+    },
+    {
+      "label": "campaign-016",
+      "start_pst": "2026-11-17T10:54:41-08:00",
+      "end_pst": "2026-11-17T11:02:24-08:00",
+      "time_basis": "closed workflow journal created/updated; includes CPU gates, excludes preparation between runs",
+      "status": "failed",
+      "native_calls": 0,
+      "normal_completed_native_calls": 0,
+      "settled_cancelled_calls": 0,
+      "model_profile": "qwen27-medium-configured-no-native-call",
+      "actual_call_roles": {},
+      "reference_controls": [
+        {
+          "stage": "build_control_0",
+          "executed": 4,
+          "passed": 4,
+          "failures": 0,
+          "errors": 0,
+          "status": "passed",
+          "evidence": {
+            "receipt": "build_control_0.raw.json",
+            "sha256": "34e7316e9ca11fcd8be770c735d917c27e60835926245611330fee539855a049"
+          }
+        },
+        {
+          "stage": "build_control_1",
+          "executed": 13,
+          "passed": 11,
+          "failures": 2,
+          "errors": 0,
+          "status": "failed",
+          "evidence": {
+            "receipt": "build_control_1.raw.json",
+            "sha256": "73d2a19aebcfd9d9db21aa19340eb414c3fcc7d6fa3b3a98a6673cb23738bd89"
+          }
+        }
+      ],
+      "candidate_smoke": [
+        {
+          "stage": "whole_self_verify_2",
+          "status": "passed",
+          "evidence": {
+            "receipt": "whole_self_verify_2.raw.json",
+            "sha256": "805bcb63468456562cb2bbc79671840cb66298a2f1773a31738ecd36543d6dbd"
+          }
+        }
+      ],
+      "outcome": "Qwen medium author migration configured; zero native model calls. Model startup failed under GPU memory competition. This is infrastructure evidence, not an inference-quality sample.",
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "terminal.json",
+          "sha256": "4919a12126cf6294054185c39aa2949fbff790cd1a482a8dc744ed6dbf0e448d"
+        },
+        {
+          "receipt": "summary.json",
+          "sha256": "4368281de404f75ecc5fbc6d0aa88bca716391b8656947556c98c21f2d9fdccc"
+        }
+      ]
+    },
+    {
+      "label": "original-interface-north",
+      "start_pst": "2026-11-17T11:35:13-08:00",
+      "end_pst": "2026-11-17T11:37:21-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_failures_remaining",
+      "model_profile": "north-thinking",
+      "native_calls": 2,
+      "normal_completed_native_calls": 2,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 0,
+      "patches_proposed": 0,
+      "patches_composed": 0,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "223edbf74aaa500a8f300be68874b2d69dcad5700fe4c40ea5cd0bfb5efdfe58",
+      "outcome": "Both diagnoses omitted mandatory current-source citations; no patch was requested.",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "795157436e09b0c659221920ed4ee16a16098bb68ccf06b33e44c56becd73e97"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "e177e760aeefa2dd3ebf12ccd15f461c3260afd777a1e43e39893cb4de667ba8"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "242246b817752447e5eef78f8fdc9d53a2296665e1599a914bf33d6d34c0ae3f"
+        },
+        {
+          "receipt": "comparison-v1-outcome.json",
+          "sha256": "5e5b0a2773331ef66e27b26c63decf4c40f934bfed4a3301a204b75db46a7f32"
+        }
+      ]
+    },
+    {
+      "label": "original-interface-qwen-medium",
+      "start_pst": "2026-11-17T11:41:53-08:00",
+      "end_pst": "2026-11-17T11:45:21-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_failures_remaining",
+      "model_profile": "qwen27-medium",
+      "native_calls": 2,
+      "normal_completed_native_calls": 2,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 0,
+      "patches_proposed": 0,
+      "patches_composed": 0,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "223edbf74aaa500a8f300be68874b2d69dcad5700fe4c40ea5cd0bfb5efdfe58",
+      "outcome": "First diagnosis omitted source citations; second used them but exceeded the unchanged 2000-character cause limit (2183).",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "a94666ba8d0d40f6e80a47a3b6919de2f534d70207861d700c70244927e2ec2a"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "f8daa0cc59e9f508bc9a9235378770382129c6ae7858143077dc6bfd072bc96a"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "815b18ca1b0f0ad3587f70276be6a03da4785e01e3b30876cedf08742cf3e17f"
+        },
+        {
+          "receipt": "comparison-v1-outcome.json",
+          "sha256": "5e5b0a2773331ef66e27b26c63decf4c40f934bfed4a3301a204b75db46a7f32"
+        }
+      ]
+    },
+    {
+      "label": "clarified-interface-north",
+      "start_pst": "2026-11-17T12:01:30-08:00",
+      "end_pst": "2026-11-17T12:03:20-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_failures_remaining",
+      "model_profile": "north-thinking",
+      "native_calls": 2,
+      "normal_completed_native_calls": 2,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 0,
+      "patches_proposed": 0,
+      "patches_composed": 0,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "223edbf74aaa500a8f300be68874b2d69dcad5700fe4c40ea5cd0bfb5efdfe58",
+      "outcome": "Both diagnoses supplied source citations but omitted required prior-attempt citations.",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "b738fff09f040bedf6783a6564c243f5ae64d3287bcd2cb680d98eb32129593e"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "3bc324f040b28b0ae21be39301fcc678eacda74400291b1645d70d3ca8ab0d61"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "97a76fa883cfe16a24e8506394103358ddffd240838331c74dc3f9299a8ebbd3"
+        },
+        {
+          "receipt": "comparison-v2-outcome.json",
+          "sha256": "861abbfcd693a1699c2e25347f62f24abe40cfa3a7ebfe4fab133d501a7fd169"
+        }
+      ]
+    },
+    {
+      "label": "clarified-interface-qwen-medium",
+      "start_pst": "2026-11-17T12:08:01-08:00",
+      "end_pst": "2026-11-17T12:14:16-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_failures_remaining",
+      "model_profile": "qwen27-medium",
+      "native_calls": 4,
+      "normal_completed_native_calls": 4,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 2,
+      "patches_proposed": 2,
+      "patches_composed": 1,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "908b920a5a503ae8675d322a8b40f4100b9fe98ccbe58b74d52adb072fe36f3f",
+      "outcome": "First composed patch introduced invalid embedded JavaScript; second proposal returned both current methods unchanged and was wholly rejected.",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "205555d718d80a15c8a84a0382ec42cb309a9bd748626dfff5b2ffb6171eef28"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "8baf7c8a86f659dafbee6ff149c9b52ea8ab8fe0bde51eb22d87f3963183d2af"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "6a715f6ff34fe29f3eedeb9f4a1605fae37975a5ae42977a4c4545143f97a52d"
+        },
+        {
+          "receipt": "comparison-v2-outcome.json",
+          "sha256": "861abbfcd693a1699c2e25347f62f24abe40cfa3a7ebfe4fab133d501a7fd169"
+        }
+      ]
+    },
+    {
+      "label": "clarified-interface-qwen-xhigh",
+      "start_pst": "2026-11-17T12:26:08-08:00",
+      "end_pst": "2026-11-17T12:33:34-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_failures_remaining",
+      "model_profile": "qwen27-xhigh-author",
+      "native_calls": 4,
+      "normal_completed_native_calls": 4,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 2,
+      "patches_proposed": 2,
+      "patches_composed": 0,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "223edbf74aaa500a8f300be68874b2d69dcad5700fe4c40ea5cd0bfb5efdfe58",
+      "outcome": "Both diagnoses validated. Both native patches returned a bodyless Products function header and were rejected before source mutation.",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "0b81ec2dde49cdf6b24d74f64c35983aba823e4a9a683f9c2dcc21a8f77dd9a2"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "dc7f56e66f0c4927e8ed1789e3810102fedf3d5d8bde6cf3d53828c2319271d0"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "74b1fb158b4bb39a14cfed2f5ce98fa081397fb676af35f9a251a99d0254fb6f"
+        },
+        {
+          "receipt": "xhigh-outcome-audit.json",
+          "sha256": "ba091f77d8e335e3f04509a89e87411aa3ed7c0c25b79b2d6f36576dcec0e481"
+        }
+      ]
+    },
+    {
+      "label": "line-edits-qwen-xhigh",
+      "start_pst": "2026-11-17T13:01:44-08:00",
+      "end_pst": "2026-11-17T13:08:47-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_failures_remaining",
+      "model_profile": "qwen27-xhigh-author",
+      "native_calls": 3,
+      "normal_completed_native_calls": 3,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 1,
+      "patches_proposed": 1,
+      "patches_composed": 1,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 12,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 12,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "6d95026412170d1c8f775b80b5944e2751823621e3884ea7ed9915aacfc7a3c3",
+      "outcome": "Native line edits preserved actions/assertions and repaired Reports navigation. Second diagnosis omitted a prior-attempt citation; Products remained failing.",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "8781a85573791378a1297b110d5f8bd629bf426ed398fa4af36f8663250a0498"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "f592fa3d33408bec4dcf1727262d80765e3bb8fc6f7da5d1d2aef08b52fd709c"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "53de22d1e5f0e50e52d8aa0c28e709756b2403e1bd37152dc58af098715b0ec2"
+        },
+        {
+          "receipt": "line-edits-outcome-audit.json",
+          "sha256": "cad6c6b15ebb2c797e5e208112b175f061c8d0bcd7267c9ea0931cce1037a6fc"
+        }
+      ]
+    },
+    {
+      "label": "structured-citations-north",
+      "start_pst": "2026-11-17T14:21:08-08:00",
+      "end_pst": "2026-11-17T14:24:27-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_regression",
+      "model_profile": "north-thinking",
+      "native_calls": 4,
+      "normal_completed_native_calls": 4,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 2,
+      "patches_proposed": 2,
+      "patches_composed": 0,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 10,
+          "failed_cases": [
+            "test_persistence.TestPersistence.test_data_survival",
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "223edbf74aaa500a8f300be68874b2d69dcad5700fe4c40ea5cd0bfb5efdfe58",
+      "outcome": "Both diagnoses validated. Both native line-edit proposals contained embedded newlines and were rejected. Final persistence ERROR came from the unchanged authored timestamp parser, not a North patch.",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "0f59338a5c000ef1ee5ef09aa838751cb873429b8ffcab451f30d70743f2107f"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "4f2ac0103a7404bf9757239608a1ef51fd3e5932cc3c85a53f7e3647ecddb9bb"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "d1f36f8a0d682ec6aa6f3d2be95421c92dbbbfb28035e171685680378b082b1e"
+        },
+        {
+          "receipt": "north-outcome-audit.json",
+          "sha256": "37d29603e9ccd4345ebe637a7b0974f9fc9d2521c9f468fc213e5520a981e69a"
+        }
+      ]
+    },
+    {
+      "label": "structured-citations-qwen-xhigh",
+      "start_pst": "2026-11-17T14:30:25-08:00",
+      "end_pst": "2026-11-17T14:39:39-08:00",
+      "time_basis": "first-to-last native call window only; excludes initial model load and subsequent reference execution",
+      "status": "reference_failures_remaining",
+      "model_profile": "qwen27-xhigh-author",
+      "native_calls": 4,
+      "normal_completed_native_calls": 4,
+      "unknown_native_calls": 0,
+      "diagnoses_schema_and_citation_validated": 2,
+      "patches_proposed": 2,
+      "patches_composed": 2,
+      "reference_controls": [
+        {
+          "round": 0,
+          "executed": 13,
+          "passed": 11,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui",
+            "test_ui.TestUI.test_reports_ui"
+          ]
+        },
+        {
+          "round": 1,
+          "executed": 13,
+          "passed": 12,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui"
+          ]
+        },
+        {
+          "round": 2,
+          "executed": 13,
+          "passed": 12,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui"
+          ]
+        }
+      ],
+      "final_suite_digest": "3f53073f6a23529a67ef5e2c397cbd277d2ef011669aa158bd59bcffdee66f12",
+      "outcome": "Both structured diagnoses and native line patches validated; Reports passed, Products still assumed a native form absent from the rendered UI. Retained for further native correction.",
+      "candidate_application_executed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "05ed63ff2b0bdc668dfbdf96d19deaba1fbbfc8aea712d8f30b01dc06c6665fc"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "b46a497ee9ecb90073f9779823a5b125689e434c568c767dad327e3ea1775aa5"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "4f08d0bbf353a628882a4123844d68a7787357420e26ba2cf0604299e7d71cb9"
+        },
+        {
+          "receipt": "qwen-outcome-audit.json",
+          "sha256": "d7072be46d3a9418831aab6debe51b0f51cc2d1c475b0a99c416d465a850139a"
+        }
+      ]
+    },
+    {
+      "label": "timestamp-continuation",
+      "start_pst": "2026-11-17T14:57:21-08:00",
+      "end_pst": "2026-11-17T15:00:36-08:00",
+      "time_basis": "first-to-last native call window only",
+      "model_profile": "qwen27-xhigh-author",
+      "native_calls": 2,
+      "normal_completed_native_calls": 2,
+      "patches_composed": 1,
+      "reference_controls": [
+        {
+          "executed": 13,
+          "passed": 12,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui"
+          ]
+        },
+        {
+          "executed": 13,
+          "passed": 12,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui"
+          ]
+        }
+      ],
+      "deterministic_timestamp_method_cases": 13,
+      "deterministic_expected_outcomes_matched": 13,
+      "final_suite_digest": "32f393597a147896e1795639b3fe773fc393642aaccab570a57ce6096f6901b1",
+      "outcome": "Native test-method fraction normalization resolved the retained Python3.10 timestamp parser incompatibility; raw and parsed equality assertions remained. Products UI still failed.",
+      "candidate_application_changed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "1dc2771b71fc82727d60486346a3d8369437c60797b8f3a8ee94375f3579417c"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "df3f5cd24bc8a4cffd35fe6097d0125cb9d7f2a5e1cb9c2625a176b01a0cc6d5"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "a64dcc1272c1bff1e50e70301f3d42a3752c34a054cd26a2c578fbbcd6a2f395"
+        },
+        {
+          "receipt": "outcome-audit.json",
+          "sha256": "8f19b5561382a588acdab4d6dee147662f8c9d47fd74ab6301135cd194d6bef3"
+        },
+        {
+          "receipt": "native-patch-review.json",
+          "sha256": "785d77dc945f603754a8076893757164ed1dc9b06e11ae2edb6e8311ac483cfe"
+        },
+        {
+          "receipt": "closure-audit.json",
+          "sha256": "bdf3854059abed12d0e50271836c8dd97cae4d533b995a9acdae9203d9a3b307"
+        }
+      ]
+    },
+    {
+      "label": "products-continuation",
+      "start_pst": "2026-11-17T15:09:34-08:00",
+      "end_pst": "2026-11-17T15:12:56-08:00",
+      "time_basis": "first-to-last native call window only",
+      "model_profile": "qwen27-xhigh-author",
+      "native_calls": 2,
+      "normal_completed_native_calls": 2,
+      "patches_composed": 1,
+      "reference_controls": [
+        {
+          "executed": 13,
+          "passed": 12,
+          "failed_cases": [
+            "test_ui.TestUI.test_products_ui"
+          ]
+        },
+        {
+          "executed": 13,
+          "passed": 13,
+          "failed_cases": []
+        }
+      ],
+      "deterministic_timestamp_method_cases": 13,
+      "deterministic_expected_outcomes_matched": 13,
+      "final_suite_digest": "0e542b61b67dc1b7966a18581122363ddb377755315cb23122891022728c031c",
+      "outcome": "Native patch replaced the nonexistent form assumption with label readiness and Save action. All reference cases passed; cumulative three-method semantic review accepted. Application source remained untouched.",
+      "candidate_application_changed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "journal.json",
+          "sha256": "62dcb1fb15e29706004db5f3d0f6dd52bd6afcdae7c5c2bc8a6c5ea14d8ec6b6"
+        },
+        {
+          "receipt": "report.json",
+          "sha256": "03b430eda6667a89d9e4c5c7bfd3a13e3615fee49a8aa343f6b7bcca40ddbeee"
+        },
+        {
+          "receipt": "reference-results.json",
+          "sha256": "dbc7c3d5897f0e1460264d85d79af0da0af26e8eab15e0b10a2da0f5ab4662f5"
+        },
+        {
+          "receipt": "outcome-audit.json",
+          "sha256": "52aa6f2457ef24b6028208f169e50a4d860f96db210c9039a8ed5631f32c58de"
+        },
+        {
+          "receipt": "native-patch-review.json",
+          "sha256": "62e376c75fbd9fec071b4a8aea401c087ceb699bf7074164e45a306428c2cd8d"
+        },
+        {
+          "receipt": "closure-audit.json",
+          "sha256": "951abebf87b6cd72dcf575d5f2edad4346bf1bf7479449b7f8141d4ec4a214ec"
+        }
+      ]
+    },
+    {
+      "label": "candidate-01",
+      "start_pst": "2026-11-17T15:17:07-08:00",
+      "end_pst": "2026-11-17T15:21:20-08:00",
+      "time_basis": "closed workflow journal created/updated",
+      "model_profile": null,
+      "native_calls": 0,
+      "model_backends_started": false,
+      "status": "review_required",
+      "milestone": "durable build_verify_0 reached",
+      "compilers": "backend and frontend passed",
+      "reference_smoke": "4/4",
+      "candidate_smoke": "4/4",
+      "independent_reference": "13/13",
+      "candidate_independent": "11/13",
+      "failures": [
+        "Products: requested Price label not found",
+        "Reports: expected Revenue Reports heading not found"
+      ],
+      "application_source_changed": false,
+      "e2e_acceptance": false,
+      "evidence": [
+        {
+          "receipt": "terminal.json",
+          "sha256": "2dd0b85c8c5f43b755b51975312e7e2d71cfcf4df1266e247a5924279321793c"
+        },
+        {
+          "receipt": "outcome-audit.json",
+          "sha256": "d61bcb18d3ed31aee2d404db8ddb79666ce363edb2e4354612209c993e6bc6de"
+        }
+      ]
+    }
+  ],
+  "infrastructure_only_attempts": [
+    {
+      "label": "initial-north-launch",
+      "start_pst": "2026-11-17T11:31:49-08:00",
+      "native_requests": 0,
+      "reference_executions": 0,
+      "process_exited": true,
+      "unload": "unconfirmed",
+      "classification": "pre-model readiness/ownership failure; not model-quality evidence",
+      "evidence": {
+        "receipt": "comparison-v1-outcome.json",
+        "sha256": "5e5b0a2773331ef66e27b26c63decf4c40f934bfed4a3301a204b75db46a7f32"
+      }
+    },
+    {
+      "label": "long-output-path-continuation01",
+      "native_calls": 0,
+      "reference_executions": 0,
+      "classification": "Windows materialization path failure; exact source later staged at shorter path",
+      "evidence": {
+        "receipt": "report.json",
+        "sha256": "d5054d61e0ef49eea45cf756a069d508c888c6a21fc1550092a578557aee9c17"
+      }
+    }
+  ],
+  "comparison_controls": {
+    "reset": "Same attempt-015 suite and four-record history for each arm",
+    "max_correction_rounds_per_arm": 2,
+    "limitations": "Different tokenizers, backends and reasoning controls; protocol changes between rounds; no speed ranking or general model superiority claim.",
+    "north_structured_citation_outcome": "Reached two patch proposals; neither composed. Final extra timestamp failure was in unchanged baseline code.",
+    "selected_continuation": "Qwen xhigh, based on useful executable Reports correction"
+  },
+  "materialization_preflight": {
+    "files": 82,
+    "all_bytes_exact": true,
+    "longest_absolute_path_characters": 234,
+    "model_calls": 0,
+    "docker_calls": 0,
+    "reference_executions": 0,
+    "result": "Short absolute path passed after retained Windows long-path failure",
+    "evidence": {
+      "receipt": "report.json",
+      "sha256": "80375a833863d1e7d58caac2d77be3d1902a98ec38b059ebe79e1597eec165d5"
+    }
+  },
+  "test_revisions": [
+    {
+      "revision": "02",
+      "model": "qwen27-xhigh-author",
+      "native_worker_calls": 4,
+      "patches_composed": 0,
+      "patches_semantically_accepted": 0,
+      "fresh_reference13_executions": [
+        {
+          "executed": 13,
+          "passed": 13
+        },
+        {
+          "executed": 13,
+          "passed": 13
+        }
+      ],
+      "synthetic_ui_executions": [
+        {
+          "expected_outcomes_matched": 4,
+          "fixtures": 19
+        }
+      ],
+      "timestamp_probe_executions": [
+        {
+          "expected_outcomes_matched": 13,
+          "fixtures": 13
+        }
+      ],
+      "outcome": "No acceptable patch; one length-ended native completion retained as rejected",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "5115e08262a60bbb6bf51b0610b12c28857413ffb7eb91556bf1f899aad4e107"
+      },
+      "closure_caveat": "Original journal retained three terminal calls and one unknown entry; closure separately resolved all four native outcomes, including the output-limit completion."
+    },
+    {
+      "revision": "03",
+      "model": "qwen27-xhigh-author",
+      "native_worker_calls": 2,
+      "patches_composed": 1,
+      "patches_semantically_accepted": 0,
+      "fresh_reference13_executions": [
+        {
+          "executed": 13,
+          "passed": 13
+        },
+        {
+          "executed": 13,
+          "passed": 13
+        }
+      ],
+      "synthetic_ui_executions": [
+        {
+          "expected_outcomes_matched": 19,
+          "fixtures": 19
+        }
+      ],
+      "timestamp_probe_executions": [
+        {
+          "expected_outcomes_matched": 13,
+          "fixtures": 13
+        }
+      ],
+      "outcome": "Semantic review rejected numeric substring and column-association false positives",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "707b1c2e56834f29311ac64b64bdbc076f7b537ac0264b0415c6e32b824d5ebd"
+      }
+    },
+    {
+      "revision": "04",
+      "model": "qwen27-xhigh-author",
+      "native_worker_calls": 4,
+      "patches_composed": 2,
+      "patches_semantically_accepted": 0,
+      "fresh_reference13_executions": [
+        {
+          "executed": 13,
+          "passed": 13
+        },
+        {
+          "executed": 13,
+          "passed": 13
+        },
+        {
+          "executed": 13,
+          "passed": 13
+        }
+      ],
+      "synthetic_ui_executions": [
+        {
+          "expected_outcomes_matched": 27,
+          "fixtures": 29
+        },
+        {
+          "expected_outcomes_matched": 29,
+          "fixtures": 29
+        }
+      ],
+      "timestamp_probe_executions": [
+        {
+          "expected_outcomes_matched": 13,
+          "fixtures": 13
+        },
+        {
+          "expected_outcomes_matched": 13,
+          "fixtures": 13
+        }
+      ],
+      "outcome": "Semantic review rejected missing exact text and non-USD false positives",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "64050aad02ca39258015073db5becf8f9ebabe6fcbff27349e75de7f3e90ad64"
+      }
+    },
+    {
+      "revision": "05",
+      "model": "qwen27-xhigh-author",
+      "native_worker_calls": 2,
+      "patches_composed": 1,
+      "patches_semantically_accepted": 1,
+      "fresh_reference13_executions": [
+        {
+          "executed": 13,
+          "passed": 13
+        },
+        {
+          "executed": 13,
+          "passed": 13
+        }
+      ],
+      "synthetic_ui_executions": [
+        {
+          "expected_outcomes_matched": 35,
+          "fixtures": 35
+        }
+      ],
+      "timestamp_probe_executions": [
+        {
+          "expected_outcomes_matched": 13,
+          "fixtures": 13
+        }
+      ],
+      "outcome": "Qualified amended suite; no candidate acceptance credit",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "734ae50187d11ef0776bf0c61596cd74cde31ad6541c6b450fe2dd3369a5f564"
+      }
+    }
+  ],
+  "synthetic_ui_baselines": [
+    {
+      "fixture_cases": 15,
+      "expected_outcomes_matched": 3,
+      "finding": "Old helper label incompatibility and heading-only Reports coverage"
+    },
+    {
+      "fixture_cases": 19,
+      "expected_outcomes_matched": 4,
+      "finding": "Derived helper; Reports still lacks nonzero behavior assertions"
+    },
+    {
+      "fixture_cases": 29,
+      "expected_outcomes_matched": 21,
+      "finding": "Eight invalid numeric/column scenarios falsely accepted by revision03"
+    },
+    {
+      "fixture_cases": 35,
+      "expected_outcomes_matched": 29,
+      "finding": "Six invalid field/currency scenarios falsely accepted by revision04"
+    }
+  ],
+  "synthetic_scope": "Literal authored test methods against synthetic HTTP/DOM fixtures. Negative outcomes match when defective data is rejected. Not 35 separate acceptance cases, real model calls or full restart-persistence execution.",
+  "image_qualifications": [
+    {
+      "qualification": "01",
+      "new_image_id": "sha256:da55b81afab27f1e629e1ce755250fb87ae7ef12ebed46c99e036135840cd16f",
+      "fresh_reference_suite_executions": [
+        {
+          "cases": 13,
+          "passed": 13
+        }
+      ],
+      "reuses_prior_reference13_proof": false,
+      "qualification_complete": false,
+      "reference_source_and_tests_unchanged": true,
+      "model_calls": 0,
+      "candidate_acceptance_credit": false,
+      "evidence": {
+        "receipt": "qualification.json",
+        "sha256": "4c4cd7f0821049aa0b9185a7c425593df1b724b43338a6635af12eb6d47bcd8d"
+      }
+    },
+    {
+      "qualification": "02",
+      "new_image_id": "sha256:da55b81afab27f1e629e1ce755250fb87ae7ef12ebed46c99e036135840cd16f",
+      "fresh_reference_suite_executions": [
+        {
+          "cases": 14,
+          "passed": 14
+        }
+      ],
+      "reuses_prior_reference13_proof": true,
+      "qualification_complete": true,
+      "reference_source_and_tests_unchanged": true,
+      "model_calls": 0,
+      "candidate_acceptance_credit": false,
+      "evidence": {
+        "receipt": "qualification.json",
+        "sha256": "5c933148adc93032a4017f83ea46e9783013ac772b5bf1304d69b5083c1233ed"
+      }
+    },
+    {
+      "qualification": "03",
+      "new_image_id": "sha256:0d35bb15643677c37ad9b5047ebe502ef375559a7779479f9493e2743edfffd9",
+      "fresh_reference_suite_executions": [
+        {
+          "cases": 13,
+          "passed": 13
+        },
+        {
+          "cases": 14,
+          "passed": 14
+        }
+      ],
+      "reuses_prior_reference13_proof": false,
+      "qualification_complete": true,
+      "reference_source_and_tests_unchanged": true,
+      "model_calls": 0,
+      "candidate_acceptance_credit": false,
+      "evidence": {
+        "receipt": "qualification.json",
+        "sha256": "0369020f9afb2e1db8a061be8fa61117864f768b247858341827a6a0ce6f6894"
+      }
+    }
+  ],
+  "e2e_runs": [
+    {
+      "run": "e2e-01",
+      "journal_calls": 0,
+      "native_requests": 0,
+      "candidate_independent13_pass_progression": [],
+      "fresh_reference_smoke_passed": null,
+      "fresh_independent_reference_passed": null,
+      "initial_review_chunk_requests": 0,
+      "review_correction_requests": 0,
+      "component_compile_checkpoints": 0,
+      "test_syntax_preflight_executions": 0,
+      "outcome": "Docker create timeout before runtime/models/application verification",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "b11a2a09a23a16e2dd4c936c6ff86bcb4a2a122c9082b8b91306f135cf2cbb57"
+      }
+    },
+    {
+      "run": "e2e-02",
+      "journal_calls": 11,
+      "native_requests": 33,
+      "candidate_independent13_pass_progression": [
+        11,
+        12,
+        13
+      ],
+      "fresh_reference_smoke_passed": 4,
+      "fresh_independent_reference_passed": 13,
+      "initial_review_chunk_requests": 4,
+      "review_correction_requests": 3,
+      "component_compile_checkpoints": 4,
+      "test_syntax_preflight_executions": 1,
+      "outcome": "Two application repairs; incomplete source review after citation/schema failures",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "f9f8e8c5cc0120ff80bd0507f160a28550a8fcabdcfaeceaa35d7c5657f23ae1"
+      }
+    },
+    {
+      "run": "e2e-03",
+      "journal_calls": 10,
+      "native_requests": 10,
+      "candidate_independent13_pass_progression": [
+        13
+      ],
+      "fresh_reference_smoke_passed": 4,
+      "fresh_independent_reference_passed": 13,
+      "initial_review_chunk_requests": 8,
+      "review_correction_requests": 2,
+      "component_compile_checkpoints": 2,
+      "test_syntax_preflight_executions": 1,
+      "outcome": "Six accepted review chunks; two remained invalid after correction; no new application patch",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "8c0a006c4a1dd01f7efd6fb36564f88228f9fdbe7c2a93a430205f6bc35485e9"
+      }
+    },
+    {
+      "run": "e2e-04",
+      "journal_calls": 30,
+      "native_requests": 50,
+      "candidate_independent13_pass_progression": [
+        13,
+        13
+      ],
+      "fresh_reference_smoke_passed": 4,
+      "fresh_independent_reference_passed": 13,
+      "initial_review_chunk_requests": 28,
+      "review_correction_requests": 0,
+      "component_compile_checkpoints": 4,
+      "test_syntax_preflight_executions": 1,
+      "outcome": "Two complete14-chunk reviews; one new native application repair; final original14 failed8/14",
+      "e2e_acceptance": false,
+      "evidence": {
+        "receipt": "closure-audit.json",
+        "sha256": "6b3dc828bec2228b0d4c59d67b8da99a1a0ccd68deda74f79d2035d798dd0be4"
+      }
+    }
+  ],
+  "latest_candidate": {
+    "artifact_digest": "313c5a2fabf9967a9c2174ac4a6caaca17a20b601e5ab35ebbe9cdd60052d2c0",
+    "application_files": 76,
+    "independent_suite_digest": "b95e87ff4d98b05d81cd40aa97e4160cf5e13d8bfec7d3676565da9b95d9c504",
+    "compiler_status": "both_passed",
+    "independent13": {
+      "executed": 13,
+      "passed": 13
+    },
+    "final_smoke4": {
+      "executed": 4,
+      "passed": 4
+    },
+    "source_review": {
+      "chunks": 14,
+      "files": 76,
+      "P0": 0,
+      "P1": 0,
+      "P2": 16,
+      "P3": 8
+    },
+    "original14": {
+      "executed": 14,
+      "passed": 8,
+      "failed": 6,
+      "API_passed": 7,
+      "UI_passed": 1,
+      "UI_passed_case": "Reports"
+    },
+    "full_restart_persistence": "not_reached",
+    "final_acceptance": "not_reached",
+    "delivery": "not_reached",
+    "cumulative_general_repairs": 3,
+    "cumulative_self_repairs": 2,
+    "general_repairs_remaining_in_closed_run": 0,
+    "compile_repairs_in_continuation": 0,
+    "evidence": {
+      "receipt": "continuation-readiness-v2.json",
+      "sha256": "a07e5bcbf7fdbba4f79adf9c439cff7f5a26dd5560a14f90ba5b0a5995c16266"
+    }
+  },
+  "last_native_repair": {
+    "selected_files": 4,
+    "selection_native_requests": 1,
+    "writer_native_requests": 21,
+    "changes": [
+      "Map data-integrity/duplicate-key conflicts to HTTP409",
+      "Targeted tracked-URL field updates preserve concurrent click/revenue/timestamp fields and associations",
+      "Carry optional trackedUrl through frontend payload and create/edit/save UI with blank default"
+    ],
+    "manual_candidate_edits": false
+  },
+  "review_citation_change": {
+    "method": "Native exact-anchor selection; deterministic source-coordinate expansion; native severity/prose retained",
+    "full_source_available": true,
+    "original_validation_retained": true,
+    "first_review": {
+      "chunks": 14,
+      "files": 76,
+      "P1": 3,
+      "P2": 13,
+      "P3": 11
+    },
+    "second_review": {
+      "chunks": 14,
+      "files": 76,
+      "P0": 0,
+      "P1": 0,
+      "P2": 16,
+      "P3": 8
+    },
+    "citation_correction_calls_in_e2e04": 0,
+    "cross_chunk_false_positive": "Duplicate-SKU complaint separately adjudicated against fixed global handler; original finding retained."
+  },
+  "remaining_original14_failures": [
+    {
+      "case": "Authentication UI",
+      "category": "application",
+      "finding": "Extra mandatory registration confirmation blocks the specified username/password flow"
+    },
+    {
+      "case": "Dashboard UI",
+      "category": "application",
+      "finding": "Missing tracked-click aggregate"
+    },
+    {
+      "case": "Categories CRUD UI",
+      "category": "application",
+      "finding": "Missing Save action in create mode"
+    },
+    {
+      "case": "Tracked URLs CRUD UI",
+      "category": "application",
+      "finding": "Missing Save action in create mode"
+    },
+    {
+      "case": "Affiliates CRUD UI",
+      "category": "helper_portability_and_application",
+      "finding": "Percent label equivalence initially fails; new helper advances to missing Save"
+    },
+    {
+      "case": "Products CRUD UI",
+      "category": "test_portability",
+      "finding": "Private icon class selector misses a visible Edit action"
+    }
+  ],
+  "unexecuted_branch_caveat": "Later delete branches assume a rendered confirmation modal, while source uses conditional native confirmation. Cancellation, confirmation and actual deletion require a separately qualified semantic test amendment; no pass credit for unreached branches.",
+  "gpu_handoff": {
+    "model_exit_pst": "2026-11-17T22:39:41-08:00",
+    "model_exit_utc": "2026-11-18T06:39:41Z",
+    "container_exited_normally": true,
+    "memory_before_mib": 23643,
+    "memory_after_mib": 1229,
+    "total_memory_mib": 24576,
+    "parent_cleanup_confirmed": true,
+    "subsequent_work": "CPU-only; no new model/GPU calls",
+    "evidence": {
+      "receipt": "result.json",
+      "sha256": "c59993e2693f00aeba1f575ae71d1c12c1df16f88c71f1cb41a3970c09cac9eb"
+    }
+  },
+  "candidate_helper_diagnostic": {
+    "source_and_original_test_bytes_unchanged": true,
+    "source_digest": "313c5a2fabf9967a9c2174ac4a6caaca17a20b601e5ab35ebbe9cdd60052d2c0",
+    "image_id": "sha256:0d35bb15643677c37ad9b5047ebe502ef375559a7779479f9493e2743edfffd9",
+    "executed": 14,
+    "passed": 8,
+    "failed": 6,
+    "affiliate_label_fixed": true,
+    "affiliate_next_failure": "Missing Save action",
+    "other_five_first_failure_records_byte_identical": true,
+    "process_exit_zero_means": "Diagnostic settled, not regression passed",
+    "model_calls": 0,
+    "gpu_requested": false,
+    "e2e_acceptance_credit": false,
+    "evidence": {
+      "receipt": "diagnostic.json",
+      "sha256": "bec474a1f134d0559014e0da85769b6ec82b08cd9f3774b6edbfbee74c632273"
+    }
+  },
+  "cpu_validation_batches": [
+    {
+      "batch": "comparison-auditor-v1",
+      "recorded_passed": 7,
+      "scope": "mocked CPU guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "comparison-auditor-v2",
+      "recorded_passed": 10,
+      "scope": "mocked CPU guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "qwen-xhigh-adapter",
+      "recorded_passed": 11,
+      "scope": "mocked native CPU guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "independent-line-renderer",
+      "recorded_passed": 15,
+      "scope": "CPU composition/correctness guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "independent-structured-citations",
+      "recorded_passed": 15,
+      "scope": "CPU citation guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "candidate-transition-adapter",
+      "recorded_passed": 16,
+      "scope": "mocked Runtime/Store guards; synthetic failed-looking ct fixture is not a live candidate run",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "line-edit-decoder",
+      "recorded_passed": 11,
+      "scope": "CPU decoder fixtures after two rejected schema experiments",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "line-edit-runtime-lexical",
+      "recorded_passed": 9,
+      "scope": "CPU runtime lexical fixtures",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "citation-decoder",
+      "recorded_passed": 12,
+      "scope": "CPU decoder fixtures; North native decoder not tested",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "citation-runtime",
+      "recorded_passed": 12,
+      "scope": "CPU runtime fixtures",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "original-label-helper",
+      "recorded_passed": 24,
+      "scope": "Vitest/jsdom synthetic helper fixtures",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "ui-probe-v2",
+      "recorded_passed": 12,
+      "scope": "mocked Python guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "ui-probe-v3",
+      "recorded_passed": 18,
+      "scope": "mocked Python guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "ui-probe-v4",
+      "recorded_passed": 24,
+      "scope": "mocked Python guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "lifecycle-v2",
+      "recorded_passed": 15,
+      "scope": "mocked lifecycle guards",
+      "evidence_kind": "recorded_console_development_batch"
+    },
+    {
+      "batch": "lifecycle-auditor",
+      "recorded_passed": 14,
+      "scope": "CPU evidence guards",
+      "evidence_kind": "recorded_console_development_batch"
+    },
+    {
+      "batch": "source-anchor-pure",
+      "recorded_passed": 15,
+      "scope": "pure CPU guards",
+      "evidence_kind": "recorded_console_development_batch"
+    },
+    {
+      "batch": "source-anchor-ask-flow",
+      "recorded_passed": 8,
+      "scope": "mocked native responses",
+      "evidence_kind": "recorded_console_development_batch"
+    },
+    {
+      "batch": "source-anchor-runtime-store",
+      "recorded_passed": 14,
+      "scope": "real Runtime/Store with mocked native responses",
+      "evidence_kind": "recorded_console_development_batch"
+    },
+    {
+      "batch": "review-audit-provenance",
+      "recorded_passed": 10,
+      "scope": "CPU provenance checks",
+      "evidence_kind": "recorded_console_development_batch"
+    },
+    {
+      "batch": "checkpoint-binding",
+      "recorded_passed": 4,
+      "scope": "CPU checkpoint checks",
+      "evidence_kind": "recorded_console_development_batch"
+    },
+    {
+      "batch": "gpu-release-helper",
+      "recorded_passed": 6,
+      "scope": "mocked ownership/release guards",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "unit-label-helper-v2",
+      "recorded_passed": 58,
+      "scope": "mocked DOM/Node checks",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "image-qualifier-v3",
+      "recorded_passed": 10,
+      "scope": "CPU guards; live reference qualification counted separately",
+      "evidence_kind": "saved_preparation_receipt"
+    },
+    {
+      "batch": "candidate-diagnostic-adapter",
+      "recorded_passed": 7,
+      "scope": "CPU guards against saved evidence",
+      "evidence_kind": "saved_preparation_receipt"
+    }
+  ],
+  "proposed_workflow_changes_not_implemented": [
+    "Run a separate early supplemental regression gate after independent verification, preserving all final gates and cumulative budgets",
+    "Persist unresolved review findings with explicit source-bound dispositions across resumes",
+    "Provide dependent-file context to reviewers to reduce cross-chunk false positives"
+  ],
+  "remaining_work": [
+    "Await new user GPU release",
+    "Native-author and positive/negative qualify semantic regression amendment with all14 cases and behavioral/API assertions retained",
+    "Freeze distinct continuation, qualified image/suite binding and explicit additional budget retaining repair3/self2 and all costs",
+    "Native application fixes for registration, tracked-click dashboard and create-mode Save actions",
+    "Fresh compilers, independent13, full review, smoke4, qualified regression, full restart persistence, acceptance and delivery"
+  ],
+  "early_cpu_evidence": [
+    {
+      "kind": "recorded_cpu_unit_batch",
+      "evidence": {
+        "path": "auditor-tests.json",
+        "sha256": "10046c5490f9f8ee2ea66675021ff0c987357f61c4d4618e1f2701a07f72266e"
+      },
+      "summary": "Initial matched-comparison preparation auditor checks.",
+      "tests": 7,
+      "passed": true,
+      "application_or_native_acceptance_credit": false
+    },
+    {
+      "kind": "recorded_cpu_unit_batch",
+      "evidence": {
+        "path": "auditor-tests.json",
+        "sha256": "6fbb26317c72ee23ccb5586af35de7d9fd945af8ca3d1f2b6dcc07fd7de75a1a"
+      },
+      "summary": "Versioned citation-guidance and prior-response feedback preparation auditor checks.",
+      "tests": 10,
+      "passed": true,
+      "application_or_native_acceptance_credit": false
+    },
+    {
+      "kind": "recorded_cpu_unit_batch",
+      "evidence": {
+        "path": "adapter-preparation.json",
+        "sha256": "76ce70ac0a598576eeccafbada3e9debfb06121144c0833fdda0731a9a3a5179"
+      },
+      "summary": "Xhigh adapter identity, native request budgets and terminal/cleanup behavior with network/container/lifecycle boundaries mocked.",
+      "tests": 11,
+      "passed": true,
+      "application_or_native_acceptance_credit": false
+    },
+    {
+      "kind": "recorded_cpu_unit_batch",
+      "evidence": {
+        "path": "independent-renderer-checks.json",
+        "sha256": "60041e611f15e11e6880965ab4ee136f7eca43ead875933ad95e3364471313ef"
+      },
+      "summary": "Independent synthetic exact-anchor renderer checks: ambiguity, overlap, digest, scope, newlines, source preservation and no-op.",
+      "tests": 15,
+      "passed": true,
+      "application_or_native_acceptance_credit": false
+    },
+    {
+      "kind": "recorded_cpu_unit_batch",
+      "evidence": {
+        "path": "independent-citation-checks.json",
+        "sha256": "493b1be7b842c898589ed5ece2ff551d60db33812d466d78ce5f6bf1617d191f"
+      },
+      "summary": "Independent synthetic structured-citation checks: exact IDs, required categories, duplicates, prose limits and literal rejection feedback.",
+      "tests": 15,
+      "passed": true,
+      "application_or_native_acceptance_credit": false
+    },
+    {
+      "kind": "recorded_cpu_unit_batch",
+      "evidence": {
+        "path": "candidate-adapter-cpu-validation.json",
+        "sha256": "3f2193f96e92a5a8f02299c2ae210b80f4aee143723fcd836bb480b60187b45f"
+      },
+      "summary": "Candidate transition guards and actual Runtime flow with synthetic execution boundaries; disabled native dispatch, exact source materialization and durable-stop behavior.",
+      "tests": 16,
+      "passed": true,
+      "application_or_native_acceptance_credit": false
+    },
+    {
+      "kind": "agent_reported_batch_in_audit",
+      "evidence": {
+        "path": "independent-preparation-audit.json",
+        "sha256": "14da7a1be96eac084ecad819968aa26a9e5c42abea6868f253ddd59879c60ab2"
+      },
+      "summary": "Audit records 31 workflow unit tests reported by the implementing agent, separately from its15 independent renderer and11 decoder fixtures.",
+      "recorded_counts": {
+        "workflow_unit_tests": 31,
+        "independent_renderer_cases": 15,
+        "decoder_wire_fixtures": 11,
+        "not_a_pooled_model_success_rate": true
+      },
+      "independent_raw_unittest_log_not_found_in_this_inventory": true
+    },
+    {
+      "kind": "agent_reported_batch_in_audit",
+      "evidence": {
+        "path": "independent-preparation-audit.json",
+        "sha256": "6353744baea71477729660cab425928a56644ad7b0b485f500db0a8a3b216a2c"
+      },
+      "summary": "Audit records 35 agent-reported unit tests separately from15 independent citation checks and12 diagnosis/11 line decoder fixtures.",
+      "recorded_counts": {
+        "independent_synthetic_citation_cases": 15,
+        "agent_reported_unit_tests": 35,
+        "Qwen_diagnosis_decoder_fixtures": 12,
+        "Qwen_line_decoder_fixtures": 11,
+        "not_a_native_model_success_rate": true
+      },
+      "independent_raw_unittest_log_not_found_in_this_inventory": true
+    },
+    {
+      "kind": "cpu_decoder_probe",
+      "evidence": {
+        "path": "decoder-schema-compatibility-without-pattern.json",
+        "sha256": "a0f597c8a59aeec3af01d34be60defbaa23e850974bf78f4f7ce9eabd77fcd0b"
+      },
+      "summary": "Synthetic schema compilation and token-matcher fixtures; no model weights or inference.",
+      "fixtures": 11,
+      "passed": false,
+      "mismatches": [
+        {
+          "name": "reject_actual_lf",
+          "expected": false,
+          "accepted": true
+        },
+        {
+          "name": "reject_actual_cr",
+          "expected": false,
+          "accepted": true
+        }
+      ],
+      "runtime_semantics_fixture_count": 0,
+      "runtime_semantics_passed": null,
+      "not_model_quality": true
+    },
+    {
+      "kind": "cpu_decoder_probe",
+      "evidence": {
+        "path": "decoder-schema-compatibility-with-pattern.json",
+        "sha256": "5191338595173c7cede7e658573867d1e7b381ba0f6547025ed6753100d5352c"
+      },
+      "summary": "Synthetic schema compilation and token-matcher fixtures; no model weights or inference.",
+      "fixtures": 11,
+      "passed": false,
+      "mismatches": [
+        {
+          "name": "valid_literal_backslash_n",
+          "expected": true,
+          "accepted": false
+        }
+      ],
+      "runtime_semantics_fixture_count": 0,
+      "runtime_semantics_passed": null,
+      "not_model_quality": true
+    },
+    {
+      "kind": "cpu_decoder_probe",
+      "evidence": {
+        "path": "decoder-schema-compatibility.json",
+        "sha256": "6bfd09591c6935bd45525a50deb7d1ed47bfe3d22e11c3d59907db97082395e5"
+      },
+      "summary": "Synthetic schema compilation and token-matcher fixtures; no model weights or inference.",
+      "fixtures": 11,
+      "passed": true,
+      "mismatches": [],
+      "runtime_semantics_fixture_count": 9,
+      "runtime_semantics_passed": true,
+      "not_model_quality": true
+    },
+    {
+      "kind": "cpu_decoder_probe",
+      "evidence": {
+        "path": "citation-decoder-compatibility.json",
+        "sha256": "5d28fb4a8b99959b6f0799b2b0476168e6dd7f504293540c55b4c0b8d3cc65f3"
+      },
+      "summary": "Qwen structured citation decoder12 fixtures and corresponding12 runtime checks. North configured schema matched, but its native decoder was not exercised.",
+      "decoder_fixtures": 12,
+      "runtime_checks": 12,
+      "passed": true,
+      "north_native_decoder_tested": false,
+      "not_model_quality": true
+    },
+    {
+      "kind": "cpu_decoder_probe",
+      "evidence": {
+        "path": "decoder-schema-compatibility.json",
+        "sha256": "780dbe79d958e7f0e4400d98204e29302fd3d006d5a1e01d606482b9355d4ff1"
+      },
+      "summary": "Paired comparison reused and rechecked the line-edit wire schema; do not count this as additional model success.",
+      "fixtures": 11,
+      "passed": true,
+      "runtime_semantics_fixture_count": 9,
+      "not_model_quality": true
+    },
+    {
+      "kind": "cpu_tokenizer_admission",
+      "evidence": {
+        "path": "cpu-admission.json",
+        "sha256": "d07dda19f9048159e7e6c098190009ca42d9a02b1d77b733dac58075aca9fae1"
+      },
+      "summary": "Real pinned CPU tokenizer counts with synthetic sizing outputs; actual native diagnosis re-admitted before later patch calls. Full brief/12 criteria/76 implementation path names/6 read-only test files retained.",
+      "passed": true,
+      "captures": [
+        {
+          "arm": "north",
+          "scenario": null,
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 37879,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": null,
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 62428,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": null,
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 40515,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": null,
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 65086,
+          "context": 98304
+        }
+      ],
+      "maximum_reserved_tokens": 65086,
+      "native_model_calls": 0,
+      "reference_executions": 0,
+      "counts_are_sizing_not_model_quality": true
+    },
+    {
+      "kind": "cpu_tokenizer_admission",
+      "evidence": {
+        "path": "cpu-admission.json",
+        "sha256": "88c0bb75da14b8854a59c2c45fe945253e6bea268b414a7a7c47bfcf6f8ccca3"
+      },
+      "summary": "Real pinned CPU tokenizer counts with synthetic sizing outputs; actual native diagnosis re-admitted before later patch calls. Full brief/12 criteria/76 implementation path names/6 read-only test files retained.",
+      "passed": true,
+      "captures": [
+        {
+          "arm": "north",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 38370,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 62428,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 38370,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_2_file_1",
+          "total_reserved_tokens": 40955,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_defect_2_file_1",
+          "total_reserved_tokens": 62448,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41032,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 65086,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41032,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_2_file_1",
+          "total_reserved_tokens": 43747,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_defect_2_file_1",
+          "total_reserved_tokens": 65108,
+          "context": 98304
+        }
+      ],
+      "maximum_reserved_tokens": 65108,
+      "native_model_calls": 0,
+      "reference_executions": 0,
+      "counts_are_sizing_not_model_quality": true
+    },
+    {
+      "kind": "cpu_tokenizer_admission",
+      "evidence": {
+        "path": "cpu-admission.json",
+        "sha256": "102708b932525f2b963d744412bdd9d77373b161d7c5e30d674424e9a887fb54"
+      },
+      "summary": "Real pinned CPU tokenizer counts with synthetic sizing outputs; actual native diagnosis re-admitted before later patch calls. Full brief/12 criteria/76 implementation path names/6 read-only test files retained.",
+      "passed": true,
+      "captures": [
+        {
+          "arm": "qwen",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41066,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 65120,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41066,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_2_file_1",
+          "total_reserved_tokens": 43781,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_defect_2_file_1",
+          "total_reserved_tokens": 65142,
+          "context": 98304
+        }
+      ],
+      "maximum_reserved_tokens": 65142,
+      "native_model_calls": 0,
+      "reference_executions": 0,
+      "counts_are_sizing_not_model_quality": true
+    },
+    {
+      "kind": "cpu_tokenizer_admission",
+      "evidence": {
+        "path": "cpu-admission.json",
+        "sha256": "ad4717f537e7c0228d81f642f1e9f191c5d069a1ec359461e984b1aa877780ed"
+      },
+      "summary": "Real pinned CPU tokenizer counts with synthetic sizing outputs; actual native diagnosis re-admitted before later patch calls. Full brief/12 criteria/76 implementation path names/6 read-only test files retained.",
+      "passed": true,
+      "captures": [
+        {
+          "arm": "qwen",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41066,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "initial_valid_sizing",
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 66218,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41066,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_diagnose_2_file_1",
+          "total_reserved_tokens": 43781,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "literal_rejected_retry_sizing",
+          "stage": "build_tests_defect_2_file_1",
+          "total_reserved_tokens": 66240,
+          "context": 98304
+        }
+      ],
+      "maximum_reserved_tokens": 66240,
+      "native_model_calls": 0,
+      "reference_executions": 0,
+      "counts_are_sizing_not_model_quality": true
+    },
+    {
+      "kind": "cpu_tokenizer_admission",
+      "evidence": {
+        "path": "cpu-admission.json",
+        "sha256": "3df3607483a8d8d9192d007f894683123f9d7ce508490ebee2212d9316d539bf"
+      },
+      "summary": "Real pinned CPU tokenizer counts with synthetic sizing outputs; actual native diagnosis re-admitted before later patch calls. Full brief/12 criteria/76 implementation path names/6 read-only test files retained.",
+      "passed": true,
+      "captures": [
+        {
+          "arm": "north",
+          "scenario": "initial",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 38758,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "initial",
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 63469,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "missing_citation_retry",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 38758,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "missing_citation_retry",
+          "stage": "build_tests_diagnose_2_file_1",
+          "total_reserved_tokens": 39357,
+          "context": 98304
+        },
+        {
+          "arm": "north",
+          "scenario": "missing_citation_retry",
+          "stage": "build_tests_defect_2_file_1",
+          "total_reserved_tokens": 63544,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "initial",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41465,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "initial",
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 66213,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "missing_citation_retry",
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 41465,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "missing_citation_retry",
+          "stage": "build_tests_diagnose_2_file_1",
+          "total_reserved_tokens": 42106,
+          "context": 98304
+        },
+        {
+          "arm": "qwen",
+          "scenario": "missing_citation_retry",
+          "stage": "build_tests_defect_2_file_1",
+          "total_reserved_tokens": 66293,
+          "context": 98304
+        }
+      ],
+      "maximum_reserved_tokens": 66293,
+      "native_model_calls": 0,
+      "reference_executions": 0,
+      "counts_are_sizing_not_model_quality": true
+    },
+    {
+      "kind": "cpu_tokenizer_admission",
+      "evidence": {
+        "path": "cpu-admission.json",
+        "sha256": "67923388cd98c3242cf878318eb96ad527a4d0669b070285c27436f80423a904"
+      },
+      "summary": "Bounded continuation diagnosis/patch sizing against exact selected suite; no inference or reference run.",
+      "passed": true,
+      "captures": [
+        {
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 32489
+        },
+        {
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 56971
+        }
+      ],
+      "maximum_reserved_tokens": 56971,
+      "native_model_calls": 0,
+      "reference_executions": 0
+    },
+    {
+      "kind": "cpu_tokenizer_admission",
+      "evidence": {
+        "path": "cpu-admission-current-reference-02.json",
+        "sha256": "1118a7a17a2b5ee6981050ac60a4fcc9c7fdbb100d3172c12f736a45d81a104c"
+      },
+      "summary": "Bounded continuation diagnosis/patch sizing against exact selected suite; no inference or reference run.",
+      "passed": true,
+      "captures": [
+        {
+          "stage": "build_tests_diagnose_1_file_1",
+          "total_reserved_tokens": 45383
+        },
+        {
+          "stage": "build_tests_defect_1_file_1",
+          "total_reserved_tokens": 70041
+        }
+      ],
+      "maximum_reserved_tokens": 70041,
+      "native_model_calls": 0,
+      "reference_executions": 0
+    },
+    {
+      "kind": "cpu_materialization",
+      "evidence": {
+        "path": "report.json",
+        "sha256": "80375a833863d1e7d58caac2d77be3d1902a98ec38b059ebe79e1597eec165d5"
+      },
+      "summary": "Exact frozen materializer reproduced long Windows path failure, then wrote82 unchanged files at the short absolute path; no test command or container executed.",
+      "files": 82,
+      "longest_actual_path": 234,
+      "proposed_launch_max_path": 231,
+      "all_bytes_exact": true,
+      "docker_calls": 0,
+      "model_calls": 0,
+      "reference_executions": 0
+    },
+    {
+      "kind": "cpu_literal_helper_reproduction",
+      "evidence": {
+        "path": "report.json",
+        "sha256": "286d8f14d56857c2e0d25d48507834ddc6374b71dd8fab1ad0dd776dc0eb4dfb"
+      },
+      "summary": "Exact unchanged timestamp helper exercised with12 inputs under pinned Python3.10 and host3.13 comparison. Observed two-digit fraction rejected only in verifier; this is a helper portability diagnostic, not a persistence acceptance test.",
+      "input_cases": 12,
+      "verifier_accepted": 5,
+      "host_accepted": 12,
+      "reproduced": true,
+      "app_or_reference_execution": false
+    },
+    {
+      "kind": "cpu_literal_method_synthetic_dependency",
+      "evidence": {
+        "path": "original-method-replay.json",
+        "sha256": "010327cba6701056423093f3067eb925c2653bff3a27def48ec6ab1d542afa8c"
+      },
+      "summary": "Executed exact supplied persistence method/helper with only APIClient replaced by a synthetic dependency. Eight valid and five negative cases; four valid fractional timestamp shapes exposed the retained defect. V2 adds owned cleanup proof; these overlap.",
+      "fixtures": 13,
+      "valid_cases": 8,
+      "negative_cases": 5,
+      "matching_expected": 9,
+      "failed_valid_names": [
+        "valid_one_digit",
+        "valid_observed_two_digits",
+        "valid_two_digits_Z",
+        "valid_two_digits_offset"
+      ],
+      "expected_broken_state_observed": true,
+      "cleanup_confirmed": null,
+      "full_reference_pass_credit": false,
+      "e2e_acceptance_credit": false
+    },
+    {
+      "kind": "cpu_literal_method_synthetic_dependency",
+      "evidence": {
+        "path": "original-method-replay-v2.json",
+        "sha256": "5c8fe17a5f633457a66aebcc44b1bca4c789cb4bdf48bcd42557b64fb0f911cc"
+      },
+      "summary": "Executed exact supplied persistence method/helper with only APIClient replaced by a synthetic dependency. Eight valid and five negative cases; four valid fractional timestamp shapes exposed the retained defect. V2 adds owned cleanup proof; these overlap.",
+      "fixtures": 13,
+      "valid_cases": 8,
+      "negative_cases": 5,
+      "matching_expected": 9,
+      "failed_valid_names": [
+        "valid_one_digit",
+        "valid_observed_two_digits",
+        "valid_two_digits_Z",
+        "valid_two_digits_offset"
+      ],
+      "expected_broken_state_observed": true,
+      "cleanup_confirmed": true,
+      "full_reference_pass_credit": false,
+      "e2e_acceptance_credit": false
+    },
+    {
+      "kind": "synthetic_runtime_fixture_not_live_attempt",
+      "evidence": {
+        "path": "summary.json",
+        "sha256": "b1e48e75c37eeaf8f7e3e11d9f5802630fe9eaeccd0e013cf78dec10e1880eea"
+      },
+      "summary": "Retained ct-* output matches the unit test that injects UnknownSandbox, blocks subprocess APIs and expects an unresolved initial compile. Exclude it from real candidate/native/reference counts.",
+      "source_test": {
+        "path": "test_candidate_transition.py",
+        "sha256": "18aa2533ddbd1ab5d3960fca6f904b27ef4e8d3a2f84e2a641ad183a846de75f"
+      },
+      "source_test_method": "test_cli_runtime_closes_and_preserves_unresolved_sandbox_before_native_dispatch",
+      "native_calls": 0,
+      "milestone_reached": false,
+      "unresolved_mock_stage": [
+        "build_compile_checkpoint_1_0"
+      ],
+      "classification_evidence": {
+        "path": "run-intent.json",
+        "sha256": "723b58e6708893d300d44dc2ae62d31e9fb5549b74fd148c790850c8d16d7008"
+      }
+    }
+  ],
+  "cpu_date_scope_note": "Campaign receipts were identified under Nov17 work; individual CPU receipts often omit exact execution timestamps, so no fabricated start/end times are supplied.",
+  "schema_evidence_limit": "North binds configured transport schema; Qwen captures actual wire schema. CPU decoder probes do not establish North native decoder behavior.",
+  "image03_preparation_observer_error": "First image-hash probe succeeded; case-sensitive cleanup observer rejected Docker lowercase no-such-object wording. Exact absence was separately confirmed and probe repeated. Not a candidate/model failure.",
+  "evidence_index": {
+    "earlyday_inventory": {
+      "receipt": "earlyday-inventory.json",
+      "sha256": "0f553b5de49a771a29bc989898a13acc7b0baa244161d16e63f96a21affac7f5"
+    },
+    "cpu_inventory": {
+      "receipt": "cpu-harness-inventory.json",
+      "sha256": "37a8a9cea5b9cba662c2b4395efc90371bc57de295eab2161685d1ba0c4b77a0"
+    },
+    "paired_comparison_and_handoff": {
+      "receipt": "final-outcome.json",
+      "sha256": "70872caae94eb476a0f09c99083bd28602c8411fd8b89e46290c5322811d4d4b"
+    },
+    "candidate01_audit": {
+      "receipt": "outcome-audit.json",
+      "sha256": "d61bcb18d3ed31aee2d404db8ddb79666ce363edb2e4354612209c993e6bc6de"
+    },
+    "e2e04_manifest": {
+      "receipt": "e2e-manifest-04.json",
+      "sha256": "20b0bfd903b76095403b646ebe9a0bb0887b948b2d1e850277c3b62abf53b4b5"
+    },
+    "e2e04_blocker_dispositions": {
+      "receipt": "four-blocker-resolution-audit.json",
+      "sha256": "108b8a74d2a86005f4769c774030ec401f9304a72bd1d363d43d68577a7b9dcb"
+    },
+    "regression_failures": {
+      "receipt": "restored14-actual-ui-failure-diagnosis.json",
+      "sha256": "2b3ee861f90955b8e29f6f33699eb24de7f00dd749af4411d7969091dc07febf"
+    },
+    "auth_and_products_diagnosis": {
+      "receipt": "restored-auth-products-diagnosis.json",
+      "sha256": "ac6f39573eec7550adfd64c93db356cab652e7bb1a30222918befea28d6115e5"
+    },
+    "delete_confirmation_adjudication": {
+      "receipt": "delete-confirmation-contract-adjudication.json",
+      "sha256": "961ba90c4bd5de7043ab509cb1e0506f9a82cd4ea61929275c18e23991ff70a1"
+    },
+    "unit_label_preparation": {
+      "receipt": "label-compat-v2-cpu-preparation.json",
+      "sha256": "c1faebc349ecd8c223d8f6e8fa4d32bdde68cef9300b778582cde170e1e3131c"
+    },
+    "image03_build": {
+      "receipt": "build-receipt.json",
+      "sha256": "27989ff4f039c5bd98c3f742349c568baa63f218acf7ddb94257478cba4ad82d"
+    },
+    "image03_audit": {
+      "receipt": "image-compat-03-audit.json",
+      "sha256": "d66d44cd52b923f3b95d8e83af57ed96c74babab3d382c5976d8e093f63e1e02"
+    },
+    "candidate_helper_audit": {
+      "receipt": "candidate-label-diagnostic-audit.json",
+      "sha256": "b43730472bb54510024a0ca3d4dc46d971c1d08bc148efe21e3f8b5668d7a8ee"
+    }
+  }
+}

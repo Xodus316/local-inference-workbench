@@ -8,7 +8,8 @@ Run `python scripts/verify-benchmark-evidence.py` from the repository root to ch
 
 | Question | What was measured |
 |---|---|
-| [How far did the latest Commerce recovery campaign get?](../commerce-recovery-evaluation-2026-11-16.md) | Attempts 000–010, native backend repair, reference-validated smoke tests, expanded API-restart persistence, seven unresolved UI regression cases, and a prepared but unstarted attempt 011. No accepted end-to-end delivery. |
+| [How far did the November 17 Commerce workflow get?](../commerce-workflow-evaluation-2026-11-17.md) | Gemma recovery, North–Qwen comparisons, qualified test amendments and four later workflow attempts. Current13 and final smoke4 passed; original regression8/14 stopped acceptance. GPU testing paused; no accepted end-to-end delivery. |
+| [What preceded the November 17 Commerce tests?](../commerce-recovery-evaluation-2026-11-16.md) | November 16 attempts 000–010, native backend repair, reference-validated smoke tests and expanded API-restart persistence. Preserves the earlier result and then-prepared attempt 011. |
 | [Which coding models returned working programs?](implementation-screen.md) | 198 independent attempts across six Python exercises. Whole-program pass rates by model, partial successes, output-limit failures and the result after a second model reviewed the draft. |
 | [Which models wrote tests that caught defects?](test-authorship.md) | First submissions on occupancy, cache expiration, stock allocation and interval union. Control passes, detection rates and examples where a seemingly sensible test exercised the wrong behavior. |
 | [Could a model strengthen a frozen suite?](independent-testing.md) | Seven model/package configurations on combat simulation, with the original nine-fault corpus. First submissions, guided additions and evaluator-assisted outcomes are identified individually. |
