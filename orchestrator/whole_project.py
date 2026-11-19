@@ -469,12 +469,17 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if "source_paths" in target:
             target["source_paths"] = [path for path in target["source_paths"] if path in inventory]
         evidence = {**feedback, **({"repair_target": target} if target else {})}
-        model_type = scoped_repair_selection(tuple(sorted(inventory)))
         limit = self.contract["repair_selected_bytes"]
-        tree = [{"path": path, "bytes": len(file.content.encode("utf-8")), "sha256": digest(file.content)}
-                for path, file in sorted(inventory.items())]
+        sizes = {path: len(file.content.encode("utf-8")) for path, file in sorted(inventory.items())}
+        eligible = tuple(path for path, size in sizes.items() if size <= limit)
+        if not eligible:
+            raise ValueError("No eligible repair file fits the approved UTF-8 source limit")
+        model_type = scoped_repair_selection(eligible)
+        tree = [{"path": path, "bytes": size, "sha256": digest(inventory[path].content)} for path, size in sizes.items()]
+        selection_stage = stage + "_select"
         derived = compiler_diagnostic_selection(inventory.values(), evidence, byte_limit=limit)
         if derived is not None:
+            pending = derived["pending_paths"]
             selection = model_type.model_validate({"files": derived["paths"], "diagnosis": {
                 "diagnosis": ["The failed compiler explicitly locates errors in the selected current source files."],
                 "changes": ["Correct only the reported compiler errors in these files; preserve public behavior and tests."],
@@ -482,21 +487,21 @@ class WholeProjectBuildRun(ProjectBuildRun):
             }})
             paths = selection.files
             selected_source(artifact.files, paths, limit)
+            deferred = {"pending_paths": pending} if pending else {}
             proof = {"policy": COMPILER_SELECTION_POLICY, "model_call": False,
                      "implementation_digest": digest(artifact.model_dump()), "inventory_digest": digest(tree),
                      "failure_feedback_digest": digest(evidence), "max_selected_utf8_bytes": limit,
-                     "matches": derived["matches"], "selection": selection.model_dump()}
-            self.stage = stage + "_select"
+                     "matches": derived["matches"], "selection": selection.model_dump(), **deferred}
+            self.stage = selection_stage
             self.runtime.store.save_artifact(self.state["run_id"], self.stage, "raw", proof)
             self.stages[self.stage] = {"selection_policy": COMPILER_SELECTION_POLICY, "model_call": False,
-                                       "evidence_digest": digest(proof), "selected_paths": paths,
+                                       "evidence_digest": digest(proof), "selected_paths": paths, **deferred,
                                        "diagnosis": selection.diagnosis.model_dump()}
             return paths, {**evidence, "diagnosis": selection.diagnosis.model_dump(),
                            "compiler_path_selection": {"policy": COMPILER_SELECTION_POLICY,
-                                                       "evidence_digest": digest(proof), "matches": derived["matches"]}}
-        # Selection is one decision over inline current source, never an agent
-        # exploration loop. Its enum still includes only the current component.
-        raw = self._generate(stage + "_select", "repairer", model_type,
+                                                       "evidence_digest": digest(proof), "matches": derived["matches"],
+                                                       **deferred}}
+        instruction = (
             "Diagnose only repair_target, or the supplied compiler/review failure when no target is present. "
             "Use the supplied current_source and complete implementation_tree. No tools are available. "
             "Select the smallest existing application files needed for that "
@@ -504,15 +509,37 @@ class WholeProjectBuildRun(ProjectBuildRun):
             "Include only necessary direct dependencies; keep every frozen test and public contract unchanged. "
             "The source_projection lists any omitted or truncated files; do not invent their contents. "
             "An omitted path may be selected only when the supplied source or diagnostic identifies its relevance. "
-            f"Choose at most 16 paths and {limit} UTF-8 source bytes from this inventory. "
-            "Return diagnosis and selected file paths in one final JSON response; make no edits.",
-            {"implementation_tree": tree, "max_selected_utf8_bytes": limit, **evidence,
-             "current_source": selection_source(inventory.values(), evidence)},
-            {}, tool_policy=INLINE_SELECTION_POLICY)
+            f"Choose at most 16 paths and {limit} UTF-8 source bytes from this inventory. Use the bytes column "
+            "to add up the full files, including any that are truncated or omitted in current_source. "
+            "Return diagnosis and selected file paths in one final JSON response; make no edits."
+        )
+        data = {"implementation_tree": tree, "max_selected_utf8_bytes": limit, **evidence,
+                "current_source": selection_source(inventory.values(), evidence)}
+        raw = self._generate(selection_stage, "repairer", model_type, instruction, data, {},
+                             tool_policy=INLINE_SELECTION_POLICY)
         selection = model_type.model_validate(raw)
         paths = sorted(set(selection.files))
+        selected_bytes = sum(sizes[path] for path in paths)
+        if selected_bytes > limit:
+            retry_stage = stage + "_retry_select"
+            rejection = {"paths": paths, "selected_utf8_bytes": selected_bytes, "max_selected_utf8_bytes": limit}
+            self.stages[selection_stage]["selection_rejection"] = {**rejection, "retry_stage": retry_stage}
+            raw = self._generate(
+                retry_stage, "repairer", model_type,
+                instruction + " The previous selection exceeded the byte limit. Select a smaller set for the "
+                              "highest-priority actionable part of the same failure. Remaining failures will "
+                              "be checked again after this fix.",
+                {**data, "previous_selection_size_error": rejection}, {}, tool_policy=INLINE_SELECTION_POLICY,
+            )
+            selection_stage = retry_stage
+            selection = model_type.model_validate(raw)
+            paths = sorted(set(selection.files))
+            selected_bytes = sum(sizes[path] for path in paths)
+            if selected_bytes > limit:
+                raise ValueError(f"Repair selection still exceeds {limit} UTF-8 bytes after one retry ({selected_bytes} bytes)")
         selected_source(artifact.files, paths, limit)
-        self.stages[stage + "_select"].update(selected_paths=paths, diagnosis=selection.diagnosis.model_dump())
+        self.stages[selection_stage].update(selected_paths=paths, selected_utf8_bytes=selected_bytes,
+                                           diagnosis=selection.diagnosis.model_dump())
         return paths, {**evidence, "diagnosis": selection.diagnosis.model_dump()}
 
     def repair_selected(self, stage, artifact, suite, plan, problem, feedback, *,

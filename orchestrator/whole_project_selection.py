@@ -20,9 +20,10 @@ _LOCATION = re.compile(
 def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16):
     """Resolve explicit compiler locations against the eligible current inventory.
 
-    This does not infer dependency paths or use source_paths hints. A missing,
-    malformed, ambiguous or over-budget scope leaves selection to the bounded
-    no-tool fallback. Only failed compiler receipts supply diagnostic text.
+    This does not infer dependency paths or use source_paths hints. Ambiguous
+    diagnostics leave selection to the no-tool fallback. When the complete
+    scope is too large, prefer the earliest reported paths that fit and
+    retain the rest for the next compiler checkpoint.
     """
     inventory = {file.path: file for file in files}
     matches = {}
@@ -58,11 +59,19 @@ def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16)
                 }
                 if len(matches) > 64:
                     return None
-    paths = sorted({item["path"] for item in matches.values()})
-    if (not paths or len(paths) > file_limit
-            or sum(len(inventory[path].content.encode("utf-8")) for path in paths) > byte_limit):
+    paths = dict.fromkeys(item["path"] for item in matches.values())
+    selected = []
+    for path in paths:
+        if len(selected) >= file_limit:
+            break
+        size = len(inventory[path].content.encode("utf-8"))
+        if size <= byte_limit:
+            selected.append(path)
+            byte_limit -= size
+    if not selected:
         return None
-    return {"paths": paths, "matches": list(matches.values())}
+    return {"paths": sorted(selected), "matches": list(matches.values()),
+            "pending_paths": sorted(paths.keys() - set(selected))}
 
 
 def selection_source(files, evidence, *, byte_limit=SELECTION_SOURCE_BYTES):

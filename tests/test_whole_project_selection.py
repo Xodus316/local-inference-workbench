@@ -5,7 +5,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from orchestrator.project_build import ProjectArtifact, failure_feedback, scoped_repair_selection
+from orchestrator.project_build import (WHOLE_PROJECT_REPAIR_SELECTED_BYTES, ProjectArtifact, failure_feedback,
+                                        scoped_repair_selection)
+from orchestrator.store import STAGES
 from orchestrator.whole_project import WholeProjectBuildRun
 from orchestrator.whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY,
                                                  SELECTION_OUTPUT_TOKENS, compiler_diagnostic_selection,
@@ -83,6 +85,61 @@ class CompilerSelectionTests(unittest.TestCase):
             "src/App.vue(4,8): error TS2322: Type mismatch", check="frontend-typecheck"), byte_limit=32768)
         self.assertEqual(result["paths"], ["frontend/src/App.vue"])
         self.assertEqual((result["matches"][0]["line"], result["matches"][0]["column"]), (4, 8))
+
+    def test_oversized_compiler_scope_keeps_first_batch_and_pending_paths(self):
+        files = [file("frontend/src/A.vue", "é" * 20000), file("frontend/src/B.vue", "é" * 20000)]
+        first, second = files[1].path, files[0].path
+        feedback = compile_feedback(f"{first}(4,8): error TS2322\n{second}(8,4): error TS2322",
+                                    check="frontend-typecheck")
+        result = compiler_diagnostic_selection(files, feedback, byte_limit=WHOLE_PROJECT_REPAIR_SELECTED_BYTES)
+        self.assertEqual(result["paths"], [first])
+        self.assertEqual(result["pending_paths"], [second])
+        self.assertEqual([match["path"] for match in result["matches"]], [first, second])
+        next_feedback = compile_feedback(f"{second}(8,4): error TS2322", check="frontend-typecheck")
+        next_result = compiler_diagnostic_selection(files, next_feedback, byte_limit=WHOLE_PROJECT_REPAIR_SELECTED_BYTES)
+        self.assertEqual(next_result["paths"], [second])
+        self.assertEqual(next_result["pending_paths"], [])
+
+
+class SelectionBudgetRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.artifact = ProjectArtifact(summary="Current source", files=[
+            {"path": path, "content": "é" * 20000} for path in ("src/A.vue", "src/B.vue")])
+        self.flow = object.__new__(WholeProjectBuildRun)
+        self.flow.contract = {"repair_selected_bytes": WHOLE_PROJECT_REPAIR_SELECTED_BYTES}
+        self.flow.stages = {}
+        self.feedback = {"repair_target": {"summary": "Fix the failing behavior"}}
+
+    def responses(self, *selections):
+        proposals = iter(selections)
+
+        def generate(stage, *_args, tool_policy):
+            self.assertIn(stage, STAGES)
+            self.assertEqual(tool_policy, INLINE_SELECTION_POLICY)
+            self.flow.stages[stage] = {}
+            return {"files": next(proposals), "diagnosis": {"diagnosis": ["Observed"],
+                                                            "changes": ["Fix"], "verification": ["Rerun"]}}
+
+        self.flow._generate = Mock(side_effect=generate)
+
+    def test_over_budget_model_selection_restarts_with_exact_size_feedback(self):
+        both = ["src/A.vue", "src/B.vue"]
+        self.responses(both, [both[1]])
+        paths, _ = self.flow._select_repair_paths("build_compile_repair_2_1", self.artifact, self.feedback)
+        self.assertEqual(paths, [both[1]])
+        first, retry = [call.args for call in self.flow._generate.call_args_list]
+        self.assertEqual((first[0], retry[0]), ("build_compile_repair_2_1_select", "build_compile_repair_2_1_retry_select"))
+        self.assertEqual(retry[4]["previous_selection_size_error"], {
+            "paths": both, "selected_utf8_bytes": 80000, "max_selected_utf8_bytes": 65536})
+        self.assertEqual({key: value for key, value in retry[4].items() if key != "previous_selection_size_error"}, first[4])
+        self.assertEqual(self.flow.stages[retry[0]]["selected_utf8_bytes"], 40000)
+
+    def test_second_over_budget_choice_is_rejected_after_one_restart(self):
+        both = ["src/A.vue", "src/B.vue"]
+        self.responses(both, both)
+        with self.assertRaisesRegex(ValueError, "still exceeds 65536 UTF-8 bytes after one retry"):
+            self.flow._select_repair_paths("repair_1", self.artifact, self.feedback)
+        self.assertEqual(self.flow._generate.call_count, 2)
 
 
 class SelectionSourceTests(unittest.TestCase):

@@ -89,6 +89,10 @@ for slot in range(1, 5):
         for attempt in range(1, 3):
             stage = f"build_self_compile_repair_{repair}_{slot}_{attempt}"
             STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
+# The native selection policy requires every selection stage to end in _select.
+STAGES.update(stage.removesuffix("_select") + "_retry_select" for stage in tuple(STAGES)
+              if stage.endswith("_select") and stage.startswith(("repair_", "whole_self_repair",
+                  "build_compile_repair_", "build_repair_compile_repair_", "build_self_compile_repair_")))
 # Generated-test defect rewrites, and lower-tier repairs escalated after reaching their output cap.
 STAGES.update(f"build_tests_defect_{number}" for number in range(1, 4))
 STAGES.update(f"build_tests_defect_{number}_file_{file}" for number in range(1, 4) for file in range(1, 16))

@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from orchestrator.config import Config, DEFAULT_ROLES
-from orchestrator.project_build import REVIEWED_POLICY
+from orchestrator.project_build import REVIEWED_POLICY, project_enabled
 from orchestrator.role_isolation import KEY, SESSION, validate_role_isolation
 from orchestrator.runtime import Runtime
 from orchestrator.store import digest
@@ -79,6 +79,7 @@ class FreshSetupTests(unittest.TestCase):
             'application_seed', 'plan_seed', 'self_suite_seed', 'independent_suite_seed')))
         self.assertFalse(setup.FORBIDDEN.intersection(value))
         self.assertEqual(value['build_contract']['test_bytes'], 32768)
+        self.assertEqual(value['build_contract']['repair_selected_bytes'], 65536)
 
     def test_every_prior_work_key_and_control_source_are_rejected(self):
         for key in setup.FORBIDDEN:
@@ -174,6 +175,13 @@ class FreshSetupTests(unittest.TestCase):
                 self.assertEqual(row['digest'], digest(row['bundle']))
                 self.assertTrue(setup.validate_fresh_run(row['bundle']))
                 self.assertEqual(row['bundle']['fresh_project']['initial_general_repairs'], 0)
+                historical = deepcopy(row['bundle'])
+                historical['build_contract']['repair_selected_bytes'] = 32768
+                self.assertTrue(project_enabled(historical))
+                wrong_workflow = deepcopy(row['bundle'])
+                del wrong_workflow['whole_project_workflow']
+                with self.assertRaisesRegex(ValueError, 'exact approved contract'):
+                    project_enabled(wrong_workflow)
                 self.assertIsNone(row['result'])
                 provider.complete.assert_not_called()
                 executor.test.assert_not_called()

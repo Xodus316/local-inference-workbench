@@ -3,7 +3,8 @@ from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
 
-from .project_build import EXPANDED_TEST_BYTES, REFERENCE_TEST_REPAIR, REVIEWED_POLICY, offline_project_contract
+from .project_build import (EXPANDED_TEST_BYTES, REFERENCE_TEST_REPAIR, REVIEWED_POLICY,
+                            WHOLE_PROJECT_REPAIR_SELECTED_BYTES, offline_project_contract)
 from .project_dependency_reference import validate_dependency_reference
 from .role_isolation import KEY as ISOLATION_KEY, POLICY as ISOLATION_POLICY, SESSION, validate_role_isolation
 from .store import digest
@@ -50,7 +51,8 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
         project_review_policy='source-anchors-v1',
         test_suite_bytes=test_bytes,
         reference_test_repair=REFERENCE_TEST_REPAIR,
-        build_contract=offline_project_contract(REVIEWED_POLICY, test_bytes=test_bytes),
+        build_contract={**offline_project_contract(REVIEWED_POLICY, test_bytes=test_bytes),
+                        'repair_selected_bytes': WHOLE_PROJECT_REPAIR_SELECTED_BYTES},
         whole_project_workers={role: worker.identity() for role, worker in workers.items()},
         fresh_project={'policy': FRESH_POLICY, 'application_seed': None,
                        'plan_seed': None, 'self_suite_seed': None, 'independent_suite_seed': None,

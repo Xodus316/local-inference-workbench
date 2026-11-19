@@ -38,6 +38,7 @@ PATH_BOUND_REFERENCE_TEST_REPAIR = "scoped-reference-test-repair-v2"
 REFERENCE_TEST_REPAIR = "scoped-reference-test-repair-v3"
 DEFAULT_TEST_BYTES = 16 * 1024
 EXPANDED_TEST_BYTES = 32 * 1024
+WHOLE_PROJECT_REPAIR_SELECTED_BYTES = 64 * 1024
 
 
 def offline_project_contract(profile=POLICY, *, test_bytes=DEFAULT_TEST_BYTES):
@@ -112,6 +113,11 @@ def project_enabled(bundle):
         raise ValueError("Offline projects require operator enablement and the exact approved contract")
     approved = bundle.get("build_contract")
     expected = offline_project_contract(profile, test_bytes=bundle.get("test_suite_bytes", DEFAULT_TEST_BYTES))
+    if (profile == REVIEWED_POLICY and isinstance(approved, dict)
+            and approved.get("repair_selected_bytes") == WHOLE_PROJECT_REPAIR_SELECTED_BYTES):
+        from .whole_project import POLICY as WHOLE_PROJECT_POLICY
+        if bundle.get("whole_project_workflow") == WHOLE_PROJECT_POLICY:
+            expected["repair_selected_bytes"] = WHOLE_PROJECT_REPAIR_SELECTED_BYTES
     if isinstance(approved, dict) and "mechanical_test_repair_generation" not in approved:
         # Older approvals keep their original settings when a checkpoint is reconstructed.
         expected.pop("mechanical_test_repair_generation", None)
