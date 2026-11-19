@@ -85,7 +85,7 @@ class InlineWorkerPolicyTests(unittest.TestCase):
                 worker.thinking = "medium"
                 original = {"agent": {_AGENT: {}}, "provider": {_PROVIDER: {"models": {
                     "fixture": {"options": {}}}}}, "permission": {"read": "allow"}}
-                worker._environment = Mock(return_value={"OPENCODE_CONFIG_CONTENT": json.dumps(original)})
+                worker._environment = Mock(side_effect=lambda *_: {"OPENCODE_CONFIG_CONTENT": json.dumps(original)})
                 env = worker._project_environment(Path(directory), {}, (), "instruction", {"type": "object"},
                                                   tool_policy=policy)
                 configured = json.loads((Path(directory) / "workbench-opencode.json").read_text())
