@@ -174,12 +174,13 @@ class SmokeAdmissionTests(unittest.TestCase):
         bad = suite_value()
         bad["files"][0]["content"] += (
             "\n    @classmethod\n    def setUpClass(cls):\n        cls.assertEqual(1, 2)\n")
-        corrected = {**bad, "files": [{**bad["files"][0], "content": bad["files"][0]["content"].replace(
+        corrected = {"files": [{**bad["files"][0], "content": bad["files"][0]["content"].replace(
             "cls.assertEqual(1, 2)", "if 1 != 2: raise AssertionError('expected two')")} ]}
         flow._generate = Mock(side_effect=[bad, corrected])
         suite = flow._author_self_suite(artifact, ["app.py"])
         retry = flow._generate.call_args
         self.assertEqual(retry.args[0], "whole_self_tests_retry")
+        self.assertEqual(set(retry.args[2].model_json_schema()["properties"]), {"files"})
         self.assertEqual(retry.args[4]["previous_suite"]["files"], bad["files"])
         self.assertNotIn("implementation_files", retry.args[4]["previous_suite"])
         self.assertEqual(retry.args[4]["implementation_files"], ["app.py"])

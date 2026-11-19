@@ -17,6 +17,13 @@ SMOKE_GENERATION_POLICY = {
     "policy": "bounded-smoke-author-v1", "thinking_token_budget": 8192,
     "max_completion_tokens": SMOKE_OUTPUT_TOKENS,
 }
+SMOKE_REQUEST_GUIDANCE = (
+    " For HTTP checks, bind each call to its actual request-helper signature. Use explicit keyword arguments "
+    "for optional payload and credentials when supported. Keep the bearer token in the Authorization header, "
+    "including on authenticated requests with no body. If an authenticated success path returns 401 or 403, "
+    "inspect the failing call's argument binding and header construction before changing the login fixture or "
+    "the expected status."
+)
 _ROUTE = re.compile(
     r"@(?:RestController|Controller|RequestMapping|GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping)\b"
     r"|\b(?:app|router|route|server)\.(?:get|post|put|patch|delete|route|use)\s*\("

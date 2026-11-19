@@ -23,15 +23,16 @@ from .project_opencode import OpenCodeOutputLimitError
 from .repository import MAX_FILE
 from .store import digest
 from .whole_project_limits import DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES, validate_source_bytes
-from .whole_project_sandbox import (SelfTestFixtureError, execute_self_test, smoke_test_type,
-                                    validate_self_fixture_correction, validate_self_suite)
+from .whole_project_sandbox import (SelfTestFixtureError, compose_smoke_source_patch, execute_self_test,
+                                    smoke_source_patch_type, smoke_test_type, validate_self_fixture_correction,
+                                    validate_self_suite)
 from .project_dependency_reference import validate_dependency_reference
 from .whole_project_repair import (POLICY as REPAIR_POLICY, focused_feedback, public_repair_plan,
                                    verification_observation, verification_regressions)
 from .whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
                                       compiler_diagnostic_selection, projection_details, selection_source,
                                       trim_selection_source)
-from .whole_project_smoke import (INLINE_SMOKE_POLICY, SMOKE_OUTPUT_TOKENS, SMOKE_STAGES,
+from .whole_project_smoke import (INLINE_SMOKE_POLICY, SMOKE_OUTPUT_TOKENS, SMOKE_REQUEST_GUIDANCE, SMOKE_STAGES,
                                   SMOKE_REFERENCE_REPAIR_STAGES, project_smoke_inputs,
                                   public_smoke_plan, smoke_author_data)
 from .whole_project_smoke_reference import validate_smoke_reference
@@ -1065,7 +1066,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 " unittest.TestCase assertion helpers are instance methods: call them on self in test methods, "
                 "not on cls in setUpClass or other classmethods. In class fixtures use explicit conditional "
                 "AssertionError checks, preserving the same asserted conditions."
-            )
+            ) + SMOKE_REQUEST_GUIDANCE
         value = self._generate(stage, "implementer", suite_type, brief, data, source, **options)
         try:
             return validate_self_suite(self, value, artifact)
@@ -1073,25 +1074,26 @@ class WholeProjectBuildRun(ProjectBuildRun):
             feedback = _suite_feedback(value, error, byte_limit=byte_limit,
                                        file_limit=self.contract["test_files"])
             self.stages[stage]["validation_error"] = feedback["validation_error"]
-            correction = {}
-            correction_brief = ""
             if self.scoped_repairs and isinstance(error, SelfTestFixtureError):
-                correction = {"previous_suite": error.suite.model_dump(exclude={"implementation_files"}),
-                              "fixture_diagnostics": error.diagnostics}
-                correction_brief = (
-                    " Correct only the proven fixture error in previous_suite. Preserve every asserted condition "
-                    "and expected value, every test file/class/method identity, coverage entry, command and assumption. "
-                    "Keep every existing test method body unchanged; repair the diagnosed class fixture with an "
-                    "explicit conditional AssertionError. Do not move assertions into test methods. "
-                    "Return the complete corrected suite, copying implementation_files exactly from its separate field."
+                patch_type = smoke_source_patch_type(tuple(sorted({item["path"] for item in error.diagnostics})))
+                corrected = self._generate(
+                    stage + "_retry", "implementer", patch_type,
+                    "Repair only the diagnosed class fixture. Preserve every asserted condition and expected value, "
+                    "and leave each existing test method body unchanged. Use an explicit conditional AssertionError "
+                    "inside the fixture. Return complete replacement source for changed files only. Workbench "
+                    "preserves the test manifest, coverage, commands and assumptions.",
+                    {**data, "previous_suite_validation": feedback,
+                     "previous_suite": error.suite.model_dump(exclude={"implementation_files"}),
+                     "fixture_diagnostics": error.diagnostics}, source, **options,
                 )
+                revised = validate_self_suite(self, compose_smoke_source_patch(error.suite, patch_type, corrected), artifact)
+                return validate_self_fixture_correction(error.suite, revised)
             corrected = self._generate(
                 stage + "_retry", "implementer", suite_type,
-                brief + " Use the validation feedback to write a corrected complete smoke suite." + correction_brief,
-                {**data, "previous_suite_validation": feedback, **correction}, source, **options,
+                brief + " Use the validation feedback to write a corrected complete smoke suite.",
+                {**data, "previous_suite_validation": feedback}, source, **options,
             )
-            revised = validate_self_suite(self, corrected, artifact)
-            return validate_self_fixture_correction(error.suite, revised) if correction else revised
+            return validate_self_suite(self, corrected, artifact)
 
     def _parse_independent_suite(self, raw, paths, stage):
         declared = raw.get("implementation_files")

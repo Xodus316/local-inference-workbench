@@ -11,6 +11,7 @@ from unittest.mock import Mock
 from orchestrator.project_build import ProjectArtifact, ProjectProject, ProjectTestSuite
 from orchestrator.project_test_lint import defects
 from orchestrator.store import digest
+from orchestrator.wire import wire_schema
 from orchestrator.whole_project_smoke import INLINE_SMOKE_POLICY
 from orchestrator.whole_project_smoke_reference import (reference_smoke_diagnostics,
     validate_smoke_reference, validate_smoke_reference_correction)
@@ -75,7 +76,8 @@ class SmokeReferenceTests(unittest.TestCase):
         def generate(stage, *_args, **_kwargs):
             workflow.stage = stage
             workflow.stages[stage] = {}
-            return next(values).model_dump()
+            result = next(values)
+            return result if isinstance(result, dict) else result.model_dump(include={"files"})
 
         workflow.control = Mock(side_effect=control)
         workflow._generate = Mock(side_effect=generate)
@@ -93,6 +95,10 @@ class SmokeReferenceTests(unittest.TestCase):
         self.assertEqual(call.args[:2], ("whole_self_reference_repair_1", "implementer"))
         self.assertEqual(call.kwargs, {"tool_policy": INLINE_SMOKE_POLICY})
         self.assertEqual(call.args[5], {})
+        properties = wire_schema(call.args[2])["properties"]
+        self.assertEqual(set(properties), {"files"})
+        self.assertEqual(properties["files"]["items"]["properties"]["path"]["enum"], ["tests/test_smoke.py"])
+        self.assertIn("argument binding", call.args[3])
         data = call.args[4]
         self.assertEqual(data["previous_suite"]["files"], suite().model_dump()["files"])
         self.assertFalse({"implementation_tree", "current_source", "source_projection"} & data.keys())
@@ -101,6 +107,27 @@ class SmokeReferenceTests(unittest.TestCase):
         proof = workflow.evidence["self_reference_validation"]
         self.assertEqual((proof["status"], proof["suite_digest"]), ("passed", digest(fixed.model_dump())))
         self.assertEqual(proof["receipt_digest"], digest(receipt(())))
+
+    def test_manifest_changes_are_rejected_and_the_next_source_only_patch_preserves_metadata(self):
+        original = suite()
+        fixed = suite(SOURCE.replace("status = request()", "status = request(token='fixture')"))
+        proposal = {**fixed.model_dump(include={"files"}), "assumptions": ["Added by repair"]}
+        workflow, candidate = self.workflow([receipt(), receipt(())], [proposal, fixed])
+        revised = validate_smoke_reference(workflow, candidate, original)
+        self.assertEqual(revised.model_dump(exclude={"files"}), original.model_dump(exclude={"files"}))
+        self.assertEqual(workflow.control.call_count, 2)
+        first, second = workflow._generate.call_args_list
+        self.assertNotIn("previous_patch_rejection", first.args[4])
+        self.assertIn("assumptions", second.args[4]["previous_patch_rejection"]["message"])
+        self.assertEqual(second.args[4]["previous_suite"], first.args[4]["previous_suite"])
+
+    def test_patch_cannot_replace_an_undiagnosed_file(self):
+        unrelated = {"files": [{"path": "tests/test_other.py", "content": "raise AssertionError()"}]}
+        workflow, candidate = self.workflow([receipt()], [unrelated, unrelated])
+        self.assertIsNone(validate_smoke_reference(workflow, candidate, suite()))
+        self.assertEqual(workflow.control.call_count, 1)
+        self.assertEqual(workflow._generate.call_count, 2)
+        self.assertIn("files.0.path", workflow.output["error"]["message"])
 
     def test_passed_suite_needs_no_repair_and_frozen_suite_failure_cannot_rewrite(self):
         workflow, candidate = self.workflow([receipt(())])
@@ -154,7 +181,7 @@ class SmokeReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "skip"):
             validate_smoke_reference_correction(suite(), skipped, diagnostics)
         placeholder = suite(SOURCE.replace("self.assertEqual(status, 201)", "self.assertTrue(True)"))
-        workflow, candidate = self.workflow([receipt()], [placeholder])
+        workflow, candidate = self.workflow([receipt()], [placeholder, placeholder])
         self.assertIsNone(validate_smoke_reference(workflow, candidate, suite()))
         self.assertIn("invalid test", workflow.output["error"]["message"])
 

@@ -10,8 +10,8 @@ from .project_build import (execution_settled, matching_image_checks,
                             sandbox_stage_results, validate_reference_test_replacement, ERROR_HEADLINE)
 from .project_fixture_checks import _bypasses
 from .store import digest
-from .whole_project_sandbox import validate_self_suite
-from .whole_project_smoke import INLINE_SMOKE_POLICY
+from .whole_project_sandbox import compose_smoke_source_patch, smoke_source_patch_type, validate_self_suite
+from .whole_project_smoke import INLINE_SMOKE_POLICY, SMOKE_REQUEST_GUIDANCE
 
 
 POLICY = "reference-validated-smoke-v1"
@@ -145,6 +145,45 @@ def validate_smoke_reference_correction(before, after, diagnostics):
     return after
 
 
+def _repair_smoke_reference(workflow, candidate, suite, diagnostics):
+    paths = tuple(sorted({item["path"] for item in diagnostics}))
+    patch_type = smoke_source_patch_type(paths)
+    data = {"implementation_files": suite.implementation_files,
+            "previous_suite": suite.model_dump(exclude={"implementation_files"}),
+            "reference_test_failure": {"policy": POLICY, "diagnostics": diagnostics}}
+    instruction = (
+        "Correct only the named smoke-test failures using the public contract and test-side diagnostics. "
+        "Repair the request, fixture or shared setup, or correct a demonstrably invalid expectation. "
+        "Keep every covered behavior and meaningful assertion. Keep unaffected test methods unchanged. "
+        "For concurrency, check guaranteed response properties and assert the final persisted state. "
+        "Do not skip cases, add expected-failure bypasses or replace required checks with placeholders. "
+        "Return only complete replacement source for changed files at the diagnosed paths. Workbench retains "
+        "the original file inventory, coverage entries, commands and assumptions, and runs the composed suite "
+        "against the trusted reference again." + SMOKE_REQUEST_GUIDANCE
+    )
+    counter = "whole_self_reference_repair"
+    while workflow.counters[counter] < MAX_REPAIRS:
+        workflow.counters[counter] += 1
+        workflow.evidence["budget_counters"] = dict(workflow.counters)
+        stage = f"whole_self_reference_repair_{workflow.counters[counter]}"
+        raw = workflow._generate(stage, "implementer", patch_type, instruction, data, {}, tool_policy=INLINE_SMOKE_POLICY)
+        try:
+            value = compose_smoke_source_patch(suite, patch_type, raw)
+            revised = validate_self_suite(workflow, value, candidate)
+            validate_smoke_reference_correction(suite, revised, diagnostics)
+            defects = workflow.test_defects(revised)
+            if defects:
+                raise ValueError("Smoke reference correction contains an invalid test: " + defects[0]["message"])
+        except ValueError as error:
+            rejection = public_error(error)
+            workflow.stages[stage]["replacement_rejected"] = rejection
+            data = {**data, "previous_patch_rejection": {"stage": stage, "message": rejection}}
+        else:
+            return revised
+    workflow.output["error"] = {"stage": stage, "message": rejection}
+    return None
+
+
 def validate_smoke_reference(workflow, candidate, suite, *, allow_repair=True):
     """Return a reference-passing suite, or stop with review_required evidence."""
     if not workflow.scoped_repairs:
@@ -184,34 +223,6 @@ def validate_smoke_reference(workflow, candidate, suite, *, allow_repair=True):
                 "Smoke tests did not pass the pinned reference; no candidate repair is authorized"
                 + (" (smoke reference correction budget exhausted)" if attempts >= MAX_REPAIRS else ""))}
             return None
-        workflow.counters["whole_self_reference_repair"] += 1
-        workflow.evidence["budget_counters"] = dict(workflow.counters)
-        stage = f"whole_self_reference_repair_{attempts + 1}"
-        raw = workflow._generate(stage, "implementer", type(suite),
-            "Correct the supplied smoke suite's named failures against a hidden trusted implementation of the "
-            "public contract. The reference source and logs are not available. Repair request authentication, "
-            "fixtures or shared setup using only the public brief and test-side failures. Preserve every test "
-            "file/class/method identity, coverage entry, command and assumption. For the named failing methods only, "
-            "correct invalid expectations using the public brief; preserve every covered behavior with meaningful "
-            "discriminating assertions. Never skip a case, add an expected-failure bypass, make a required action "
-            "optional or replace a check with a placeholder. For concurrent operations, intermediate responses can "
-            "represent different instants: check guaranteed response properties and assert the final persisted state "
-            "after all operations complete, rather than requiring every intermediate response to equal the final state. "
-            "Keep unaffected test methods unchanged. Change only named failing methods' request/setup code and "
-            "invalid expectations, and the helpers they depend on. Return the complete corrected suite with implementation_files copied "
-            "exactly. No candidate source or tools are available. The full suite will run against the reference again.",
-            {"implementation_files": suite.implementation_files,
-             "previous_suite": suite.model_dump(exclude={"implementation_files"}),
-             "reference_test_failure": {"policy": POLICY, "diagnostics": diagnostics}},
-            {}, tool_policy=INLINE_SMOKE_POLICY)
-        try:
-            revised = validate_self_suite(workflow, raw, candidate)
-            validate_smoke_reference_correction(suite, revised, diagnostics)
-            defects = workflow.test_defects(revised)
-            if defects:
-                raise ValueError("Smoke reference correction contains an invalid test: " + defects[0]["message"])
-        except ValueError as error:
-            workflow.stages[stage]["replacement_rejected"] = public_error(error)
-            workflow.output["error"] = {"stage": stage, "message": public_error(error)}
+        suite = _repair_smoke_reference(workflow, candidate, suite, diagnostics)
+        if suite is None:
             return None
-        suite = revised

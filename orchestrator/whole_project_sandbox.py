@@ -2,13 +2,19 @@
 
 import ast
 from collections import Counter
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import Field
 
 from .build_coverage import (correct_test_references, parse_test_files, python_test_definitions,
                              python_test_names, validate_coverage_references)
 from .build_discovery import validate_discovery_suite
+from .build_models import BuildTestFile
 from .build_workflow import actionable_failure, assemble, validate_baseline, validate_paths
 from .project_build import (ProjectTestSuite, WholeProjectTestSuite, execution_settled, failure_feedback,
                             matching_image_checks, sandbox_stage_results)
+from .schemas import Record
 from .store import digest
 from .unittest_fixture_lint import class_assertion_problems
 from .whole_project_limits import WHOLE_PROJECT_TEST_BYTES
@@ -65,6 +71,33 @@ def smoke_test_type(workflow):
     if getattr(workflow, "bundle", {}).get("test_suite_bytes") == WHOLE_PROJECT_TEST_BYTES:
         return WholeProjectTestSuite
     return ProjectTestSuite
+
+
+@lru_cache(maxsize=32)
+def smoke_source_patch_type(paths):
+    if not paths:
+        raise ValueError("A smoke correction requires at least one diagnosed test file")
+
+    class ScopedSmokeFile(BuildTestFile):
+        path: Literal[paths] = Field(json_schema_extra={"enum": list(paths)})
+
+    class SmokeSourcePatch(Record):
+        files: list[ScopedSmokeFile] = Field(min_length=1, max_length=len(paths))
+
+    return SmokeSourcePatch
+
+
+def compose_smoke_source_patch(suite, patch_type, raw):
+    """Replace authorized test source on the retained suite; metadata never comes from the repair."""
+    edits = patch_type.model_validate(raw).files
+    replacements = {file.path: file.content for file in edits}
+    if len(replacements) != len(edits) or replacements.keys() - {file.path for file in suite.files}:
+        raise ValueError("Smoke correction paths must be distinct files in the retained suite")
+    value = suite.model_dump()
+    for file in value["files"]:
+        if file["path"] in replacements:
+            file["content"] = replacements[file["path"]]
+    return value
 
 
 def validate_self_suite(workflow, raw, candidate):
