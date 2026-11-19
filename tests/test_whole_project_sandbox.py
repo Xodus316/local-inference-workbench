@@ -134,6 +134,7 @@ class WholeProjectSandboxTests(unittest.TestCase):
         self.workflow.runtime._build_execution.return_value = receipt
         result = execute_self_test(self.workflow, self.candidate, suite, "whole_self_verify_0", 8000)
         self.assertEqual(result["status"], "review_required")
+        self.assertNotIn("feedback", result)
 
     def prefix_failure(self, *, route="/auth", missing="api/auth/register", reference_passed=True):
         controller = "api/src/main/java/AuthController.java"
@@ -195,7 +196,6 @@ class WholeProjectSandboxTests(unittest.TestCase):
                 self.assertEqual(result["status"], "review_required")
                 self.assertIn("fixture_failure", result)
                 self.assertNotIn("repair_target", result)
-        self.assertNotIn("feedback", result)
 
 
 if __name__ == "__main__":
