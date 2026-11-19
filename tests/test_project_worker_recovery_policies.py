@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
 
-from orchestrator.project_opencode import _AGENT, _PROVIDER
+from orchestrator.project_opencode import _AGENT, _PROVIDER, _read_candidate
 from orchestrator.project_opencode_whole import OpenCodeProjectWorker, SUPPLEMENTAL_TEST_BYTES
 from orchestrator.project_repair import VerificationFailures
 from orchestrator.store import digest
@@ -38,6 +38,23 @@ class StartupFailureTests(unittest.TestCase):
             result = tracker.observe({}, {"checks": {"trusted-api": {"status": status}}}, "verify", {})
             self.assertIsNone(result)
         self.assertEqual(tracker.open, {})
+
+
+class WorktreeRecoveryPolicyTests(unittest.TestCase):
+    def test_partial_creation_retains_checked_files_and_rejects_readonly_edits(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "retained.py").write_text("original", encoding="utf-8")
+            (root / "first.py").write_text("partial", encoding="utf-8")
+            original = {"retained.py": "original"}
+            editable = {"first.py", "second.py"}
+            with self.assertRaisesRegex(ValueError, "approved file changes"):
+                _read_candidate(root, original, editable, True)
+            self.assertEqual(_read_candidate(root, original, editable, True, allow_incomplete=True),
+                             {"first.py": "partial"})
+            (root / "retained.py").write_text("overwritten", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "approved file changes"):
+                _read_candidate(root, original, editable, True, allow_incomplete=True)
 
 
 class InlineWorkerPolicyTests(unittest.TestCase):

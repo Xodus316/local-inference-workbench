@@ -45,18 +45,20 @@ def digest(value):
 STAGES = {"primary", "secondary", "synthesis", "deep", "decider", "plan", "patch", "review",
           "research_queries", "research", "web_search_1", "web_search_2"}
 
-STAGES.update({"build_plan", "build_plan_retry", "build_tests", "implement", "build_frozen", "build_strength"})
+STAGES.update({"build_plan", "build_plan_retry", "build_tests", "implement", "implement_inventory_retry",
+               "build_frozen", "build_strength"})
 STAGES.update({"build_project_plan", "build_project_frozen", "build_project_acceptance"})
 STAGES.update({"build_project_plan_repair_1", "build_project_plan_repair_2"})
 STAGES.update({"build_tests_retry", "whole_self_tests", "whole_self_tests_retry",
                "whole_self_reference_repair_1", "whole_self_reference_repair_2", "whole_self_verify_0", "whole_self_verify_1",
-               "whole_self_verify_final", "whole_self_repair", "whole_self_repair_select"})
+               "whole_self_verify_final", "whole_self_repair", "whole_self_repair_select", "whole_self_repair_edit_retry"})
 STAGES.update(f"whole_self_verify_final_{number}" for number in range(1, 9))
 STAGES.update(f"whole_regression_verify_{number}" for number in range(9))
 STAGES.update(f"whole_regression_early_{number}" for number in range(9))
 STAGES.update(f"whole_self_candidate_{number}" for number in range(4))
 for number in (2, 3):
-    STAGES.update({f"whole_self_repair_{number}", f"whole_self_repair_{number}_select", f"whole_self_verify_{number}"})
+    STAGES.update({f"whole_self_repair_{number}", f"whole_self_repair_{number}_select",
+                   f"whole_self_repair_{number}_edit_retry", f"whole_self_verify_{number}"})
 # One frozen-suite checkpoint plus each bounded verification promotion. Leave
 # room for a final self-check cycle while retaining a finite artifact namespace.
 STAGES.update(f"whole_checkpoint_{number}" for number in range(1, 17))
@@ -76,7 +78,7 @@ for slot in range(1, 5):
     STAGES.update(f"build_compile_checkpoint_{slot}_{attempt}" for attempt in range(3))
     for attempt in range(1, 3):
         stage = f"build_compile_repair_{slot}_{attempt}"
-        STAGES.update({stage, stage + "_select"})
+        STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
     for repair in range(9):
         STAGES.update(f"build_repair_compile_checkpoint_{repair}_{slot}_{attempt}" for attempt in range(3))
         for attempt in range(1, 3):
@@ -86,7 +88,7 @@ for slot in range(1, 5):
         STAGES.update(f"build_self_compile_checkpoint_{repair}_{slot}_{attempt}" for attempt in range(3))
         for attempt in range(1, 3):
             stage = f"build_self_compile_repair_{repair}_{slot}_{attempt}"
-            STAGES.update({stage, stage + "_select"})
+            STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
 # Generated-test defect rewrites, and lower-tier repairs escalated after reaching their output cap.
 STAGES.update(f"build_tests_defect_{number}" for number in range(1, 4))
 STAGES.update(f"build_tests_defect_{number}_file_{file}" for number in range(1, 4) for file in range(1, 16))

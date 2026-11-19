@@ -370,8 +370,10 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                   "After the changes are on disk, return a brief summary.")
 
         def collect(root, _events):
+            # After a normal stop, keep safe partial writes for the orchestrator's recovery decision.
             return {"files": _read_candidate(root, original, editable, allow_create,
-                                             max_file_bytes=MAX_FILE, max_total_bytes=self.source_bytes + test_bytes)}
+                                             max_file_bytes=MAX_FILE, max_total_bytes=self.source_bytes + test_bytes,
+                                             allow_incomplete=True)}
 
         return self._session(stage=stage, role=role, model=model, settings=settings, original=original,
                              editable=editable, system=system, prompt=prompt,

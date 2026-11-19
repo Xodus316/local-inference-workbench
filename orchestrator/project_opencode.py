@@ -137,7 +137,8 @@ def _session_events(output, max_steps, *, on_event=None):
     return events
 
 
-def _read_candidate(root, original, editable, allow_create, *, max_file_bytes=_SOURCE_BYTES, max_total_bytes=None):
+def _read_candidate(root, original, editable, allow_create, *, max_file_bytes=_SOURCE_BYTES, max_total_bytes=None,
+                    allow_incomplete=False):
     current = {}
     total_bytes = 0
     for directory, dirs, files in os.walk(root, followlinks=False):
@@ -166,7 +167,8 @@ def _read_candidate(root, original, editable, allow_create, *, max_file_bytes=_S
     if original.keys() - current.keys():
         raise ValueError("OpenCode deleted a projected source file")
     changes = {name: value for name, value in current.items() if original.get(name) != value}
-    if changes.keys() - editable or (allow_create and changes.keys() != editable) or not changes:
+    incomplete = not changes or (allow_create and changes.keys() != editable)
+    if changes.keys() - editable or (incomplete and not allow_incomplete):
         raise ValueError("OpenCode did not materialize the approved file changes")
     return changes
 

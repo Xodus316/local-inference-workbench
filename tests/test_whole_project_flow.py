@@ -60,10 +60,11 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.verified = []
         self.regress_self_tests = False
         self.invalid_suites = {}
+        self.plan = PLAN
 
     def native_response(self, _model, _settings, payload, *_args):
         if "flat inventory" in payload["messages"][0]["content"]:
-            value = PLAN
+            value = self.plan
         else:
             value = {"findings": []}
         return {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(value)}}]}
@@ -82,11 +83,12 @@ class WholeProjectFlowTests(unittest.TestCase):
                 on_event({"type": "step_finish"})
             return {"worker": identity, "role": role, "stage": stage, "context": settings.context,
                     "thinking": settings.think, "model_digest": identity["model_digest"],
+                    "scratch_cleanup_confirmed": True, "events": [{"type": "step_finish", "part": {"reason": "stop"}}],
                     "resident": {"digest": identity["model_digest"], "context_length": settings.context}}
 
         def write(*, stage, on_event, **_kwargs):
-            value = {"implement": "draft", "whole_self_repair": "self-fixed", "repair_1": "finished",
-                     "repair_2": "both-fixed"}[stage]
+            value = {"implement": "draft", "implement_inventory_retry": "draft", "whole_self_repair": "self-fixed",
+                     "whole_self_repair_edit_retry": "self-fixed", "repair_1": "finished", "repair_2": "both-fixed"}[stage]
             return {"files": {"app.py": value}, "receipt": receipt(stage, on_event)}
 
         def author(*, stage, on_event, payload, **_kwargs):
@@ -111,7 +113,7 @@ class WholeProjectFlowTests(unittest.TestCase):
                   or (source == "self-fixed" and not independent))
         return verifier_receipt(passed=passed)
 
-    def run_workflow(self, **approval_fields):
+    def run_workflow(self, *, expected_status="completed", **approval_fields):
         row = self.runtime.prepare({"mode": "build", "prompt": "Implement an offline application.",
                                     "build_profile": REVIEWED_POLICY})
         bundle = {**row["bundle"], **approval_fields, "whole_project_workflow": POLICY, "whole_project_workers": {
@@ -120,7 +122,7 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.runtime.approve(row["id"], row["digest"])
         self.runtime.queue.join()
         result = self.runtime.store.get(row["id"])
-        self.assertEqual(result["status"], "completed", result.get("result"))
+        self.assertEqual(result["status"], expected_status, result.get("result"))
         return result
 
     def test_implementation_self_repair_independent_repair_and_final_frozen_checks(self):
@@ -147,6 +149,64 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.assertEqual(evidence["final_self_check"]["suite_digest"], evidence["self_suite_digest"])
         self.assertEqual(evidence["independent_suite_digest"], output["suite_digest"])
         self.assertNotEqual(output["suite_digest"], evidence["self_suite_digest"])
+
+    def test_incomplete_implementation_and_noop_repair_recover_before_advancing(self):
+        self.plan = {**PLAN, "implementation_files": ["app.py", "helper.py"]}
+        worker = self.runtime.whole_project_workers["implementer"]
+        write = worker.run.side_effect
+
+        def respond(**kwargs):
+            result = write(**kwargs)
+            if kwargs["stage"] == "implement_inventory_retry":
+                result["files"] = {"helper.py": "completed helper"}
+            if kwargs["stage"] == "whole_self_repair":
+                result["files"] = {}
+            return result
+
+        worker.run.side_effect = respond
+        row = self.run_workflow()
+        writes = {call.kwargs["stage"]: call.kwargs for call in worker.run.call_args_list}
+        retry = writes["implement_inventory_retry"]
+        self.assertEqual(retry["editable_paths"], ["helper.py"])
+        self.assertEqual(retry["visible_files"], {"app.py": "draft"})
+        self.assertEqual(retry["inputs"], writes["implement"]["inputs"])
+        first, second = writes["whole_self_repair"], writes["whole_self_repair_edit_retry"]
+        for field in ("visible_files", "editable_paths", "inputs"):
+            self.assertEqual(first[field], second[field])
+        stages = [call["stage"] for call in row["calls"]]
+        self.assertEqual(stages[:4], ["build_plan", "implement", "implement_inventory_retry", "whole_self_tests"])
+        self.assertEqual(stages[stages.index("whole_self_repair") + 1], "whole_self_repair_edit_retry")
+        files = {item["path"]: item["content"] for item in row["result"]["output"]["artifact"]["files"]}
+        self.assertEqual(files["helper.py"], "completed helper")
+
+    def test_empty_implementation_restarts_from_brief_only_once(self):
+        worker = self.runtime.whole_project_workers["implementer"]
+        write = worker.run.side_effect
+
+        def respond(**kwargs):
+            result = write(**kwargs)
+            return {**result, "files": {}}
+
+        worker.run.side_effect = respond
+        row = self.run_workflow(expected_status="failed")
+        self.assertEqual([call["stage"] for call in row["calls"]], ["build_plan", "implement", "implement_inventory_retry"])
+        self.assertEqual(worker.run.call_args.kwargs["visible_files"], {})
+        self.assertEqual(worker.run.call_args.kwargs["editable_paths"], ["app.py"])
+        self.assertIn("Start again from the brief", worker.run.call_args.kwargs["instruction"])
+
+    def test_incomplete_implementation_without_confirmed_cleanup_stops(self):
+        worker = self.runtime.whole_project_workers["implementer"]
+        write = worker.run.side_effect
+
+        def respond(**kwargs):
+            result = write(**kwargs)
+            result["receipt"]["scratch_cleanup_confirmed"] = False
+            return {**result, "files": {}}
+
+        worker.run.side_effect = respond
+        row = self.run_workflow(expected_status="failed")
+        self.assertEqual([call["stage"] for call in row["calls"]], ["build_plan", "implement"])
+        self.assertIn("lacks a settled worker receipt", row["result"]["output"]["error"]["message"])
 
     def planner_flow(self, *, clean_scratch, retry_fails=False):
         worker = self.worker("planner")
