@@ -65,12 +65,24 @@ class OwnedSandboxLifecycle(unittest.TestCase):
         def command(args, timeout):
             if args[1] == "create":
                 raise subprocess.TimeoutExpired(args, timeout)
-            return reply(1, stderr=("Error: No such object: " + NAME).encode())
+            return reply(1, stdout=b"[]\n", stderr=("error: no such object: " + NAME + "\n").encode())
         result = self.invoke(command)
         self.assertIsNone(result["exit_code"])
         self.assertTrue(result["timed_out"])
         self.assertFalse(result["cleanup_confirmed"])
         self.assertEqual(result["lifecycle"]["cleanup"]["outcome"], "create-outcome-unknown")
+
+    def test_post_remove_absence_requires_a_nonzero_exact_id_diagnostic(self):
+        observed = reply(stdout=json.dumps([row("nonce", status="exited", exit_code=1)]).encode())
+        for code, subject, confirmed in ((1, OWNER, True), (1, OWNER.upper(), False),
+                                         (1, "c" * 64, False), (0, OWNER, False)):
+            with self.subTest(code=code, subject=subject):
+                remaining = reply(code, stdout=b"[]\n", stderr=f"error: no such object: {subject}\n".encode())
+                with patch.object(lifecycle, "_run", side_effect=[observed, reply(), remaining]) as command:
+                    result = lifecycle.remove_owned(NAME, "nonce", IMAGE, owner=OWNER)
+                self.assertEqual(result["absence_confirmed"], confirmed)
+                self.assertEqual(result["confirmed"], confirmed)
+                self.assertEqual(command.call_args.args[0], ["docker", "inspect", OWNER])
 
     def test_timed_out_create_adopts_and_removes_only_exact_owned_container(self):
         nonce, removed = None, []

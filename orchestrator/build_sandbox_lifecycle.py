@@ -79,11 +79,18 @@ def _decode(value):
     return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
 
 
+def _inspect_reports_absence(result, subject):
+    # Docker CLI versions differ in diagnostic casing; the target must match exactly.
+    diagnostic, _, reported_subject = _decode(result.stderr).strip().rpartition(": ")
+    return (result.returncode != 0 and diagnostic.lower() == "error: no such object"
+            and reported_subject == subject)
+
+
 def inspect_owned(name, nonce, image_id, *, owner=None, timeout=15):
     subject = owner or name
     result = _run(["docker", "inspect", subject], timeout)
     if result.returncode:
-        if _decode(result.stderr).strip() == "Error: No such object: " + subject:
+        if _inspect_reports_absence(result, subject):
             return None
         raise ValueError("Docker did not confirm exact container presence or absence")
     value = json.loads(_decode(result.stdout))
@@ -112,8 +119,7 @@ def remove_owned(name, nonce, image_id, *, owner=None, timeout=15):
     removal = _run(["docker", "rm", "--force", identity], timeout)
     # Even a successful client reply is followed by a daemon absence proof.
     remaining = _run(["docker", "inspect", identity], timeout)
-    absent = (remaining.returncode != 0
-              and _decode(remaining.stderr).strip() == "Error: No such object: " + identity)
+    absent = _inspect_reports_absence(remaining, identity)
     return {"confirmed": absent, "outcome": "removed" if absent else "unresolved",
             "container_id": identity, "observed": observed,
             "remove_exit_code": removal.returncode,
