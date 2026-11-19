@@ -1,0 +1,299 @@
+{
+  "schema": "commerce-completion-public-summary-v1",
+  "report_date": "2026-11-18",
+  "timezone": "America/Los_Angeles",
+  "completed_utc": "2026-11-19T06:35:40.530675+00:00",
+  "completed_local": "2026-11-18T22:35:40.530675-08:00",
+  "publication_scope": "Documentation and derived evidence only; experimental runtime and adapter changes are not deployed by this publication.",
+  "campaign_status": "completed",
+  "declared_e2e_workflow_passed": true,
+  "measurement_scope": "Successful checkpoint continuation of one iteratively repaired 76-file, 12-criterion project; not blank-slate generation or independent model trials.",
+  "counting_policy": "Reference, candidate, synthetic and mocked CPU checks remain separate. Repeated and overlapping suites are not a pooled score.",
+  "evidence_availability": "Allowlisted measurements and original receipt SHA-256 identities only. Raw source, prompts, responses, host paths and operational identifiers remain unpublished. Hashes alone do not enable public replay.",
+  "implementation_digest": "fb857681bb3d2137cc89545722a08275f7759682a63ec23b768e98829ee746a4",
+  "delivery_digest_including_frozen_tests": "d8b274528be3a6c66fa2e84fcddb16a858c459bc052260f36be6afafdd22b196",
+  "delivery_files": {
+    "application": 76,
+    "frozen_tests": 6,
+    "total": 82
+  },
+  "final_model": {
+    "name": "Qwen3.8 27B",
+    "quantization": "AutoRound-fast W4A16",
+    "runtime": "HyperQwen/vLLM; OpenCode for application-writing tools, separate native review calls",
+    "context_tokens": 98304,
+    "reasoning_effort": "xhigh",
+    "active_final_role_completion_limit": 32768,
+    "active_final_role_reasoning_limit": 16384,
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 20,
+    "penalties": "neutral",
+    "speculation": "3-token probabilistic MTP",
+    "structured_output_backend": "xgrammar",
+    "model_manifest_sha256": "9e97b15767dcbbfa240832935763d654aab0e76f3c287458d464be6fa6f880fb",
+    "backend_image_sha256": "e0e4f9db81c0ce6eda3089d1df445fd50b1abdac8ae92c6eb985b498ec4fd7a4",
+    "role_independence": "Same weights in fresh role sessions; not independent model families."
+  },
+  "final_checks": {
+    "independent": {
+      "passed": 13,
+      "total": 13
+    },
+    "ordinary_supplemental": {
+      "passed": 14,
+      "total": 14
+    },
+    "production_supplemental": {
+      "passed": 14,
+      "total": 14
+    },
+    "production_gate_ordinary_reference": {
+      "passed": 14,
+      "total": 14
+    },
+    "production_gate_production_reference": {
+      "passed": 14,
+      "total": 14
+    },
+    "final_smoke": {
+      "passed": 4,
+      "total": 4
+    },
+    "full_api_restart_persistence": {
+      "reference": "passed",
+      "candidate": "passed",
+      "database_kept_running": true
+    },
+    "review": {
+      "groups": 14,
+      "application_files": 76,
+      "blocking_findings": 0,
+      "nonblocking_notes": 28,
+      "P2": 15,
+      "P3": 13,
+      "notes_are_not_all_confirmed_defects": true
+    },
+    "audit": {
+      "passed": 19,
+      "total": 19,
+      "sections": [
+        "closed_journal",
+        "continuation_pins",
+        "infrastructure_lineage",
+        "native_source_lineage",
+        "frozen_suite",
+        "final_acceptance",
+        "full_source_review",
+        "final_self_tests",
+        "full_persistence",
+        "delivery",
+        "all_sandbox_outcomes_settled",
+        "owned_backend_and_native_inventory",
+        "lifecycle_exact_ownership",
+        "early_supplemental_regression",
+        "cumulative_budget",
+        "historical_blocker_reconciliation",
+        "native_amended14_final",
+        "production_gate_inventory",
+        "external_finding_reconciliation"
+      ],
+      "deficiencies": []
+    }
+  },
+  "ui_execution": {
+    "ordinary": "Pinned Vitest/jsdom with real application components and HTTP services",
+    "production": "NODE_ENV=production with qualified readonly bootstrap overlay and fresh reference controls",
+    "browser_and_visual_layout": "unavailable",
+    "base_image_sha256": "0d35bb15643677c37ad9b5047ebe502ef375559a7779479f9493e2743edfffd9",
+    "production_overlay_sha256": "133f81eea24a45367055995592acb7e346648201176b47f2666504b66c2931b4",
+    "production_effective_runtime_digest": "ff73c60759458b157555e2428da4e6c09a17ccaee1219c18932f2b25c7d9189d",
+    "pristine_image_only_claimed": false
+  },
+  "test_authorship": {
+    "independent_suite_digest": "b95e87ff4d98b05d81cd40aa97e4160cf5e13d8bfec7d3676565da9b95d9c504",
+    "amended_supplemental_suite_digest": "97558e45e5be449832b5aa4aff4bb026cc7857dbdf7b6ab3734f3ae3285bc167",
+    "amended_raw_suite_digest": "5ca9c2e8d5f06de0698fc89421a3db98d66115627f2de54bfae9f16455914d3e",
+    "amendment_packaging": "Native Qwen JavaScript with deterministic Python-string packaging; packaged bytes are not all literal native output.",
+    "amendment_fixture_outcomes": {
+      "passed": 53,
+      "total": 53,
+      "positive": 24,
+      "negative": 29
+    },
+    "amendment_reference": {
+      "passed": 14,
+      "total": 14
+    },
+    "unchanged_case_count": 14,
+    "source_limit_bytes": {
+      "independent": 32768,
+      "supplemental": 49152
+    },
+    "cumulative_amendment_history": {
+      "spent_rounds": 25,
+      "settled_native_requests": 46,
+      "normal": 45,
+      "historical_length_terminations": 1,
+      "unknown": 0
+    },
+    "remaining_limitation": "Finite dialog timing windows; controls do not prove all false passes impossible."
+  },
+  "late_application_repairs": [
+    {
+      "repair": 4,
+      "native": true,
+      "change": "Affiliates Save caption",
+      "ordinary_before": 9,
+      "ordinary_after": 10,
+      "total": 14
+    },
+    {
+      "repair": 5,
+      "native": true,
+      "change": "Categories/Tracked URLs Save captions, Dashboard click total, narrow login-401 interceptor exception",
+      "ordinary_before": 10,
+      "ordinary_after": 13,
+      "total": 14,
+      "login_exception_alone_fixed_registration": false
+    },
+    {
+      "repair": 6,
+      "native": true,
+      "change": "Remove extra required confirmation field, guarded API-base fallback, real Logout controls through route wrappers",
+      "ordinary_before": 13,
+      "ordinary_after": 14,
+      "total": 14,
+      "introduced_production_router_P1": true,
+      "production_passed": 7,
+      "production_total": 14
+    },
+    {
+      "repair": 7,
+      "native": true,
+      "change": "Router lazy loader returns object render component rather than unmarked function",
+      "application_files_changed": 1,
+      "application_files_unchanged": 75,
+      "independent_passed": 13,
+      "ordinary_passed": 14,
+      "production_passed": 14
+    }
+  ],
+  "final_continuation_accounting": {
+    "frozen_inputs": 728,
+    "parent_pins_preserved": 709,
+    "inherited_general_repairs": 6,
+    "new_general_repairs": 1,
+    "general_repairs_used": 7,
+    "general_repair_limit": 8,
+    "retained_self_repairs": 2,
+    "counter_reset": false,
+    "journal_calls": 17,
+    "known_native_requests": 24,
+    "unknown_native_requests": 0,
+    "whole_campaign_cost_claimed": false,
+    "earlier_compile_and_author_epochs_retained_separately": true
+  },
+  "audit_followup": {
+    "initial_passed_sections": 18,
+    "total_sections": 19,
+    "missing_record": "Terminal-bound external finding disposition",
+    "resolution": "Added the disposition and reran unchanged pure auditor; all 19 passed. Initial audit retained.",
+    "additional_model_or_application_run": false
+  },
+  "gpu_cleanup": {
+    "owned_backend_released": true,
+    "physical_cleanup_verified": true,
+    "backend_stopped_utc": "2026-11-19T06:29:50.656377372Z",
+    "observed_free_MiB_after_cleanup": 23079,
+    "all_machine_processes_idle_claimed": false
+  },
+  "routing_comparison": {
+    "task": "Frozen seven-file frontend request, separate from final Commerce acceptance",
+    "context_tokens": 65536,
+    "input_tokens": 9922,
+    "effective_reasoning_effort": "xhigh",
+    "deadline_seconds": 1800,
+    "explicit_switches": {
+      "tail_skip": 0,
+      "route_prior": 0,
+      "resident_routing_bias": 0
+    },
+    "historical_tail_skip_already_zero": true,
+    "historical_route_prior": "unspecified",
+    "runs": [
+      {
+        "arm": "historical_flash_next",
+        "outcome": "deadline_cancelled",
+        "accepted_files": 0,
+        "compiler": "not_run"
+      },
+      {
+        "arm": "historical_hyperqwen",
+        "outcome": "normal_stop",
+        "seconds_after_startup": 632.914,
+        "accepted_files": 7,
+        "build": "failed",
+        "typecheck": "failed"
+      },
+      {
+        "arm": "flash_next_explicit_routing_off",
+        "outcome": "runtime_reported_length",
+        "seconds_after_startup": 1017.659,
+        "accepted_files": 0,
+        "compiler": "not_run",
+        "generated_tokens_log": 55606,
+        "generation_seconds_log": 970.39,
+        "tokens_per_second_log": 57.3,
+        "full_response_retained": false
+      }
+    ],
+    "preparation_refusal_native_dispatches": 0,
+    "ram_cache_GiB": {
+      "historical_flash": 10.44,
+      "new_flash": 17.79
+    },
+    "response_capture_failure": "Full native response not retained after capture error. Source/error path points to the capture-size limit; exact lost serialized size was not measured. Content, reasoning split and complete request-bound protocol not independently replayable.",
+    "causal_routing_comparison": false,
+    "clean_model_quality_ranking": false,
+    "e2e_acceptance_credit": false
+  },
+  "remaining_work": [
+    "Source-reviewed unresolved P2: PUT retains label for null/omission, alongside nullable/nonblank UI assumptions. Brief does not separately specify missing-versus-null replacement semantics; edge not separately executed. Targeted tests needed.",
+    "Triage other retained P2/P3 notes; not all are confirmed defects.",
+    "Real-browser and visual-layout evaluation; broader dialog timing and any desired database-restart/durability coverage.",
+    "Fresh-from-brief run without repaired source import, followed by other coding challenges.",
+    "Review and integrate selected generic fixes into maintained runtime; this publication is documentation only."
+  ],
+  "unselected_work_not_credited": [
+    "Optional generic V7 selector failure-context extractor",
+    "Prepared readability/context projection for an older test digest",
+    "Later Strata response-capture fix"
+  ],
+  "receipt_sha256": {
+    "completion": "85a5cd56ad1b64f02a50d08e311da281904b43c0f05a86eec0ffd521e328d35f",
+    "final_verified_audit": "641b99db7ac0c36d5f0841822097de9a3b355f438913a64419d898eeb2f1c616",
+    "initial_audit_retained": "9135bb18371359b8a7945ffff17cf4df623c01442d49637201afccb16541ac54",
+    "terminal": "57cd3974af78c3ca0935fdaab3e056587b11f92bebc3a966df910ed8c43667ea",
+    "delivery": "2073ac257a0f35495cf02564db55787af3bcfd8bcc6013cf42e7187a8b1d4d53",
+    "physical_cleanup": "30aca7fbc6987ab460eed0e90de8266dd53b7210d29488eb60abd022163f33cd",
+    "final_production_proof": "72224e72c4ed741db76e51368794299bb2b8f6d457ccf4b0c49e7a804c718cd0",
+    "final_reference_persistence": "6b075eb22a1b6eed9f5adeea27dbe61ccdfc23a1711b63fb33ad4dc978e85dda",
+    "final_candidate_persistence": "ed2d15fb9ea7a15cc61c86f30576aba90368000813149c112c803382f16a4a90",
+    "repair_7_semantic_assessment": "ce57d4900e1da809cce9174d1d38b7c963a5f9f3c7ed3be5c981e08c7b3397dc",
+    "repair_7_production_resolution": "add258619f7a264a4d00a62bc0e45ca0f81674185c20abd7fdc3ced052985d15",
+    "final_external_finding_dispositions": "82281b9da96deb9369a2355f60672830362cd779c49a1df5988f6fb199d12f47",
+    "final_prior_blocker_dispositions": "c45fcba09caa96964c3da3d24230e2f9d96a1b19f7a145ec4923573a6b26082b",
+    "final_review_correction": "d7a435b14ae6c97c3d4a1a8219e51828ae5a056e52d629e566bd09cea0015f9b",
+    "optional_label_assessment": "8b1650443dcfddcee6cdc2869a46be9e141be48089f6f7fd7ca0681ce8e0600c",
+    "approved_amendment_semantic_review": "bd52c92283ba40ef38ae35894f0475803cabfd816b7a648770d70b67ff98604d",
+    "approved_amendment_closure": "100b2eba965ad0b3351afa4ad06a5118f3e34b2a6898f3f8e380cbce5392c5c7",
+    "prior_continuation_closure": "d786554a47581343b01cd96f2a7a108600617c57143c93962b7f81da0d028839",
+    "production_failure_before_repair_7": "c82773a61efcb84598d8f71cc99265ae83d4692c333259a7fd991bb62c3e6dbe",
+    "routing_comparison": "be8c444895af9efa93a03b562d3c2d82162048738137ed82919117b6632e3b2f",
+    "routing_comparison_markdown": "c8f0d970b07f7d318dba9a311a67b341500ff911e4c5c8c1e71c4268be07bd57",
+    "retained_plan_audit": "55fee18b7a040ca5f55602da08926688d055a57ab9de0f436f49823edde0e21f",
+    "retained_smoke_handoff": "70c51c30b7cac179003976dedae6750b0b7231a1fa9a54b7884f90c94768c810",
+    "qualified_independent_suite_closure": "734ae50187d11ef0776bf0c61596cd74cde31ad6541c6b450fe2dd3369a5f564"
+  }
+}
