@@ -56,6 +56,7 @@ class BuildTestFile(BuildFile):
 
 class BuildTestSuite(Record):
     manifest_type: ClassVar[type[BuildArtifact]] = BuildArtifact
+    allow_python_helpers: ClassVar[bool] = False
     implementation_files: list[str] = Field(min_length=1, max_length=40,
         description="Implementation path names only; another model writes their source after test validation.")
     files: list[BuildTestFile] = Field(min_length=1, max_length=15,
@@ -71,8 +72,10 @@ class BuildTestSuite(Record):
             raise ValueError("Tests require bounded single-line container commands")
         for item in self.files:
             path = PurePosixPath(item.path)
+            helper = (self.allow_python_helpers and path.stem.isidentifier()
+                      and all(part.isidentifier() for part in path.parts[1:-1]))
             if not item.path.startswith("tests/") or (
-                path.suffix == ".py" and not path.name.startswith("test_")
+                path.suffix == ".py" and not path.name.startswith("test_") and not helper
             ):
                 raise ValueError(
                     "Independent tests belong under tests/; Python test files must be named test_*.py"

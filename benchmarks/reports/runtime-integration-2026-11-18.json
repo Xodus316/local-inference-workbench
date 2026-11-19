@@ -1,0 +1,32 @@
+{
+  "schema": "public-runtime-integration-v1",
+  "report_date": "2026-11-18",
+  "timezone": "America/Los_Angeles",
+  "publication_scope": "Generic runtime fixes and portable regression tests; local Commerce inputs and hardware adapter remain outside public repository.",
+  "validation": {
+    "suite": "unittest discover -s tests -v",
+    "total": 463,
+    "passed": 455,
+    "skipped": 8,
+    "failures": 0,
+    "errors": 0,
+    "skips": {
+      "optional_docker": 1,
+      "optional_pdf_dependency": 7
+    },
+    "log_sha256": "09ff42f3035a255b2d38776a5875b324c053a2c519f3ce8759d3d962a57fc26a",
+    "source_bound_receipt_sha256": "a77324fe448be5cd2819b18832e95d89e22aee0d20c6c7438ebf1cdb250dc510",
+    "model_or_generated_application_executed": false
+  },
+  "fresh_commerce_experiment": {
+    "status": "not_started",
+    "launch_deferred_by_user": true,
+    "application_seed": null,
+    "plan_seed": null,
+    "smoke_suite_seed": null,
+    "independent_suite_seed": null,
+    "existing_supplemental_evaluator_reused": true,
+    "operator_rescue_after_launch": false
+  },
+  "evidence_limits": "Offline and mocked validation does not establish fresh Commerce success or live Docker/backend reliability. Hashes identify retained local evidence; raw logs are not published."
+}

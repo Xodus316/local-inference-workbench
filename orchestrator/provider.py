@@ -13,6 +13,8 @@ from .llama_cpp import LlamaCppClient
 
 class NativeProvider:
     def __init__(self, config):
+        if config.backend == "hyperqwen-vllm":
+            raise ValueError("HyperQwen requires an explicitly injected, approval-bound native provider")
         self.ollama = (StrataClient(config.strata) if config.backend == "strata"
                        else LlamaCppClient(config.llama_cpp) if config.backend == "llama-cpp"
                        else OllamaClient(config.ollama_url))

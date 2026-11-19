@@ -32,6 +32,14 @@ TEST_BRIEF = (
 )
 
 
+def reference_test_failures(suite, result):
+    failed = {name for row in result["commands"]
+              for name in re.findall(r"(?m)^(?:FAIL|ERROR): (test_\w+) \(", row["stderr"])}
+    names = coverage.python_test_names({f.path: f.content for f in suite.files})
+    return [{"path": path, "message": "Trusted reference failed these tests", "names": sorted(matches)}
+            for path, refs in names.items() if (matches := {r for r in refs if r.rsplit(".", 1)[-1] in failed})]
+
+
 def implementation_files(artifact):
     validate_artifact(artifact)
     if any(f.path.casefold().split("/")[0] == "tests" for f in artifact.files):
@@ -57,13 +65,22 @@ def compact_suite(suite):
             "files": [f.model_dump() for f in suite.files], "assumptions": suite.assumptions}
 
 
-def normalized_manifest(value, declared, *, additions=False):
+def normalized_manifest(value, declared, *, additions=False, recover_test_paths=False):
     if not isinstance(value, dict) or not isinstance(declared, list) or not isinstance(value.get("files"), list):
         raise ValueError("Expected a test manifest with declared implementation paths")
     parsed = [BuildFile.model_validate(f) for f in value["files"]]
     paths = [relative(f.path).casefold() for f in parsed]
     if len(paths) != len(set(paths)):
         raise ValueError("Repeated test manifest path")
+    if recover_test_paths and not additions and isinstance(value.get("coverage"), list):
+        references = {entry["test_file"] for entry in value["coverage"]
+                      if isinstance(entry, dict) and isinstance(entry.get("test_file"), str)}
+        counts = Counter(path for path in declared if isinstance(path, str))
+        recovered = {f.path for f in parsed if f.path.startswith("tests/") and f.content.strip()
+                     and f.path in references and counts[f.path] == 1}
+        if recovered:
+            declared = [path for path in declared if not isinstance(path, str) or path not in recovered]
+            value = {**value, "implementation_files": declared}
     removed = {f.path for f in parsed if f.path in declared and (not additions or not f.content)}
     return {**value, "files": [f for f in value["files"] if f["path"] not in removed]}, sorted(removed)
 
@@ -151,17 +168,22 @@ class CodeBuild:
         # A stopped, parseable final channel is mandatory; private reasoning is never promoted to source.
         return _strict_json(self._content(raw))
 
-    def _build_execution(self, state, stage, index, project, suite):
+    def _build_execution(self, state, stage, index, project, suite, *, verification_profile=None):
         run_id = state["run_id"]
         self._guard(run_id)
         image_id = self.bundle(state)["sandbox"]["image_id"]
         binding = {"image_id": image_id, "project": digest(project.model_dump()), "suite": digest(suite.model_dump())}
+        if verification_profile is not None:
+            from .sandbox_profiles import normalize_verification_profile, verification_profile_identity
+            verification_profile = normalize_verification_profile(verification_profile)
+            binding['effective_runtime'] = verification_profile_identity(verification_profile, image_id)
         def execute():
             from .project_build import project_executor
             executor = project_executor(self, state)
             project_path = executor.materialize(run_id, index, project)
+            options = {'verification_profile': verification_profile} if verification_profile is not None else {}
             return executor.test(run_id, index, project_path, suite.commands, image=image_id,
-                                            cancel=self.events[run_id], deadline=self.deadline, read_only_project=True)
+                                 cancel=self.events[run_id], deadline=self.deadline, read_only_project=True, **options)
         return self._build_receipt(run_id, stage, binding, execute)
 
     def _build_receipt(self, run_id, stage, binding, execute):
@@ -207,6 +229,16 @@ class CodeBuild:
         except (ValueError, KeyError, TypeError, IndexError) as exc:
             run.output["error"] = {"stage": run.stage, "message": public_error(exc)}
             status = "failed"
+        except Exception as exc:
+            # Preserve the last plan/source checkpoint and spent budgets before
+            # Runtime decides failed/blocked/cancelled. In particular, this is
+            # not a terminal model receipt or permission to replay a dispatch.
+            try:
+                self.store.snapshot_result(state["run_id"], {"output": run.output, "stages": run.stages})
+            except Exception as snapshot_error:
+                exc.add_note("Workflow evidence could not be persisted: " + type(snapshot_error).__name__)
+                raise exc from snapshot_error
+            raise
         return {"status": status, "output": run.output, "stages": run.stages}
 
 
@@ -216,12 +248,26 @@ class BuildRun:
     suite_type = ReviewedBuildTestSuite
     test_brief = TEST_BRIEF
     fixture_repair_constraints = ""
+    repair_invalid_test_references = False
 
     def fixture_problems(self, suite):
         return fixture_diagnostics(suite)
 
     def validate_suite(self, suite):
         """Optional profile-specific preflight after syntax and discovery validation."""
+
+    def validate_addition(self, suite, addition):
+        """Optional profile-specific checks on the newly authored files."""
+
+    def test_defects(self, suite):
+        """Optional profile-specific static checks for tests that cannot discriminate implementations."""
+        return []
+
+    def repair_test_defects(self, suite, defects):
+        raise ValueError("This Build profile has no test-defect repair")
+
+    def repair_reference_failures(self, suite, problems, result):
+        return self.replace_broken(suite, problems, fixture=True)
 
     def validate_fixture_repair(self, original_files, revised_files, diagnostics):
         original = coverage.python_test_names({f.path: f.content for f in original_files})
@@ -243,6 +289,8 @@ class BuildRun:
                        "verification": {"baselines": [], "controls": [], "strength": []}}
         self.stage = "build_plan"
         self.counters = Counter()
+        # Criteria whose only tests were quarantined after failing the trusted reference.
+        self.unverified_criteria = frozenset()
 
     def model_inputs(self, data):
         inputs = {**self.brief, **data}
@@ -288,15 +336,19 @@ class BuildRun:
     def addition_brief(self, suite):
         return self.test_brief, {}
 
-    def additions(self, suite, criteria, *, observations=None):
+    def additions(self, suite, criteria, *, observations=None, missing_test_files=(), invalid_test_references=()):
         # Existing commands/references cannot be changed by an additive response. Reject an invalid
         # immutable starting interface before spending its repair budget on an unrelated correction.
-        validate_discovery_suite(suite)
+        validate_discovery_suite(suite, allow_unreferenced=bool(missing_test_files or invalid_test_references))
         strengthen = observations is not None
         label, limit = ("build_strengthen", "max_test_strengthening_attempts") if strengthen else (
             "build_tests_coverage", "max_test_coverage_repairs")
         brief, budget = self.addition_brief(suite)
         inputs = {"draft": compact_suite(suite), "requested_criteria": sorted(criteria), **budget}
+        if missing_test_files:
+            inputs["missing_test_files"] = missing_test_files
+        if invalid_test_references:
+            inputs["invalid_test_references"] = invalid_test_references
         if strengthen:
             inputs["surviving_edits"] = [
                 {key: m[key] for key in ("path", "line", "family", "original", "replacement")}
@@ -315,6 +367,14 @@ class BuildRun:
             "declared image paths and dependencies only. Derive expectations from the brief; mutation evidence "
             "can be fallible."
         )
+        if missing_test_files:
+            instruction += (" The entries in missing_test_files cited files that were omitted from the draft. "
+                            "Write the missing executable tests for those criteria and include their source "
+                            "files and exact coverage references in the response.")
+        if invalid_test_references:
+            instruction += (" The entries in invalid_test_references did not name discoverable test methods in "
+                            "their files. Write executable tests in new files for those criteria. A coverage "
+                            "reference must end at the exact Class.test_method name. Omit case labels and suffixes.")
         while True:
             stage = self.bounded(label, limit)
             # Dispatch and native receipt failures are outside the validation catch: never replay them.
@@ -340,6 +400,7 @@ class BuildRun:
                                       self.suite_type, self.artifact_type, self.project_type)
                 coverage.validate_coverage_references(addition)
                 validate_discovery_suite(result)
+                self.validate_addition(result, addition)
                 return result
             except ValueError as error:
                 failure = {"validation_error": public_error(error), "rejected_addition": new}
@@ -367,11 +428,18 @@ class BuildRun:
 
     def check_suite(self, suite, *, locked_paths=frozenset()):
         criteria = self.output["plan"]["acceptance_criteria"]
+        missing_test_files = []
+        invalid_test_references = []
         while True:
             validate_paths(suite, self.artifact_type, self.project_type)
             try:
                 suite, corrections = coverage.correct_test_references(suite, qualify_classes=True)
-                review = coverage.validate_test_coverage(suite, criteria)
+                if not locked_paths:
+                    suite, missing_files, invalid = coverage.unbacked_test_claims(
+                        suite, criteria, check_discovery=self.repair_invalid_test_references)
+                    missing_test_files.extend(missing_files)
+                    invalid_test_references.extend(invalid)
+                review = coverage.validate_test_coverage(suite, criteria, self.unverified_criteria)
                 problems = self.fixture_problems(suite)
             except coverage.TestSyntaxError as error:
                 if locked_paths.intersection(d["path"] for d in error.diagnostics):
@@ -379,7 +447,12 @@ class BuildRun:
                 suite = self.replace_broken(suite, error.diagnostics)
                 continue
             except coverage.MissingCoverageError as error:
-                suite = self.additions(suite, set(error.missing))
+                missing = set(error.missing)
+                suite = self.additions(
+                    suite, missing,
+                    missing_test_files=[entry for entry in missing_test_files if entry["criterion"] in missing],
+                    invalid_test_references=[entry for entry in invalid_test_references if entry["criterion"] in missing],
+                )
                 continue
             validate_discovery_suite(suite)
             self.validate_suite(suite)
@@ -388,26 +461,34 @@ class BuildRun:
                     raise ValueError("Static fixture diagnostics implicate a previously frozen test")
                 suite = self.replace_broken(suite, problems, fixture=True)
                 continue
+            defects = self.test_defects(suite)
+            if defects:
+                if locked_paths.intersection(d["path"] for d in defects):
+                    raise ValueError("Generated-test lint implicates a previously frozen test")
+                suite = self.repair_test_defects(suite, defects)
+                continue
             result = self.control(suite)
             if result and not validate_baseline(result, suite):
                 if not actionable_failure(result):
                     raise ValueError("Trusted reference control did not produce a conclusive test result")
                 # Submit only the per-case failure identifiers, never the implementation or its logs.
-                failed = set()
-                for row in result["commands"]:
-                    failed.update(re.findall(r"(?m)^(?:FAIL|ERROR): (test_\w+) \(", row["stderr"]))
-                names = coverage.python_test_names({f.path: f.content for f in suite.files})
-                problems = [{"path": path, "message": "Trusted reference failed these tests", "names": sorted(matches)}
-                            for path, refs in names.items() if (matches := {r for r in refs if r.rsplit(".", 1)[-1] in failed})]
+                problems = reference_test_failures(suite, result)
                 if not problems or locked_paths.intersection(d["path"] for d in problems):
                     raise ValueError("Trusted reference failed without an independently repairable test")
-                suite = self.replace_broken(suite, problems, fixture=True)
+                suite = self.repair_reference_failures(suite, problems, result)
                 continue
             value = suite.model_dump()
             self.output.update(suite=value, suite_digest=digest(value))
             self.stages["build_frozen"] = {"digest": digest(value), "coverage": review,
                                           "reference_corrections": corrections,
                                           "trusted_control": "passed" if result else "not_supplied"}
+            if missing_test_files:
+                self.stages["build_frozen"]["missing_test_files"] = missing_test_files
+            if invalid_test_references:
+                self.stages["build_frozen"]["invalid_test_references"] = invalid_test_references
+            if quarantined := self.output["verification"].get("quarantined"):
+                self.stages["build_frozen"]["quarantined_tests"] = quarantined
+                self.stages["build_frozen"]["unverified_criteria"] = sorted(self.unverified_criteria)
             return suite
 
     def execute(self):

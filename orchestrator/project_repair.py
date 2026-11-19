@@ -61,15 +61,22 @@ class VerificationFailures:
             status = observed.get("status") if isinstance(observed, dict) else None
             if status == "passed":
                 self.open = {key: issue for key, issue in self.open.items() if key[0] != check}
-            if status != "failed":
+            startup_check = f"{check}-startup"
+            startup = summary["checks"].get(startup_check)
+            startup_failed = (status in {"not_run", "failed"} and isinstance(startup, dict)
+                              and startup.get("status") == "failed")
+            if status != "failed" and not startup_failed:
                 continue
-            details = _failed_cases(cases.get(check))
+            details = [] if startup_failed else _failed_cases(cases.get(check))
             if details:
                 self.open.pop((check, None), None)
             else:
+                failed_stage = startup_check if startup_failed else check
                 notes = [row.get("diagnostic_excerpt") or row.get("message") for row in failures
-                         if isinstance(row, dict) and row.get("stage") == check]
+                         if isinstance(row, dict) and row.get("stage") == failed_stage]
                 details = [{"diagnostics": [_excerpt(note) for note in notes if isinstance(note, str)][:2]}]
+                if startup_failed:
+                    details[0]["blocked_by"] = startup_check
             for detail in details:
                 key = (check, detail.get("id"))
                 previous = self.open.get(key)

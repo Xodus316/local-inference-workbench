@@ -171,11 +171,16 @@ class CompileCheckpointTests(unittest.TestCase):
             if stage.startswith("build_compile_repair_"):
                 self.assertEqual(model, QWEN_27B)
                 self.assertEqual(settings["context"], 98304)
-                self.assertEqual(settings["think"], "xhigh")
+                self.assertEqual(settings["think"], "medium")
+                self.assertEqual(settings["output_tokens"], 49152)
+                self.assertEqual(row["bundle"]["build_contract"]["repair_generation"][0],
+                                 {"think": "medium", "output_tokens": 49152})
                 self.assertIn(DIAGNOSTIC, payload["messages"][1]["content"])
             if stage == "implement_group_3":
                 data = json.loads(payload["messages"][1]["content"])
-                self.assertEqual(data["selected_source"], [manifest(PRODUCT, "correct product signature")])
+                self.assertEqual(data["selected_source"], [
+                    manifest(PRODUCT, "correct product signature"),
+                    manifest(APP, "correct backend"), manifest(OTHER, "unrelated")])
         output = row["result"]["output"]
         self.assertEqual(output["compile_repair_attempts"], 1)
         self.assertEqual(output["repair_attempts"], 0)

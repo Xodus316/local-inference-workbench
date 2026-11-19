@@ -131,6 +131,66 @@ def validate_project_environment(bundle):
     return canonical
 
 
+def frontend_dom_test_instructions(environment):
+    tools = {tool["name"]: tool["path"] for tool in (environment or {}).get("tools") or []}
+    runner = tools.get("vitest-runner")
+    if runner is None or "node" not in tools:
+        return ""
+    return (
+        " Use the image's vitest-runner for frontend DOM tests. Each Python unittest must supply its own "
+        "complete TypeScript spec in a raw triple-quoted string (or shared test helper). Leave TypeScript "
+        "braces as written. Pass fixture values in the Python subprocess env and read process.env from "
+        "TypeScript. Do not interpolate the spec with Python f-strings or .format(). "
+        "From Python, call subprocess.run(['node', " + repr(runner) + "], input=spec_source, "
+        "stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=45). "
+        "Assert the result's returncode is 0 and include Vitest's failure summary in the assertion "
+        "message. The runner provides jsdom, the app's Vite configuration and "
+        "a temporary spec resolved from the frontend root. Use only 'vitest', '@vue/test-utils', "
+        "Node built-ins and native DOM APIs for test utilities. Testing Library and Playwright are "
+        "unavailable. Import application modules as './src/...'. "
+        "Do not rely on candidate-owned tests, invoke raw Vitest, write to the application tree or supply "
+        "your own Vite config. For route-level UI checks, import "
+        "{ startApp, fillByLabel, submitForm, clickButton, find, waitFor } from '#workbench-dom'. "
+        "Use one async Vitest test and call startApp once per spec with a dynamic import "
+        "callback for the entry named in the project brief and an initial path, for example "
+        "await startApp(() => import('./src/main.ts'), { path: '/login' }). It loads index.html's body "
+        "and boots the app. Await fillByLabel(label, value) to set an actual input and dispatch a bubbling "
+        "event; it matches the visible label ignoring case and a trailing required marker, so 'Name' "
+        "finds 'Name *'. Await clickButton(text) to click a button by its visible text; it searches the "
+        "open dialog first and accepts a single button whose text starts with those words. "
+        "Await find(selector) to get a rendered element and waitFor(() => expect(...)) for asynchronous "
+        "results. After a dialog save, wait for the saved values to appear in the list; the entered name "
+        "can also match a dialog title. Do not invent exported factories, component paths or storage keys. "
+        "Exercise real sign-in for protected pages when the API is available. After filling the "
+        "credentials, call await submitForm() for a page with one form, or pass its selector if more "
+        "than one exists. This clicks the form's actual submit control without assuming its caption. "
+        "The Login and Register tabs select a mode. Submit the form after selecting a mode. Navigate via "
+        "public links and use deterministic fixtures created through the real API when needed. Use separate "
+        "unittest cases with their own specs for independent route behaviors where practical. Wait for "
+        "asynchronous renders and assert observable behavior using DOM roles, labels, text or values. "
+        "Require the control and verify the resulting change instead of skipping the action if it is missing."
+    )
+
+
+def frontend_dom_repair_instructions(environment):
+    tools = {tool["name"] for tool in (environment or {}).get("tools") or []}
+    if not {"node", "vitest-runner"} <= tools:
+        return ""
+    return (
+        " For DOM repair, wait for sign-in and its redirect before selecting a navigation control. "
+        "Wait for a rendered link to the specified public href or a semantic control for that action. "
+        "Click it, then verify the target pathname and route content before interacting with the page. "
+        "Use rendered links for SPA navigation. Verify an anonymous route guard in a fresh spec started "
+        "at the protected public path. Locate actions by visible text, role, aria-label, title or an icon "
+        "specified in the brief. Use native DOM selectors and require every control before clicking it. "
+        "In jsdom, use textContent for rendered text and accept equivalent wording when the brief leaves "
+        "captions unspecified. Assert actual fixture data in route content or the fixture's table row. "
+        "For CRUD, exercise real create, edit and delete controls scoped to the relevant row or dialog. "
+        "Open selectors and select the visible fixture option. After saving, wait for the dialog to close "
+        "and verify the refreshed row. Confirm deletion through the dialog and wait for the row to disappear."
+    )
+
+
 def _name(node):
     if isinstance(node, ast.Name):
         return node.id

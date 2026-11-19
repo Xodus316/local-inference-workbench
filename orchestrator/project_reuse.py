@@ -85,15 +85,16 @@ def _compatibility(bundle):
 
 
 def _validate_checkpoint(value, bundle):
-    from .project_build import (ProjectArtifact, ProjectProject, ProjectTestSuite, group_artifact_type,
+    from .project_build import (ProjectArtifact, group_artifact_type, project_test_types,
                                 selected_source, validate_group_plan)
     from .project_environment import validate_project_environment, validate_suite_environment
     _require(set(value) == {"plan", "suite", "group_plan", "groups"}, "Unexpected checkpoint fields")
     plan = BuildPlan.model_validate(value["plan"])
     suite, grouping, groups = None, None, []
     if value["suite"] is not None:
-        suite = ProjectTestSuite.model_validate(value["suite"])
-        validate_paths(suite, ProjectArtifact, ProjectProject)
+        suite_type, project_type = project_test_types(bundle)
+        suite = suite_type.model_validate(value["suite"])
+        validate_paths(suite, ProjectArtifact, project_type)
         corrected, fixes = coverage.correct_test_references(suite, qualify_classes=True)
         _require(not fixes and corrected.model_dump() == suite.model_dump(), "Frozen test references require changes under current validation")
         coverage.validate_test_coverage(suite, plan.acceptance_criteria)
@@ -401,8 +402,9 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
             # Reconstruct final independent source from the actual author/repair
             # receipts. A modified checkpoint with a recomputed suite digest must
             # not silently become a different frozen test suite.
-            from .project_build import ProjectTestSuite, REVIEWED_POLICY
+            from .project_build import REVIEWED_POLICY, project_test_types
             from .build_workflow import normalized_manifest
+            suite_type, _ = project_test_types(projected)
             authored = None
             for stage, call in mapped.items():
                 if stage != "build_tests" and not stage.startswith(("build_tests_syntax_", "build_tests_fixture_", "build_tests_coverage_")):
@@ -412,10 +414,12 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
                          "Frozen suite source was not completed by the approved independent author")
                 value = _strict_json(raw_values[stage]["choices"][0]["message"]["content"])
                 if stage == "build_tests":
-                    value, _ = normalized_manifest(value, value.get("implementation_files"))
-                    if projected["request"]["build_profile"] == REVIEWED_POLICY:
+                    reviewed = projected["request"]["build_profile"] == REVIEWED_POLICY
+                    value, _ = normalized_manifest(value, value.get("implementation_files"),
+                                                   recover_test_paths=reviewed)
+                    if reviewed:
                         value, _ = normalize_authored_test_paths(value)
-                    authored = ProjectTestSuite.model_validate(value)
+                    authored = suite_type.model_validate(value)
                 else:
                     _require(authored is not None, "Independent test repair precedes its author")
                     merged = authored.model_dump()
@@ -423,6 +427,19 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
                         extra, _ = normalized_manifest(value, authored.implementation_files, additions=True)
                         merged["files"].extend(extra["files"])
                         merged["coverage"].extend(extra["coverage"])
+                    elif stage.startswith("build_tests_syntax_") and isinstance(value, dict) and "edits" in value:
+                        from .project_build import (SelectedTextRepair, apply_test_syntax_repair,
+                                                    test_syntax_repair_inputs)
+                        from .wire import wire_schema
+                        request = json.loads(original_bytes(
+                            original_stages[stage], "request", 1_048_576).decode("utf-8"))
+                        inputs = _strict_json(request["messages"][1]["content"])
+                        _require("mechanical_test_repair_generation" in projected["build_contract"]
+                                 and request["schema"] == wire_schema(SelectedTextRepair)
+                                 and inputs == test_syntax_repair_inputs(authored, inputs["diagnostics"]),
+                                 "Test syntax patch is not bound to the replayed source snippets")
+                        authored = apply_test_syntax_repair(authored, inputs, value)
+                        continue
                     else:
                         replacements = {item["path"]: item for item in value["files"]}
                         _require(len(replacements) == len(value["files"]) and set(replacements) <= {f.path for f in authored.files},
@@ -436,7 +453,7 @@ def prepare_project_reuse(source_row, artifact_bytes, destination_bundle, *, sou
                             validate_repair([f for f in authored.files if f.path in replacements],
                                 [BuildFile.model_validate(item) for item in value["files"]], problems)
                         merged["files"] = [replacements.get(item["path"], item) for item in merged["files"]]
-                    authored = ProjectTestSuite.model_validate(merged)
+                    authored = suite_type.model_validate(merged)
             if authored is not None:
                 authored, _ = coverage.correct_test_references(authored, qualify_classes=True)
             _require(authored is not None and authored.model_dump() == frozen["suite"], "Frozen suite differs from its independent native author/repair receipts")

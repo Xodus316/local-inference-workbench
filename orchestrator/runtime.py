@@ -1,6 +1,7 @@
 """Bounded workflow queue, digest-bound approvals and a durable model-call journal."""
 import copy
 import json
+import math
 import os
 import queue
 import shutil
@@ -54,7 +55,11 @@ class Runtime(CodeBuild, Stages):
         return {"provider": self.config.research.provider, "available": available,
                 "reason": None if available else "Internet search is unavailable in this service."}
 
-    def prepare(self, raw):
+    def prepare_whole_project(self, raw, **options):
+        """Prepare a fresh, explicitly configured whole-project build."""
+        return self.prepare(raw, whole_project=options)
+
+    def prepare(self, raw, *, whole_project=None):
         request = Request.model_validate(raw)
         mode = "fast" if request.mode == "auto" else request.mode
         if mode == "research":
@@ -91,10 +96,13 @@ class Runtime(CodeBuild, Stages):
                                 for role in self.config.roles}, "config_digest":digest(self.config.model_dump()),
                   "web_research":mode == "research" or request.research,
                   "backend": backend}
+        if self.config.run_timeout_seconds is None:
+            bundle["run_timeout_seconds"] = None
         if bundle["web_research"]:
             bundle["internet_search_provider"] = self.config.research.provider
         if mode == "build":
-            if bundle["roles"]["test_author"] in {bundle["roles"][r] for r in ("implementer", "repairer")}:
+            if (bundle["roles"]["test_author"] in {bundle["roles"][r] for r in ("implementer", "repairer")}
+                    and not (self.config.build.allow_shared_test_author and request.build_profile is not None)):
                 raise ValueError("Configure an independent test author for Build")
             if request.control_files:
                 from .build_workflow import implementation_files
@@ -109,7 +117,16 @@ class Runtime(CodeBuild, Stages):
                     bundle["project_repair_format"] = EXACT_REPAIR_FORMAT
                 if self.config.build.project_environment is not None:
                     bundle["project_environment"] = self.config.build.project_environment.model_dump()
-                project_enabled(bundle)
+                if self.config.build.reference_project is not None:
+                    from .project_reference import pack_reference
+                    bundle["project_reference"] = pack_reference(self.config.build.reference_project)
+                if whole_project is None:
+                    project_enabled(bundle)
+        if whole_project is not None:
+            from .whole_project_setup import configure_fresh_bundle
+            bundle = configure_fresh_bundle(self, bundle, **whole_project)
+            from .project_build import project_enabled
+            project_enabled(bundle)
         with self.management:
             return self.store.get(self.store.create(bundle))
 
@@ -119,6 +136,11 @@ class Runtime(CodeBuild, Stages):
         # An unused optional backend adds no authority to historical approvals.
         if current.get("llama_cpp") is None:
             candidates.append({key: value for key, value in current.items() if key != "llama_cpp"})
+        if current["build"].get("reference_project") is None:
+            for candidate in list(candidates):
+                legacy = copy.deepcopy(candidate)
+                legacy["build"].pop("reference_project", None)
+                candidates.append(legacy)
         if current["build"]["project_environment"] is None:
             for candidate in list(candidates):
                 legacy = copy.deepcopy(candidate)
@@ -182,8 +204,12 @@ class Runtime(CodeBuild, Stages):
         if callable(identity) and identity() != bundle.get("backend"):
             raise ValueError("Backend identity changed after approval")
         model = bundle["roles"][role]
+        from .project_build import call_generation
+        generation = call_generation(bundle, role, stage)
         raw = self.store.cached(run_id, stage, request=payload, role=role, model=model)
         if raw is not None:
+            if isinstance(raw, dict) and raw.get('dispatch_status') == 'completed_rejected':
+                raise ValueError('The settled native response was rejected; it cannot be reused as accepted content')
             return raw
         while not self.inference_lock.acquire(timeout=.1):
             self._guard(run_id)
@@ -191,18 +217,19 @@ class Runtime(CodeBuild, Stages):
             self._guard(run_id)
             if self.store.has_unknown_calls():
                 raise RuntimeError("native_completion_unknown; resolve the physical backend before another call")
-            self.provider.admit(model, bundle["generation"][role], payload, stage)
+            self.provider.admit(model, generation, payload, stage)
             self.store.begin_call(run_id, stage, role, model, payload)
+            request_deadline = None if self.deadline == math.inf else self.deadline
             if stage == "decider":
                 try:
-                    raw = self.provider.decide(model, payload, self.events[run_id], self.deadline)
+                    raw = self.provider.decide(model, payload, self.events[run_id], request_deadline)
                 except Exception as error:
                     self._save_call_failure(run_id, stage, error)
                     raise
             else:
                 try:
-                    raw = self.provider.complete(model, bundle["generation"][role], payload,
-                                                 self.events[run_id], self.deadline)
+                    raw = self.provider.complete(model, generation, payload,
+                                                 self.events[run_id], request_deadline)
                 except Exception as error:
                     self._save_call_failure(run_id, stage, error)
                     raise
@@ -291,7 +318,13 @@ class Runtime(CodeBuild, Stages):
                     self.active_run_id = run_id
                     self._guard_cancelled_before_start(run_id)
                     row = self.store.get(run_id)
-                    self.deadline = time.monotonic() + row["approval"]["deadline"] - time.time()
+                    approved_deadline = row["approval"]["deadline"]
+                    if approved_deadline is None:
+                        if "run_timeout_seconds" not in row["bundle"] or row["bundle"]["run_timeout_seconds"] is not None:
+                            raise ValueError("Unlimited runtime lacks an explicit approval binding")
+                        self.deadline = math.inf
+                    else:
+                        self.deadline = time.monotonic() + approved_deadline - time.time()
                     self.store.update(run_id, "running")
                 self._guard(run_id)
                 state = self.graph.invoke({"run_id":run_id})

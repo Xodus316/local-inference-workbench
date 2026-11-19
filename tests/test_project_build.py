@@ -23,8 +23,10 @@ from orchestrator.wire import wire_schema
 COMMAND = "python3 -m unittest discover -s tests -v"
 BRIEF = "B" * 9868
 TEST = {"path": "tests/test_api.py", "content": (
-    "import unittest\nclass API(unittest.TestCase):\n"
-    "    def test_api(self):\n        self.assertEqual('observable', 'observable')\n")}
+    "import os\nimport unittest\nfrom urllib.request import urlopen\nclass API(unittest.TestCase):\n"
+    "    def test_api(self):\n"
+    "        with urlopen(os.environ['API_BASE_URL'] + '/products') as response:\n"
+    "            self.assertEqual(response.status, 200)\n")}
 COVERAGE = {"criterion": 1, "test_file": TEST["path"], "test_name": "API.test_api",
             "scenario": "Read a product", "expected_result": "The expected product",
             "catches": "A missing product"}
@@ -88,7 +90,8 @@ class Models:
                 raise OSError("Synthetic unknown fixture repair receipt")
             value = {"files": [self.fixture_repairs.pop(0) if self.fixture_repairs else self.test_file]}
         elif stage.startswith("build_tests_syntax_"):
-            value = {"files": [self.syntax_repairs.pop(0)]}
+            repair = self.syntax_repairs.pop(0)
+            value = repair if "edits" in repair else {"files": [repair]}
         elif stage == "build_project_plan" or stage.startswith("build_project_plan_repair_"):
             if self.group_unknown:
                 raise ValueError("Synthetic failure before a known terminal receipt")
@@ -339,7 +342,8 @@ class ProjectFlowTests(unittest.TestCase):
     def test_image_syntax_diagnostics_repair_before_source_generation(self):
         draft = {**TEST, "content": TEST["content"] + "# first draft\n"}
         self.models.test_file = draft
-        self.models.syntax_repairs = [TEST]
+        self.models.syntax_repairs = [{"summary": "Remove the diagnosed draft marker", "edits": [
+            {"path": TEST["path"], "before": "# first draft\n", "after": ""}]}]
         self.executor.preflight_diagnostics = [[{"path": TEST["path"], "line": 5, "message": "target syntax"}]]
         row = self.execute(REVIEWED_POLICY)
         self.assertEqual(row["status"], "completed", row.get("result"))

@@ -15,8 +15,10 @@ from test_project_build import BRIEF, COMMAND, COVERAGE, TEST, Executor, Models,
 
 
 UI_TEST = {"path": "tests/test_ui.py", "content": (
-    "import unittest\nclass UI(unittest.TestCase):\n"
-    "    def test_route(self):\n        self.assertEqual('protected', 'protected')\n")}
+    "import os\nimport unittest\nfrom urllib.request import urlopen\nclass UI(unittest.TestCase):\n"
+    "    def test_route(self):\n"
+    "        with urlopen(os.environ['API_BASE_URL'] + '/protected') as response:\n"
+    "            self.assertTrue(response.url.endswith('/login'))\n")}
 UI_COVERAGE = {"criterion": 2, "test_file": UI_TEST["path"], "test_name": "UI.test_route",
                "scenario": "Navigate without credentials", "expected_result": "Login route",
                "catches": "Missing authentication guard"}

@@ -58,27 +58,34 @@ def normalize_authored_test_paths(value):
     }, [{"from": source, "to": target} for source, target in sorted(renames.items())]
 
 
+def discovery_case(entry):
+    path = PurePosixPath(entry.test_file)
+    names = entry.test_name.split(".")
+    module = path.with_suffix("").parts[1:]
+    if (path.parts[:1] == ("tests",) and path.suffix == ".py" and path.name.startswith("test_")
+            and all(part.isidentifier() for part in module)
+            and len(names) == 2 and all(name.isidentifier() for name in names) and names[1].startswith("test_")):
+        return ".".join((*module, *names))
+    return None
+
+
 def _referenced_cases(suite):
     cases = set()
     for entry in suite.coverage:
-        path = PurePosixPath(entry.test_file)
-        names = entry.test_name.split(".")
-        module = path.with_suffix("").parts[1:]
-        if (path.parts[:1] != ("tests",) or path.suffix != ".py" or not path.name.startswith("test_")
-                or not all(part.isidentifier() for part in module)
-                or len(names) != 2 or not all(name.isidentifier() for name in names)
-                or not names[1].startswith("test_")):
+        case = discovery_case(entry)
+        if case is None:
             raise ValueError("Coverage requires discoverable Python files and Class.test_method references")
-        cases.add(".".join((*module, *names)))
+        cases.add(case)
     if not cases:
         raise ValueError("No independent test cases were referenced")
     return cases
 
 
-def validate_discovery_suite(suite):
+def validate_discovery_suite(suite, *, allow_unreferenced=False):
     if len(suite.commands) != 1 or suite.commands[0] not in COMMANDS:
         raise ValueError("Build requires python3 -m unittest discover -s tests -v or its python equivalent")
-    _referenced_cases(suite)
+    if suite.coverage or not allow_unreferenced:
+        _referenced_cases(suite)
 
 
 def covered_cases_ran(receipt, suite):

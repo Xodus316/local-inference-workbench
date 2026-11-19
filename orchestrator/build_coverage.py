@@ -23,7 +23,7 @@ class TestSyntaxError(ValueError):
 
 
 class MissingCoverageError(ValueError):
-    """Only omitted criterion indexes authorize additive coverage repair."""
+    """Criterion indexes without a backing test authorize additive coverage repair."""
 
     def __init__(self, missing):
         self.missing = sorted(missing)
@@ -83,25 +83,21 @@ def parse_test_files(files, *, python_version=None):
     return trees
 
 
+def python_test_definitions(tree):
+    definitions = {}
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_"):
+            definitions[node.name] = node
+        elif isinstance(node, ast.ClassDef):
+            definitions.update({f"{node.name}.{method.name}": method for method in node.body
+                                if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef))
+                                and method.name.startswith("test_")})
+    return definitions
+
+
 def python_test_names(files):
     """Inventory exact references without importing or executing generated code."""
-    python_names = {}
-    for path, tree in parse_test_files(files).items():
-        names = set()
-        for node in tree.body:
-            if isinstance(
-                node, (ast.FunctionDef, ast.AsyncFunctionDef)
-            ) and node.name.startswith("test_"):
-                names.add(node.name)
-            elif isinstance(node, ast.ClassDef):
-                names.update(
-                    f"{node.name}.{method.name}"
-                    for method in node.body
-                    if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and method.name.startswith("test_")
-                )
-        python_names[path] = names
-    return python_names
+    return {path: set(python_test_definitions(tree)) for path, tree in parse_test_files(files).items()}
 
 
 def correct_test_references(draft, *, qualify_classes=False):
@@ -162,8 +158,37 @@ def validate_coverage_references(suite):
             )
 
 
-def validate_test_coverage(suite, criteria):
-    expected = set(range(1, len(criteria) + 1))
+def unbacked_test_claims(suite, criteria, *, check_discovery=False):
+    """Separate unbacked claims from an unfrozen draft without changing its source."""
+    from .build_discovery import discovery_case
+
+    files = {item.path for item in suite.files}
+    if any(entry.criterion not in range(1, len(criteria) + 1) for entry in suite.coverage):
+        return suite, [], []
+    names = python_test_names({item.path: item.content for item in suite.files}) if check_discovery else {}
+    retained, missing, invalid = [], [], []
+    for entry in suite.coverage:
+        if entry.test_file not in files:
+            rejected = missing
+        elif check_discovery and (discovery_case(entry) is None
+                                  or entry.test_name not in names.get(entry.test_file, ())):
+            rejected = invalid
+        else:
+            retained.append(entry)
+            continue
+        rejected.append({"criterion": entry.criterion, "test_file": entry.test_file, "test_name": entry.test_name})
+    if not missing and not invalid:
+        return suite, [], []
+    # This intermediate draft can have no coverage. Additions restore the
+    # public suite schema before it can be validated and frozen.
+    draft = suite.model_copy(update={"coverage": retained})
+    validate_coverage_references(draft)
+    return draft, missing, invalid
+
+
+def validate_test_coverage(suite, criteria, exempt=frozenset()):
+    """Require every criterion except quarantined, explicitly unverified ones to be covered."""
+    expected = set(range(1, len(criteria) + 1)) - set(exempt)
     covered = {entry.criterion for entry in suite.coverage}
     if expected - covered and not covered - expected:
         raise MissingCoverageError(expected - covered)
@@ -173,9 +198,12 @@ def validate_test_coverage(suite, criteria):
             f"missing={sorted(expected - covered)}, unknown={sorted(covered - expected)}"
         )
     validate_coverage_references(suite)
-    return {
+    review = {
         "criteria": len(expected),
         "cases": len(suite.coverage),
         "references_checked": True,
         "semantic_correctness_verified": False,
     }
+    if exempt:
+        review["unverified_criteria"] = sorted(exempt)
+    return review

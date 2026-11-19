@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_serializer, model_validator
 from .schemas import Record
 from .project_environment import ProjectEnvironment
 
@@ -157,10 +157,18 @@ class Research(Record):
 class BuildConfig(Record):
     enabled: bool = True
     offline_project_enabled: bool = False
+    allow_shared_test_author: bool = False
     project_environment: ProjectEnvironment | None = None
+    # Harness-only directory with a known-good implementation of the offline project
+    # specification. Generated tests run against it before they are frozen; it never
+    # enters a model prompt. See orchestrator/project_reference.py.
+    reference_project: str | None = Field(default=None, min_length=1, max_length=1000)
     temporary_mb: int = Field(default=64, ge=64, le=2048)
     image: str = Field(default="python:3.13-alpine", min_length=1, max_length=300)
-    max_repair_attempts: int = Field(default=3, ge=0, le=3)
+    max_repair_attempts: int = Field(default=3, ge=0, le=8)
+    verification_profiles: list[dict] = Field(default_factory=list, max_length=8)
+    container_create_timeout_seconds: int = Field(default=180, ge=1, le=600)
+    container_cleanup_timeout_seconds: int = Field(default=15, ge=1, le=120)
     max_test_syntax_repairs: int = Field(default=2, ge=0, le=3)
     max_test_coverage_repairs: int = Field(default=2, ge=0, le=3)
     max_test_fixture_repairs: int = Field(default=1, ge=0, le=3)
@@ -170,6 +178,28 @@ class BuildConfig(Record):
     test_timeout_seconds: int = Field(default=120, ge=1, le=900)
     memory_mb: int = Field(default=1024, ge=256, le=16384)
     cpus: float = Field(default=2.0, ge=0.25, le=8.0)
+
+    @model_serializer(mode="wrap")
+    def serialize(self, handler):
+        data = handler(self)
+        # Keep disabled approvals compatible with the original Build configuration.
+        if not self.allow_shared_test_author:
+            data.pop("allow_shared_test_author", None)
+        if not self.verification_profiles:
+            data.pop("verification_profiles", None)
+        for key, default in (("container_create_timeout_seconds", 180), ("container_cleanup_timeout_seconds", 15)):
+            if data[key] == default:
+                data.pop(key)
+        return data
+
+    @field_validator("verification_profiles")
+    @classmethod
+    def frozen_verification_profiles(cls, values):
+        from .sandbox_profiles import normalize_verification_profile
+        profiles = [normalize_verification_profile(value) for value in values]
+        if len({profile['name'] for profile in profiles}) != len(profiles):
+            raise ValueError('Verification profile names must be unique')
+        return profiles
 
     @field_validator("image")
     @classmethod
@@ -181,7 +211,7 @@ class BuildConfig(Record):
 
 class Config(Record):
     build: BuildConfig = Field(default_factory=BuildConfig)
-    backend: Literal["ollama", "strata", "llama-cpp"] = "ollama"
+    backend: Literal["ollama", "strata", "llama-cpp", "hyperqwen-vllm"] = "ollama"
     ollama_url: str = "http://127.0.0.1:11434"
     strata: StrataBackend | None = None
     llama_cpp: LlamaCppBackend | None = None
@@ -191,7 +221,8 @@ class Config(Record):
     research: Research = Field(default_factory=Research)
     test_commands: dict[str, list[str]] = Field(default_factory=dict, max_length=20)
     test_timeout_seconds: int = Field(default=120, ge=1, le=600)
-    run_timeout_seconds: int = Field(default=1800, ge=10, le=7200)
+    # Null is an explicit opt-in; finite defaults and per-operation limits remain.
+    run_timeout_seconds: int | None = Field(default=1800, ge=10, le=7200)
     queue_size: int = Field(default=8, ge=1, le=128)
     storage_bytes: int = Field(default=512_000_000, ge=50_000_000)
 

@@ -1,19 +1,23 @@
 """Opt-in bounded, incremental offline projects; the ordinary Python Build is unchanged."""
 from __future__ import annotations
 
+import ast
 import copy
 from difflib import unified_diff
 from functools import lru_cache
 import hashlib
 import json
+import math
+import re
+import time
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import ClassVar, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, ValidationError, model_validator
 
 from .build_discovery import normalize_authored_test_paths
-from .build_models import (BuildArtifact, BuildFile, BuildPlan, ReviewedBuildTestSuite,
-                           RepairAdvice, UnittestDiscoveryCommand)
+from .build_models import (BuildArtifact, BuildFile, BuildPlan, BuildTestCoverageRepair, BuildTestFile,
+                           BuildTestSyntaxRepair, ReviewedBuildTestSuite, RepairAdvice, UnittestDiscoveryCommand)
 from .build_sandbox import DockerBuildExecutor, validate_artifact
 from .build_workflow import (BuildRun, TEST_BRIEF, actionable_failure, assemble, build_model_payload, compact_suite,
                              normalized_manifest, public_error, validate_baseline)
@@ -29,21 +33,31 @@ CODE_REVIEW_POLICY = "independent-project-code-review-v1"
 TEST_PREFLIGHT_POLICY = "image-python-test-compile-v1"
 EXACT_REPAIR_FORMAT = "scoped-text-edits-v1"
 OPENCODE_REPAIR_FORMAT = "opencode-worktree-v1"
+SCOPED_REFERENCE_TEST_REPAIR = "scoped-reference-test-repair-v1"
+PATH_BOUND_REFERENCE_TEST_REPAIR = "scoped-reference-test-repair-v2"
+REFERENCE_TEST_REPAIR = "scoped-reference-test-repair-v3"
+DEFAULT_TEST_BYTES = 16 * 1024
+EXPANDED_TEST_BYTES = 32 * 1024
 
 
-def offline_project_contract(profile=POLICY):
-    """Return a fresh approval-bound contract, never operator-editable numeric limits."""
+def offline_project_contract(profile=POLICY, *, test_bytes=DEFAULT_TEST_BYTES):
+    """Return a fresh approval-bound contract with a supported test-suite budget."""
     if profile not in (POLICY, REVIEWED_POLICY):
         raise ValueError("Unknown offline project profile")
+    if type(test_bytes) is not int or (test_bytes != DEFAULT_TEST_BYTES
+            and (profile != REVIEWED_POLICY or test_bytes != EXPANDED_TEST_BYTES)):
+        raise ValueError("Unsupported offline project test-suite budget")
     contract = {
         "profile": profile,
         "implementation_bytes": 131072, "implementation_files": 128,
-        "test_bytes": 16384, "test_files": 15,
+        "test_bytes": test_bytes, "test_files": 15,
         "project_bytes": 163840, "project_files": 143,
         "group_bytes": 24576, "group_files": 16, "group_count": 32,
         "group_plan_format_repairs": 2,
         "test_fixture_policy": "unittest-http-fixtures-v1", "max_test_fixture_repairs": 2,
-        "context_bytes": 24576, "repair_selected_bytes": 32768, "repair_files": 16,
+        "context_bytes": 49152, "repair_selected_bytes": 32768, "repair_files": 16,
+        "test_lint_policy": "generated-test-lint-v1", "max_test_defect_repairs": 2,
+        "max_quarantined_tests": 2,
         "verification_policy": "unittest-acceptance-v1", "mutation_verification": "not_run",
         "failure_feedback_policy": "utf8-tails-with-full-receipt-digest-v1",
         "sandbox_tmpfs_mb": 2048, "sandbox_memory_mb": 16384,
@@ -61,6 +75,7 @@ def offline_project_contract(profile=POLICY):
         contract.update(
             code_review_policy=CODE_REVIEW_POLICY,
             test_preflight_policy=TEST_PREFLIGHT_POLICY,
+            mechanical_test_repair_generation={"think": False},
             max_review_chunks=16,
             max_review_repair_findings=6,
             review_output_reserve=4096,
@@ -69,6 +84,17 @@ def offline_project_contract(profile=POLICY):
             include_direct_dependency_source=True,
             max_compile_checkpoints=4,
             max_compile_repairs=2,
+            # Repair attempt N uses tier N (the last tier repeats). A tier-1 call that ends at its
+            # output cap is retried once at the last tier in the same attempt.
+            # Caps count thinking tokens. At about 52 tokens/s on an RTX 3090 they allow roughly
+            # 15 and 21 minutes, above the 50,301-token xhigh repair seen on Nov 12, and leave room
+            # for repair prompts of 25-30K tokens inside the 98,304-token context.
+            repair_generation=[{"think": "medium", "output_tokens": 49152},
+                               {"think": "xhigh", "output_tokens": 65536}],
+            # A repair starts only when the run has time for it and the check after it: the longest
+            # duration observed in this run for that repair tier and check, never below these floors.
+            repair_time_floor_seconds={"medium": 600, "xhigh": 900},
+            check_time_floor_seconds={"verification": 300, "compile": 120},
         )
     return contract
 
@@ -79,27 +105,45 @@ def project_enabled(bundle):
     if repair_format is not None and (profile != REVIEWED_POLICY or repair_format != EXACT_REPAIR_FORMAT):
         raise ValueError("The scoped repair format requires the reviewed project profile")
     if profile is None:
-        if bundle.get("build_contract") is not None or "implementation_group_bytes" in bundle:
+        if bundle.get("build_contract") is not None or "implementation_group_bytes" in bundle or "test_suite_bytes" in bundle:
             raise ValueError("A project contract requires its explicit Build profile")
         return False
-    if (profile not in (POLICY, REVIEWED_POLICY) or bundle.get("mode", "build") != "build"
-            or bundle.get("build_contract") != offline_project_contract(profile)
+    if profile not in (POLICY, REVIEWED_POLICY):
+        raise ValueError("Offline projects require operator enablement and the exact approved contract")
+    approved = bundle.get("build_contract")
+    expected = offline_project_contract(profile, test_bytes=bundle.get("test_suite_bytes", DEFAULT_TEST_BYTES))
+    if isinstance(approved, dict) and "mechanical_test_repair_generation" not in approved:
+        # Older approvals keep their original settings when a checkpoint is reconstructed.
+        expected.pop("mechanical_test_repair_generation", None)
+    if (bundle.get("mode", "build") != "build" or approved != expected
             or bundle.get("build", {}).get("offline_project_enabled") is not True):
         raise ValueError("Offline projects require operator enablement and the exact approved contract")
+    if bundle["build_contract"]["test_bytes"] == EXPANDED_TEST_BYTES and "project_worker" in bundle:
+        raise ValueError("The expanded test-suite budget requires a native or whole-project workflow")
     group_artifact_type(bundle)
     roles = bundle.get("roles", {})
+    from .role_isolation import validate_role_isolation
+    isolated_same_model = validate_role_isolation(bundle)
+    shared_author = bundle["build"].get("allow_shared_test_author") is True
+    if shared_author and (profile != REVIEWED_POLICY or bundle.get("project_reference") is None
+                          or (bundle.get("backend", {}).get("name") != "ollama" and not isolated_same_model)):
+        raise ValueError("A shared test author requires a reviewed Ollama project with a trusted reference")
     if (not roles.get("repairer") or not roles.get("implementer") or not roles.get("test_author")
-            or roles["test_author"] in {roles["implementer"], roles["repairer"]}):
+            or (roles["test_author"] in {roles["implementer"], roles["repairer"]}
+                and not (shared_author or isolated_same_model))):
         raise ValueError("Offline projects require an independent test author and configured repair role")
-    if (bundle.get("backend") or {}).get("name") in {"strata", "llama-cpp"}:
+    if bundle.get("backend", {}).get("name") in {"strata", "llama-cpp"}:
         raise ValueError("Offline projects need a backend that can serve independent models for testing and implementation")
     if bundle.get("request", {}).get("control_files"):
         raise ValueError("Offline projects do not accept reference implementations")
     if profile == REVIEWED_POLICY:
         settings = (bundle.get("role_profiles") or bundle.get("generation") or {}).get("reviewer", {})
-        if (not roles.get("reviewer") or roles["reviewer"] in {roles["implementer"], roles["repairer"]}
+        if (not roles.get("reviewer")
+                or (roles["reviewer"] in {roles["implementer"], roles["repairer"]} and not isolated_same_model)
                 or type(settings.get("context")) is not int or settings["context"] <= 0):
             raise ValueError("Reviewed projects require an independent reviewer and frozen reviewer context")
+    from .project_reference import validate_reference
+    validate_reference(bundle.get("project_reference"))
     from .project_environment import validate_project_environment
     environment = validate_project_environment(bundle)
     if (environment or {}).get("verification") and profile != REVIEWED_POLICY:
@@ -123,19 +167,24 @@ def project_executor(runtime, state):
     return executor
 
 
-def validate_project_prompt(payload, bundle, role):
-    """Preserve conservative admission, counting complete serialized source and schema.
+def validate_project_prompt(payload, bundle, role, *, tokenize=None):
+    """Check the complete prompt and reserve space for provider framing.
 
-    Transport JSON escaping is decoded before the model sees a message; the user
-    message already contains the complete serialized stage data. Do not estimate
-    source tokens or truncate a source/test/brief to admit a request.
+    A pinned model tokenizer counts the supplied messages and schema. Backends
+    without a tokenizer retain conservative UTF-8 admission.
     """
     settings = (bundle.get("role_profiles") or bundle.get("generation") or {}).get(role, {})
     context = settings.get("context")
     if type(context) is not int or context <= 0:
         raise ValueError("Offline projects require an explicit frozen context for every model role")
-    required = (sum(len(m["content"].encode("utf-8")) for m in payload["messages"])
-                + len(encoded(payload["schema"]).encode("utf-8")) + 2048)
+    if tokenize is None:
+        prompt_units = (sum(len(m["content"].encode("utf-8")) for m in payload["messages"])
+                        + len(encoded(payload["schema"]).encode("utf-8")))
+    else:
+        prompt_units = tokenize(payload)
+        if type(prompt_units) is not int or prompt_units < 0:
+            raise ValueError("The approved tokenizer did not return a valid token count")
+    required = prompt_units + 2048
     if required > context:
         raise ValueError("Complete project prompt, schema and framing exceed the frozen role context; inference was not dispatched")
     return required
@@ -154,12 +203,13 @@ class ProjectArtifact(BuildArtifact):
 
 
 class TestManifest(BuildArtifact):
-    byte_limit: ClassVar[int] = 16384
+    byte_limit: ClassVar[int] = DEFAULT_TEST_BYTES
     files: list[BuildFile] = Field(min_length=1, max_length=15)
 
 
 class ProjectTestSuite(ReviewedBuildTestSuite):
     manifest_type: ClassVar[type[BuildArtifact]] = TestManifest
+    allow_python_helpers: ClassVar[bool] = True
     implementation_files: list[str] = Field(min_length=1, max_length=128)
     commands: list[UnittestDiscoveryCommand] = Field(min_length=1, max_length=1)
 
@@ -167,6 +217,7 @@ class ProjectTestSuite(ReviewedBuildTestSuite):
 class ProjectProject(BuildArtifact):
     byte_limit: ClassVar[int] = 163840
     implementation_type: ClassVar[type[ProjectArtifact]] = ProjectArtifact
+    test_manifest_type: ClassVar[type[TestManifest]] = TestManifest
     files: list[BuildFile] = Field(min_length=1, max_length=143)
 
     @model_validator(mode="after")
@@ -175,14 +226,33 @@ class ProjectProject(BuildArtifact):
         tests = [f for f in self.files if f.path.startswith("tests/")]
         implementation = [f for f in self.files if not f.path.startswith("tests/")]
         self.implementation_type(summary=self.summary, files=implementation)
-        TestManifest(summary="Frozen independent tests", files=tests)
+        self.test_manifest_type(summary="Frozen independent tests", files=tests)
         return self
 
 
-def validate_project_artifact(value):
+class ExpandedTestManifest(TestManifest):
+    byte_limit: ClassVar[int] = EXPANDED_TEST_BYTES
+
+
+class ExpandedProjectTestSuite(ProjectTestSuite):
+    manifest_type: ClassVar[type[BuildArtifact]] = ExpandedTestManifest
+
+
+class ExpandedProjectProject(ProjectProject):
+    test_manifest_type: ClassVar[type[TestManifest]] = ExpandedTestManifest
+
+
+def project_test_types(bundle):
+    if bundle.get("test_suite_bytes") == EXPANDED_TEST_BYTES:
+        return ExpandedProjectTestSuite, ExpandedProjectProject
+    return ProjectTestSuite, ProjectProject
+
+
+def validate_project_artifact(value, bundle=None):
     if hasattr(value, "model_dump"):
         value = value.model_dump()
-    return ProjectProject.model_validate(value)
+    _, project_type = project_test_types(bundle or {})
+    return project_type.model_validate(value)
 
 
 class GroupArtifact(ProjectArtifact):
@@ -203,6 +273,198 @@ def group_artifact_type(bundle):
     if type(limit) is not int or not 1 <= limit <= ProjectArtifact.byte_limit:
         raise ValueError("Implementation group bytes must fit within the project source budget")
     return GroupArtifact if limit == GroupArtifact.byte_limit else _budgeted_group_artifact(limit)
+
+
+@lru_cache(maxsize=64)
+def exact_group_artifact(base, paths):
+    """Constrain a group response to exactly its frozen paths, so the output schema rejects others.
+
+    The JSON schema lists the allowed paths as an enum and fixes the file count,
+    which grammar-constrained backends enforce while generating.
+    """
+    choices = tuple(paths)
+
+    class ExactGroupFile(BuildFile):
+        path: Literal[choices] = Field(json_schema_extra=lambda schema: schema.update(enum=list(choices)))
+
+    class ExactGroupArtifact(base):
+        files: list[ExactGroupFile] = Field(min_length=len(choices), max_length=len(choices))
+
+    ExactGroupArtifact.__name__ = base.__name__
+    return ExactGroupArtifact
+
+
+REPAIR_STAGE = re.compile(r"^repair_(\d+)(?:_select|_edit_retry)?$")
+COMPILE_REPAIR_STAGE = re.compile(r"^build(?:_repair)?_compile_repair_(?:\d+_)*(\d+)(?:_select|_edit_retry)?$")
+MECHANICAL_TEST_REPAIR_STAGE = re.compile(r"build_tests_(?:syntax|fixture)_\d+")
+ESCALATED = "_escalated"
+
+
+class OutputCapReached(ValueError):
+    """A top-tier repair call ended at its output cap; the attempt is spent, the code is unchanged."""
+
+    def __init__(self, stage):
+        super().__init__(f"{stage} ended at its output cap before returning a repair")
+        self.stage = stage
+
+
+def repair_tier(bundle, role, stage):
+    """Return the 1-based repair tier for a repairer call, or None when tiers do not apply."""
+    tiers = (bundle.get("build_contract") or {}).get("repair_generation")
+    if role != "repairer" or not tiers:
+        return None
+    if stage.endswith(ESCALATED):
+        return len(tiers)
+    match = REPAIR_STAGE.match(stage) or COMPILE_REPAIR_STAGE.match(stage)
+    return min(int(match.group(1)), len(tiers)) if match else None
+
+
+def call_generation(bundle, role, stage):
+    """Apply the approved per-stage generation overrides to the role's settings."""
+    generation = bundle["generation"][role]
+    if role == "test_author" and MECHANICAL_TEST_REPAIR_STAGE.fullmatch(stage):
+        mechanical = (bundle.get("build_contract") or {}).get("mechanical_test_repair_generation")
+        if mechanical:
+            return {**generation, **mechanical}
+    tier = repair_tier(bundle, role, stage)
+    if tier is None or not isinstance(generation.get("think"), str):
+        return generation
+    return {**generation, **bundle["build_contract"]["repair_generation"][tier - 1]}
+
+
+INTERFACE_PATH = re.compile(
+    r"(?i)(/dto/|/domain/|/model/|/models/|/types?/|\.d\.ts$|types?\.ts$|/api/|client|/stores?/|"
+    r"router|request\.java$|response\.java$|repository\.java$|/config/|/plugins/)"
+)
+
+
+def interface_first(paths):
+    """Order a group's files so shared contracts are selected before implementations."""
+    return sorted(paths, key=lambda path: INTERFACE_PATH.search(path) is None)
+
+
+def python_test_names_for(suite):
+    from .build_coverage import python_test_names
+    return python_test_names({f.path: f.content for f in suite.files})
+
+
+def same_test(reference, name):
+    """True when a coverage reference names this Class.method or module-level test."""
+    return reference == name or reference.endswith("." + name)
+
+
+def remove_test_methods(source, names):
+    """Delete the named test methods (Class.method or module-level) with their decorators."""
+    import ast
+    tree = ast.parse(source)
+    spans = []
+    for node in tree.body:
+        candidates = [(node.name, node)] if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else []
+        if isinstance(node, ast.ClassDef):
+            candidates = [(f"{node.name}.{item.name}", item) for item in node.body
+                          if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))]
+            doomed = [item for ref, item in candidates if ref in names]
+            if doomed and len(doomed) == len(node.body):
+                raise ValueError(f"Quarantine would empty test class {node.name}")
+        for ref, item in candidates:
+            if ref in names:
+                start = min([item.lineno] + [d.lineno for d in item.decorator_list])
+                spans.append((start, item.end_lineno))
+    found = len(spans)
+    if found != len(names):
+        raise ValueError("Quarantine could not locate every failing test method")
+    lines = source.splitlines(keepends=True)
+    for start, end in sorted(spans, reverse=True):
+        del lines[start - 1:end]
+    revised = "".join(lines)
+    ast.parse(revised)
+    return revised
+
+
+UNITTEST_BLOCK = re.compile(
+    r"(?ms)^={20,}\n(?:FAIL|ERROR): (test_\w+) \([^\n]*\)\n"
+    r"(?:(?![-=]{20,}\n)[^\n]*\n)*-{20,}\n"
+    r"(.*?)(?=^={20,}\n|^-{20,}\nRan \d+ tests?|\Z)"
+)
+ERROR_HEADLINE = re.compile(r"(?m)^[ \t]*[\w.]*(?:Error|Exception|Failure|ExceptionGroup):[^\n]+")
+
+
+def bounded_failure_excerpt(body, limit):
+    tail = body[-limit:]
+    marker = "\n...\n"
+    if len(body) <= limit or limit <= len(marker) + 1:
+        return tail
+    headlines = ERROR_HEADLINE.findall(body)
+    if not headlines or headlines[-1].strip() in tail:
+        return tail
+    headline = headlines[-1].strip()[:(limit - len(marker)) // 2]
+    prefix = headline + marker
+    return prefix + tail[-(limit - len(prefix)):]
+
+
+def unittest_failure_excerpts(receipt, limit=1200):
+    """Per-test unittest failure text from a receipt; test-side tracebacks and messages only."""
+    if limit <= 0:
+        return {}
+    excerpts = {}
+    for row in receipt.get("commands") or []:
+        log = ((row.get("stdout") or "") + "\n" + (row.get("stderr") or "")).replace("\r\n", "\n")
+        for name, body in UNITTEST_BLOCK.findall(log):
+            excerpts.setdefault(name, bounded_failure_excerpt(body.strip(), limit))
+    return excerpts
+
+
+def validate_reference_test_replacement(original, replacement, names, byte_limit):
+    """Validate the edit before running any generated code against the reference."""
+    from .build_coverage import parse_test_files, python_test_definitions
+
+    if replacement.path != original.path or len(replacement.content.encode("utf-8")) > byte_limit:
+        raise ValueError("Return the named test file within its replacement byte budget")
+    path = original.path
+    prior = parse_test_files({path: original.content})[path]
+    edited = parse_test_files({path: replacement.content})[path]
+    before, after = python_test_definitions(prior), python_test_definitions(edited)
+    if before.keys() != after.keys():
+        raise ValueError("Preserve the exact set of test methods")
+    if any(ast.dump(before[name]) != ast.dump(after[name]) for name in before.keys() - set(names)):
+        raise ValueError("Preserve the body and decorators of every test outside the failure list")
+    if ast.dump(prior) == ast.dump(edited):
+        raise ValueError("The replacement must change code that addresses the named failures")
+
+
+def remove_unmatched_test_trailer(file, diagnostics):
+    """Remove parser-identified delimiters accidentally appended to generated source."""
+    if len(diagnostics) != 1:
+        return None
+    issue = diagnostics[0]
+    lines = file.content.splitlines(keepends=True)
+    line = issue["line"] - 1
+    if issue["path"] != file.path or not 0 <= line < len(lines):
+        return None
+    trailer = lines[line].strip()
+    remaining = [part.strip() for part in lines[line + 1:] if part.strip()]
+    if trailer in {")", "]", "}"} and issue["message"] == f"unmatched '{trailer}'" and not remaining:
+        return file.model_copy(update={"content": "".join(lines[:line] + lines[line + 1:])})
+    if trailer == '"' and remaining == ["}", "]", "}"] and issue["message"].startswith("unterminated string literal"):
+        return file.model_copy(update={"content": "".join(lines[:line])})
+    return None
+
+
+@lru_cache(maxsize=64)
+def reference_test_replacement_type(approved_path):
+    class ReplacementFile(BuildTestFile):
+        path: str = Field(min_length=1, max_length=500, json_schema_extra={"enum": [approved_path]})
+
+        @model_validator(mode="after")
+        def check_path(self):
+            if self.path != approved_path:
+                raise ValueError("Return only the approved test file")
+            return self
+
+    class ReferenceTestReplacement(BuildTestSyntaxRepair):
+        files: list[ReplacementFile] = Field(min_length=1, max_length=1)
+
+    return ReferenceTestReplacement
 
 
 class RepairArtifact(ProjectArtifact):
@@ -226,6 +488,14 @@ class GroupPlan(Record):
 class RepairSelection(Record):
     diagnosis: RepairAdvice
     files: list[str] = Field(min_length=1, max_length=16)
+
+
+@lru_cache(maxsize=64)
+def scoped_repair_selection(paths):
+    class ScopedRepairSelection(RepairSelection):
+        files: list[Literal[paths]] = Field(min_length=1, max_length=min(16, len(paths)))
+
+    return ScopedRepairSelection
 
 
 def control_repair_selection(target, repair_paths):
@@ -268,7 +538,11 @@ class SelectedTextRepair(Record):
 def materialize_text_repair(artifact, selected_paths, patch) -> RepairArtifact:
     """Resolve exact edits against the original selected files before assembling replacements."""
     patch = SelectedTextRepair.model_validate(patch)
-    source = {file.path: file.content for file in artifact.files}
+    return RepairArtifact(summary=patch.summary, files=_materialize_text_edits(artifact.files, selected_paths, patch))
+
+
+def _materialize_text_edits(original_files, selected_paths, patch):
+    source = {file.path: file.content for file in original_files}
     scope = set(selected_paths)
     if not scope or len(scope) != len(selected_paths) or not scope <= source.keys():
         raise ValueError("Text repair scope must identify distinct existing implementation files")
@@ -303,7 +577,56 @@ def materialize_text_repair(artifact, selected_paths, patch) -> RepairArtifact:
         if content == original:
             raise ValueError(f"Text repair leaves {path} unchanged")
         files.append(BuildFile(path=path, content=content))
-    return RepairArtifact(summary=patch.summary, files=files)
+    return files
+
+
+def test_syntax_repair_inputs(suite, diagnostics):
+    """Expose only bounded, exact source around a Python syntax diagnostic."""
+    source = {file.path: file.content for file in suite.files}
+    snippets = []
+    for diagnostic in diagnostics:
+        path, line = diagnostic["path"], diagnostic.get("line")
+        if path not in source or type(line) is not int or line < 1 or not source[path]:
+            return None
+        lines = source[path].splitlines(keepends=True)
+        index = min(line - 1, len(lines) - 1)
+        start = max(0, index - 4)
+        snippet = "".join(lines[start:index + 7])
+        start_column = 1
+        if len(snippet) > 3000:
+            # Keep the reported column near the middle even for one long source line.
+            column = min(max((diagnostic.get("column") or 1) - 1, 0), len(lines[index]))
+            offset = max(0, sum(map(len, lines[start:index])) + column - 1400)
+            prefix = snippet[:offset]
+            skipped = prefix.splitlines(keepends=True)
+            start += len(skipped)
+            if skipped and not skipped[-1].endswith(("\n", "\r")):
+                start -= 1
+                start_column = len(skipped[-1]) + 1
+            snippet = snippet[offset:offset + 3000]
+        snippets.append({"path": path, "start_line": start + 1, "start_column": start_column, "source": snippet})
+    return {"patch_format": EXACT_REPAIR_FORMAT, "diagnostics": diagnostics, "snippets": snippets}
+
+
+TEST_DECLARATION = re.compile(r"(?m)^[ \t]*(?:class[ \t]+([A-Za-z_]\w*)|(?:async[ \t]+)?def[ \t]+(test_\w+))\b")
+
+
+def apply_test_syntax_repair(suite, inputs, value):
+    """Apply literal syntax edits without changing unrelated tests or coverage."""
+    patch = SelectedTextRepair.model_validate(value)
+    snippets = inputs["snippets"]
+    for edit in patch.edits:
+        if not any(edit.path == item["path"] and edit.before in item["source"] for item in snippets):
+            raise ValueError("Test syntax repair anchor is outside the diagnosed source snippets")
+    paths = list(dict.fromkeys(item["path"] for item in snippets))
+    replacements = _materialize_text_edits(suite.files, paths, patch)
+    changed = {file.path: file for file in replacements}
+    for file in suite.files:
+        if file.path in changed and sorted(TEST_DECLARATION.findall(file.content)) != sorted(
+                TEST_DECLARATION.findall(changed[file.path].content)):
+            raise ValueError("Test syntax repair changed a test or class declaration")
+    return type(suite).model_validate({**suite.model_dump(), "files": [
+        changed.get(file.path, file).model_dump() for file in suite.files]})
 
 
 def validate_group_plan(value, declared):
@@ -469,6 +792,15 @@ def failure_feedback(receipt, *, include_stage_results=False):
             "full_failure_receipt_digest": digest(receipt), "commands": commands}
 
 
+def settled_group_response(raw):
+    if not isinstance(raw, dict) or raw.get("native_completion") in {"unknown", "not_started_unknown"}:
+        return False
+    native = raw.get("native") or {}
+    return (isinstance(native, dict) and native.get("terminal_state") in {None, "stop"}
+            and all(native.get(key) is not False for key in
+                    ("cleanup_confirmed", "native_done_ack", "handler_finished", "admission_released")))
+
+
 def terminal_group_plan_feedback(runtime, state, stage, declared):
     """A corrective call needs a finished normal response with a provably invalid plan.
 
@@ -476,13 +808,19 @@ def terminal_group_plan_feedback(runtime, state, stage, declared):
     unrelated exception on a valid plan never authorizes another model call.
     """
     calls = [call for call in runtime.store.get(state["run_id"])["calls"] if call["stage"] == stage]
-    if len(calls) != 1 or calls[0].get("status") != "terminal" or calls[0].get("finished") is None:
+    if len(calls) != 1:
+        return None
+    call = calls[0]
+    if (call.get("status") != "terminal" or call.get("finished") is None
+            or (call.get("backend_diagnostics") or {}).get("native_completion") in {"unknown", "not_started_unknown"}):
         return None
     path = runtime.store.artifact(state["run_id"], stage, "raw")
     if not path.is_file():
         return None
     raw = json.loads(path.read_text(encoding="utf-8"))
-    choices = raw.get("choices") if isinstance(raw, dict) else None
+    if not settled_group_response(raw):
+        return None
+    choices = raw.get("choices")
     if (not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict)
             or choices[0].get("finish_reason") != "stop"):
         return None
@@ -494,9 +832,13 @@ def terminal_group_plan_feedback(runtime, state, stage, declared):
         return None
     feedback = {"rejected_response_digest": digest(raw)}
     try:
-        value = _strict_json(content)
+        value = _strict_json(runtime._content(raw))
     except ValueError as error:
-        feedback.update(validation_error=public_error(error), rejected_content=content)
+        feedback["validation_error"] = public_error(error)
+        if content.strip():
+            feedback["rejected_content"] = content
+        else:
+            feedback["final_content_missing"] = True
         return feedback
     try:
         validate_group_plan(value, declared)
@@ -508,12 +850,7 @@ def terminal_group_plan_feedback(runtime, state, stage, declared):
 
 def group_scope_feedback(raw, artifact_type, declared):
     """Derive scope feedback only from a normally completed, otherwise valid subset."""
-    if not isinstance(raw, dict) or raw.get("native_completion") == "unknown":
-        return None
-    native = raw.get("native") or {}
-    if (not isinstance(native, dict) or native.get("terminal_state") not in {None, "stop"}
-            or any(native.get(key) is False for key in
-                   ("cleanup_confirmed", "native_done_ack", "handler_finished", "admission_released"))):
+    if not settled_group_response(raw):
         return None
     choices = raw.get("choices")
     if (not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict)
@@ -548,12 +885,12 @@ PROJECT_TEST_BRIEF = TEST_BRIEF.replace(
     "The application may use a non-Python stack. Author Python unittest black-box acceptance tests against "
     "the application API and frontend. Set commands to a one-item list containing the exact Python "
     "unittest discovery command. Run every frontend check inside a discoverable Python unittest case. "
-    "For Vitest checks, have the Python case invoke the image's installed Vitest with subprocess and "
-    "assert a successful exit status. The trusted image may "
+    "For Vitest checks, have the Python case invoke the image's declared Vitest entry point with "
+    "subprocess and assert a successful exit status. The trusted image may "
     "bootstrap the application before tests. Describe precise application paths and interfaces in assumptions. "
     "A frontend build alone does not verify UI behavior; use executable DOM checks when the image supplies "
     "their dependencies, and state any UI behavior not tested. Keep the independent test source within "
-    "16384 UTF-8 bytes and 15 files. Declare ALL implementation paths, up to 128, each small enough "
+    f"{DEFAULT_TEST_BYTES} UTF-8 bytes and 15 files. Declare ALL implementation paths, up to 128, each small enough "
     "for a 24576-byte implementation group. Do not include binary "
     "files, dependency caches or lockfiles already provisioned by the image. "
     "unittest creates a fresh instance for every test method: never depend on self.token or other "
@@ -564,10 +901,18 @@ PROJECT_TEST_BRIEF = TEST_BRIEF.replace(
     "Cases may share an application/database: create unique fixtures and compare your own fixture IDs, "
     "never assume global collections or reports are empty or your row is first. Missing-resource checks "
     "on protected endpoints must send a valid JWT. UI unittest helpers must use correctly bound self/cls "
-    "variables. When the image provides Vitest/jsdom for frontend/, use a temporary Vitest configuration "
+    "variables. Invoke npm only if it is declared. Use only declared available tools.")
+
+LEGACY_DOM_TEST_BRIEF = (
+    " When the image provides Vitest/jsdom for frontend/, use a temporary Vitest configuration "
     "with root=APP_PROJECT_DIR/frontend, jsdom environment and globals enabled; resolve imports against "
     "that root using absolute frontend source paths in temporary tests (root does not retarget relative "
-    "imports). Enable the supplied Vue SFC plugin when available and use only declared available tools.")
+    "imports). Merge the application's Vite config to preserve its Vue plugin and path aliases. In Vitest "
+    "set test.server.deps.inline to include Vuetify if its components import CSS. Register the framework "
+    "plugins the mounted component needs, using a fresh store and router instance where applicable. "
+    "Invoke the declared node executable with the supplied tool's absolute JS entry point, such as "
+    "/opt/frontend/node_modules/vitest/vitest.mjs for Vitest."
+)
 
 
 class ProjectBuildRun(BuildRun):
@@ -591,6 +936,11 @@ class ProjectBuildRun(BuildRun):
         project_enabled(self.bundle)
         self.contract = {**self.bundle["build_contract"], "group_bytes": group_artifact_type(self.bundle).byte_limit}
         self.reviewed = self.contract["profile"] == REVIEWED_POLICY
+        self.suite_type, self.project_type = project_test_types(self.bundle)
+        test_bytes = self.contract["test_bytes"]
+        if test_bytes != DEFAULT_TEST_BYTES:
+            self.test_brief = self.test_brief.replace(f"{DEFAULT_TEST_BYTES} UTF-8 bytes", f"{test_bytes} UTF-8 bytes", 1)
+        self.repair_invalid_test_references = self.reviewed
         self.opencode_worker = getattr(runtime, "opencode_worker", None)
         if self.opencode_worker is not None or "project_worker" in self.bundle:
             self._check_worker_binding(self.opencode_worker, "project_worker")
@@ -600,10 +950,18 @@ class ProjectBuildRun(BuildRun):
             settings = (self.bundle.get("role_profiles") or self.bundle["generation"])["reviewer"]
             if not self.reviewed or settings.get("context") != 65536 or settings.get("think") is not True:
                 raise ValueError("OpenCode review requires the reviewed project profile with 65536 context and thinking enabled")
-        self.limits = {**self.limits, "max_test_fixture_repairs": self.contract["max_test_fixture_repairs"]}
+        self.limits = {**self.limits, "max_test_fixture_repairs": self.contract["max_test_fixture_repairs"],
+                       "max_test_defect_repairs": self.contract.get("max_test_defect_repairs", 0)}
+        from .project_reference import validate_reference
+        self.reference = validate_reference(self.bundle.get("project_reference"))
+        self._observed_seconds = {}
+        self.reference_test_repair_feedback = {}
+        self.reference_test_repair_notes = self._reference_repair_notes()
         self.brief["execution_contract"] = copy.deepcopy(self.contract["sandbox_protocol"])
-        from .project_environment import validate_project_environment
+        from .project_environment import frontend_dom_test_instructions, validate_project_environment
         self.environment = validate_project_environment(self.bundle)
+        self.frontend_dom_test_brief = frontend_dom_test_instructions(self.environment)
+        self.test_brief += self.frontend_dom_test_brief or LEGACY_DOM_TEST_BRIEF
         if self.environment is not None:
             self.brief["project_environment"] = copy.deepcopy(self.environment)
             self.brief["environment_instructions"] = (
@@ -619,12 +977,17 @@ class ProjectBuildRun(BuildRun):
             self.output["verification"].update(test_preflights=[], code_reviews=[])
             self.test_brief += (
                 " First map every numbered criterion to the smallest set of observable cases. "
-                "Target at most 12288 UTF-8 bytes across all source files, leaving 4096 bytes below "
+                "Target at most 12288 UTF-8 bytes across all source files, leaving "
+                f"{test_bytes - 12288} bytes below "
                 "the hard limit for later coverage additions. Put shared HTTP, authentication and "
                 "resource setup in reusable helpers rather than duplicating them across modules. "
                 "Use compact data tables or subtests for repeated CRUD and validation cases. "
                 "Keep real assertions for every criterion and omit verbose comments and docstrings. "
-                "Name every Python test module tests/test_*.py, for example tests/test_api.py. "
+                "Put unittest cases in tests/test_*.py, for example tests/test_api.py. Importable helper modules "
+                "may live under tests/ and must not be cited as coverage. Import test-local modules relative to "
+                "the unittest discovery root. For tests/helpers.py, write `from helpers import name`. "
+                "Each coverage entry must use the "
+                "exact Class.test_method name from its file, without #case suffixes or other labels. "
                 "Use absolute URLs built from the declared API environment for urllib requests. "
                 "On ranked reports, find your own rows by fixture ID before checking values or order. "
                 "Put embedded multiline JavaScript in raw triple-quoted Python strings and insert "
@@ -640,12 +1003,371 @@ class ProjectBuildRun(BuildRun):
             self.output["verification"]["compile_checkpoints"] = []
             self.output["compile_repair_attempts"] = 0
 
+    def ask(self, stage, role, model_type, instruction, **data):
+        """Ask a model; a lower-tier repair cut off at its output cap escalates once in the same attempt."""
+        if self.reviewed and model_type is BuildTestCoverageRepair and "addition_feedback" in data:
+            data = self.fit_addition_feedback(role, instruction, data)
+        try:
+            return self._timed_ask(stage, role, model_type, instruction, **data)
+        except ValueError as error:
+            tier = repair_tier(self.bundle, role, stage)
+            tiers = self.contract.get("repair_generation") or []
+            if tier is None or not self._ended_at_output_cap(stage):
+                raise
+            if tier >= len(tiers):
+                raise OutputCapReached(stage) from error
+        escalated = stage + ESCALATED
+        record = self.stages.setdefault(stage, {"role": role, "model": self.bundle["roles"][role]})
+        record.update(output_cap_reached=True, escalated_to=escalated)
+        try:
+            value = self._timed_ask(escalated, role, model_type, instruction, **data)
+        except ValueError as error:
+            if self._ended_at_output_cap(escalated):
+                raise OutputCapReached(escalated) from error
+            raise
+        self.stages[stage].setdefault("escalated_to", escalated)
+        self.stage = stage
+        return value
+
+    def fit_addition_feedback(self, role, instruction, data):
+        payload = build_model_payload(BuildTestCoverageRepair, instruction, self.model_inputs(data))
+        try:
+            validate_project_prompt(payload, self.bundle, role)
+        except ValueError:
+            # The rejected draft is retained in its raw receipt. Keep the immutable
+            # source and the validation error in the prompt when it cannot also fit.
+            feedback = data["addition_feedback"]
+            rejected = feedback["rejected_addition"]
+            compact = {key: value for key, value in feedback.items() if key != "rejected_addition"}
+            if isinstance(rejected, dict) and isinstance(rejected.get("files"), list):
+                paths = [file["path"] for file in rejected["files"]
+                         if isinstance(file, dict) and isinstance(file.get("path"), str)]
+                compact["rejected_paths"] = paths[:15]
+            return {**data, "addition_feedback": compact}
+        return data
+
+    def _timed_ask(self, stage, role, model_type, instruction, **data):
+        started = time.monotonic()
+        try:
+            return super().ask(stage, role, model_type, instruction, **data)
+        finally:
+            if role == "repairer":
+                think = str(call_generation(self.bundle, role, stage).get("think"))
+                self._observed_seconds[think] = max(self._observed_seconds.get(think, 0),
+                                                    time.monotonic() - started)
+
+    def _timed_check(self, kind, run):
+        started = time.monotonic()
+        try:
+            return run()
+        finally:
+            self._observed_seconds[kind] = max(self._observed_seconds.get(kind, 0), time.monotonic() - started)
+
+    def _ended_at_output_cap(self, stage):
+        try:
+            path = self.runtime.store.artifact(self.state["run_id"], stage, "raw")
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            return raw["choices"][0]["finish_reason"] == "length"
+        except (OSError, ValueError, KeyError, IndexError, TypeError):
+            return False
+
+    def repair_time_available(self, stage, check="verification"):
+        """True when the run has time for this repair and the check after it.
+
+        Each estimate is the longest duration observed so far in this run for the
+        same repair tier or check kind, never below the contract floor, so a run
+        stops cleanly with its candidate instead of expiring inside a repair.
+        """
+        floors = self.contract.get("repair_time_floor_seconds")
+        deadline = getattr(self.runtime, "deadline", 0)
+        if not floors or not deadline:
+            return True
+        if deadline == math.inf:
+            self.output.setdefault("repair_time_checks", []).append({
+                "stage": stage, "remaining_seconds": None, "no_overall_deadline": True, "allowed": True})
+            return True
+        think = str(call_generation(self.bundle, "repairer", stage).get("think"))
+        repair = max(floors.get(think, max(floors.values())), self._observed_seconds.get(think, 0))
+        verify = max(self.contract["check_time_floor_seconds"][check], self._observed_seconds.get(check, 0))
+        remaining = deadline - time.monotonic()
+        self.output.setdefault("repair_time_checks", []).append({
+            "stage": stage, "think": think, "estimate_seconds": round(repair + verify),
+            "remaining_seconds": round(remaining), "allowed": remaining >= repair + verify})
+        return remaining >= repair + verify
+
+    def control(self, suite):
+        """Run the suite against the harness-only reference; never exposed to any model."""
+        if self.reference is None:
+            return super().control(suite)
+        number = len(self.output["verification"]["controls"])
+        self.stage = f"build_control_{number}"
+        reference = self.artifact_type(summary="Trusted reference", files=self.reference["files"])
+        # The reference implements the public contract with its own source layout.
+        project = self.project_type(summary=reference.summary, files=[*reference.files, *suite.files])
+        result = self.runtime._build_execution(self.state, self.stage, 100 + number, project, suite)
+        self.output["verification"]["controls"].append({
+            "stage": self.stage, "reference_digest": self.reference["digest"], "status": result.get("status"),
+            "receipt_digest": digest(result),
+        })
+        requirements = (self.environment or {}).get("verification") if self.reviewed else None
+        if requirements:
+            summaries = [summary for row in result.get("commands", [])
+                         if (summary := sandbox_stage_results(row)) is not None]
+            checks = (summaries[0].get("checks") if summaries else None) or {}
+            required = [name for name in requirements["required_checks"] if name != "python-unittest"]
+            missing = sorted(name for name in required if name not in checks)
+            broken = sorted(name for name in required
+                            if name in checks and (checks.get(name) or {}).get("status") != "passed")
+            if summaries and missing:
+                raise ValueError("The pinned image does not report required checks " + ", ".join(missing)
+                                 + "; rebuild the image or update the project environment")
+            if summaries and broken:
+                raise ValueError("The trusted reference fails required image checks " + ", ".join(broken)
+                                 + "; fix the reference or the checks before generating code")
+        return result
+
+    def test_defects(self, suite):
+        from .project_test_lint import defects
+        return defects(suite)
+
+    def repair_test_defects(self, suite, defects):
+        return self.rewrite_tests(suite, defects, (
+            "Static review found these generated tests cannot discriminate a correct implementation "
+            "from an incorrect one."))
+
+    def repair_reference_failures(self, suite, problems, result):
+        excerpts = unittest_failure_excerpts(result)
+        diagnostics = [{**problem, "failures": [{"test": name.rsplit(".", 1)[-1],
+                                                  "excerpt": excerpts.get(name.rsplit(".", 1)[-1], "")}
+                                                 for name in problem["names"]]}
+                       for problem in problems]
+        if self.counters["build_tests_defect"] >= self.limits["max_test_defect_repairs"]:
+            return self.quarantine_reference_failures(suite, diagnostics)
+        policy = self.bundle.get("reference_test_repair")
+        if policy in {SCOPED_REFERENCE_TEST_REPAIR, PATH_BOUND_REFERENCE_TEST_REPAIR, REFERENCE_TEST_REPAIR}:
+            return self._repair_reference_test_files(suite, diagnostics, policy)
+        return self.rewrite_tests(suite, diagnostics, (
+            "A hidden trusted implementation of the specification failed these tests in the pinned image. "
+            "Treat each failure as a test defect: a wrong expectation, a fixture that conflicts with the "
+            "specification (for example a reused unique value) or a broken helper."))
+
+    def _repair_reference_test_files(self, suite, diagnostics, policy):
+        from .build_coverage import TestSyntaxError
+        from .project_environment import frontend_dom_repair_instructions
+
+        bind_path = policy != SCOPED_REFERENCE_TEST_REPAIR
+        stage = self.bounded("build_tests_defect", "max_test_defect_repairs")
+        instruction = (
+            "Repair the named test failures observed against a trusted implementation. Return one complete "
+            "replacement for the supplied test file. Correct each named failure and the helpers it relies on. "
+            "Preserve all other test methods, names and coverage. Keep real, discriminating HTTP or DOM assertions "
+            "and never skip a case or make a required action optional. Derive expectations from the public contract. "
+            "For HTTP tests, require the expected status and response shape before reading fields or recording fixtures. "
+            "Use unique fixtures and do not depend on objects made by earlier cases. Treat tokens and generated IDs "
+            "as opaque values. Verify each issued credential by using it on a protected operation. In shared result "
+            "lists, check guaranteed ordering across the actual list, then find this test's independently created rows "
+            "by identity and check their values. Do not assume fixture rows occupy absolute positions."
+            + self.frontend_dom_test_brief + frontend_dom_repair_instructions(self.environment)
+        )
+        if bind_path:
+            instruction += (
+                " When the public brief specifies Material Design Icons, row actions may be icon-only. "
+                "Find the fixture row by an exact rendered cell value, prefer a labelled action there, then "
+                "use the row's rendered pencil or delete icon when present. Exercise the actual dialog and "
+                "verify the row changes after save or confirmation. When public_reference_observations are supplied, "
+                "use them to replace each specific failing interaction or assertion and rework any shared helpers "
+                "that block the corrected flow. Match equivalent rendered controls and keep the public behavior assertions."
+            )
+        for index, failure in enumerate(sorted(diagnostics, key=lambda item: item["path"]), 1):
+            call_stage = f"{stage}_file_{index}"
+            path = failure["path"]
+            original = next(file for file in suite.files if file.path == path)
+            budget = self.contract["test_bytes"] - sum(
+                len(file.content.encode("utf-8")) for file in suite.files if file.path != path)
+            extra = {}
+            if feedback := self.reference_test_repair_feedback.get(path):
+                extra["previous_rejection"] = feedback
+            if notes := self.reference_test_repair_notes.get(path):
+                extra["public_reference_observations"] = notes
+            replacement_type = reference_test_replacement_type(path) if bind_path else BuildTestSyntaxRepair
+            raw = self.ask(call_stage, "test_author", replacement_type, instruction,
+                           files=[original.model_dump()], diagnostics=[failure], required_tests=failure["names"],
+                           max_replacement_utf8_bytes=budget, **extra)
+            self.stages[call_stage]["defects"] = [{"path": path, "names": failure["names"]}]
+            try:
+                replacement, = replacement_type.model_validate(raw).files
+                try:
+                    validate_reference_test_replacement(original, replacement, failure["names"], budget)
+                except TestSyntaxError as error:
+                    if policy != REFERENCE_TEST_REPAIR:
+                        raise
+                    corrected = remove_unmatched_test_trailer(replacement, error.diagnostics)
+                    if corrected is None:
+                        raise
+                    validate_reference_test_replacement(original, corrected, failure["names"], budget)
+                    self.stages[call_stage]["syntax_correction"] = {
+                        "diagnostic": error.diagnostics[0], "original_digest": digest(replacement.content),
+                        "corrected_digest": digest(corrected.content),
+                    }
+                    replacement = corrected
+                suite = self.suite_type.model_validate({**suite.model_dump(), "files": [
+                    replacement.model_dump() if file.path == path else file.model_dump() for file in suite.files]})
+            except (ValueError, SyntaxError) as error:
+                rejection = public_error(error)
+                self.stages[call_stage]["replacement_rejected"] = rejection
+                self.reference_test_repair_feedback[path] = (
+                    {"message": rejection, "diagnostics": error.diagnostics}
+                    if policy == REFERENCE_TEST_REPAIR and isinstance(error, TestSyntaxError) else rejection)
+            else:
+                self.reference_test_repair_feedback.pop(path, None)
+        return suite
+
+    def _reference_repair_notes(self):
+        value = self.bundle.get("reference_test_repair_observations")
+        if value is None:
+            return {}
+        seed = self.bundle.get("whole_project_seed") or {}
+        provenance = seed.get("provenance", {})
+        repair = seed.get("independent_test_repair", {})
+        paths = {file["path"] for file in repair.get("suite", {}).get("files", [])}
+        if (self.bundle.get("reference_test_repair") not in {PATH_BOUND_REFERENCE_TEST_REPAIR, REFERENCE_TEST_REPAIR}
+                or not isinstance(value, dict)
+                or value.keys() != {"source_run_id", "reference_failure_digest", "by_file"}
+                or value["source_run_id"] != provenance.get("source_run_id")
+                or value["reference_failure_digest"] != provenance.get("source_reference_failure_digest")
+                or not isinstance(value["by_file"], dict) or not value["by_file"] or value["by_file"].keys() - paths
+                or any(not isinstance(note, str) or not note.strip() for note in value["by_file"].values())):
+            raise ValueError("Public reference observations must match the approved saved test-repair checkpoint")
+        return value["by_file"]
+
+    def quarantine_reference_failures(self, suite, diagnostics):
+        """Drop the few tests the trusted reference still fails after every rewrite, and say so.
+
+        A test that a correct implementation fails cannot judge a candidate. Removing it costs
+        coverage, never correctness: the removed tests and any criteria left without a test are
+        recorded as unverified, and the remaining suite must still pass the reference to freeze.
+        """
+        limit = self.contract.get("max_quarantined_tests", 0) if self.reviewed else 0
+        failing = [(d["path"], name) for d in diagnostics for name in d["names"]]
+        total = sum(len(names) for names in python_test_names_for(suite).values())
+        if (not limit or self.output["verification"].get("quarantined")
+                or len(failing) > limit or len(failing) * 4 > total):
+            raise ValueError(
+                f"build_tests_defect repair budget exhausted; {len(failing)} of {total} tests still fail "
+                f"the trusted reference (quarantine allows at most {limit}, once, and no more than a "
+                "quarter of the suite)")
+        removed = {(path, name) for path, name in failing}
+        files = []
+        for file in suite.files:
+            names = {name for path, name in removed if path == file.path}
+            files.append({**file.model_dump(), "content": remove_test_methods(file.content, names)}
+                         if names else file.model_dump())
+        kept = [entry for entry in suite.coverage
+                if not any(entry.test_file == path and same_test(entry.test_name, name) for path, name in removed)]
+        if not kept:
+            raise ValueError("build_tests_defect repair budget exhausted; quarantine would leave no covered criterion")
+        dropped = [entry for entry in suite.coverage if entry not in kept]
+        orphaned = {entry.criterion for entry in dropped} - {entry.criterion for entry in kept}
+        excerpts = {(d["path"], f["test"]): f.get("excerpt", "") for d in diagnostics for f in d.get("failures", [])}
+        record = [{"path": path, "test": name,
+                   "criteria": sorted({e.criterion for e in dropped if e.test_file == path and same_test(e.test_name, name)}),
+                   "reference_failure": excerpts.get((path, name.rsplit(".", 1)[-1]), "")[:600]}
+                  for path, name in sorted(removed)]
+        self.output["verification"]["quarantined"] = record
+        self.unverified_criteria = frozenset(self.unverified_criteria | orphaned)
+        self.output["verification"]["unverified_criteria"] = sorted(self.unverified_criteria)
+        self.stages["build_tests_quarantine"] = {"tests": [{k: r[k] for k in ("path", "test", "criteria")} for r in record],
+                                                 "unverified_criteria": sorted(self.unverified_criteria)}
+        merged = suite.model_dump()
+        merged.update(files=files, coverage=[entry.model_dump() for entry in kept])
+        return self.suite_type.model_validate(merged)
+
+    def rewrite_tests(self, suite, diagnostics, reason):
+        """Let the test author rewrite named test methods, then re-run the full freeze checks."""
+        from .build_coverage import TestSyntaxError, python_test_names
+
+        paths = {d["path"] for d in diagnostics}
+        selected = [f.model_dump() for f in suite.files if f.path in paths]
+        replacement_budget = self.contract["test_bytes"] - sum(
+            len(file.content.encode("utf-8")) for file in suite.files if file.path not in paths)
+        instruction = (
+            reason + " Rewrite only the named test methods and the helpers they use, in exactly the named "
+            "files. You may change their setup, requests, fixtures and assertions so each one checks the "
+            "specified behavior through real HTTP requests or real DOM rendering, with expectations taken "
+            "only from the specification. Keep every existing test method name and leave other tests "
+            "unchanged. Never turn a test into a placeholder, an always-true assertion or a skipped case. "
+            "Return complete corrected files for exactly those paths. The replacement files together must "
+            "fit max_replacement_utf8_bytes. Keep shared setup compact and leave the other files unchanged."
+            + self.frontend_dom_test_brief)
+        feedback = {"max_replacement_utf8_bytes": replacement_budget}
+        while True:
+            stage = self.bounded("build_tests_defect", "max_test_defect_repairs")
+            replacements = BuildTestSyntaxRepair.model_validate(self.ask(
+                stage, "test_author", BuildTestSyntaxRepair, instruction,
+                files=selected, diagnostics=diagnostics, **feedback,
+                required_tests=[c.test_name for c in suite.coverage if c.test_file in paths]))
+            actual = sum(len(file.content.encode("utf-8")) for file in replacements.files)
+            if actual <= replacement_budget:
+                break
+            self.stages[stage]["suite_size_failure"] = {
+                "observed_utf8_bytes": actual, "max_utf8_bytes": replacement_budget}
+            feedback["previous_replacement_utf8_bytes"] = actual
+        changed = {f.path: f for f in replacements.files}
+        if set(changed) != paths or len(changed) != len(replacements.files):
+            raise ValueError("Test defect repair must return exactly the indicated test files")
+        before = python_test_names({f.path: f.content for f in suite.files if f.path in paths})
+        self.stages[stage]["defects"] = [{key: d.get(key) for key in ("path", "line", "names", "code")}
+                                         for d in diagnostics]
+        merged = suite.model_dump()
+        merged["files"] = [changed.get(f.path, f).model_dump() for f in suite.files]
+        revised = self.suite_type.model_validate(merged)
+        while True:
+            try:
+                after = python_test_names({f.path: f.content for f in revised.files if f.path in paths})
+            except TestSyntaxError as error:
+                self.stages[stage].setdefault("syntax_handoff", {"diagnostics": error.diagnostics})
+                revised = self.replace_broken(revised, error.diagnostics)
+                continue
+            if any(not names <= after.get(path, set()) for path, names in before.items()):
+                raise ValueError("Test defect repair removed or renamed a test method")
+            return revised
+
     def fixture_problems(self, suite):
         from .project_fixture_checks import diagnostics
         if self.reviewed:
             self.compile_test_suite(suite)
         python_version = None if self.reviewed else (self.environment or {}).get("python_version")
         return super().fixture_problems(suite) + diagnostics(suite, python_version=python_version)
+
+    def replace_broken(self, suite, diagnostics, fixture=False):
+        if (fixture or not self.reviewed or "whole_project_workflow" in self.bundle
+                or "mechanical_test_repair_generation" not in self.contract):
+            return super().replace_broken(suite, diagnostics, fixture)
+        inputs = test_syntax_repair_inputs(suite, diagnostics)
+        if inputs is None:
+            return super().replace_broken(suite, diagnostics, fixture)
+        stage = self.bounded("build_tests_syntax", "max_test_syntax_repairs")
+        self.stage = stage
+        instruction = (
+            "Correct the Python syntax diagnostics with minimal exact-text edits. Return an edits array "
+            "with path, before and after. Copy each before anchor verbatim from a provided snippet, "
+            "using only enough context for a unique match. Make independent edits disjoint. Preserve "
+            "all test and class names, assertions and intended behavior. For embedded TypeScript, "
+            "preserve the emitted JavaScript while correcting Python string quoting or brace escapes. "
+            "Return only the edit object and its short summary.")
+        if any("f-string" in diagnostic["message"] for diagnostic in diagnostics):
+            instruction += (
+                " In an f-string containing JavaScript, check literal braces throughout the snippet. "
+                "For example, `if (ready) {` becomes `if (ready) {{`, and its closing `}` becomes `}}`. "
+                "Keep existing brace escapes and Python interpolations. Quotes inside a triple-quoted "
+                "string are usually valid. The reported line can be inside an unmatched brace pair."
+            )
+        value = self.runtime._build_model(self.state, stage, "test_author", SelectedTextRepair,
+                                          instruction, inputs)
+        self.stages[stage] = {"role": "test_author", "model": self.bundle["roles"]["test_author"],
+                              "patch_format": EXACT_REPAIR_FORMAT,
+                              "diagnostics": diagnostics}
+        return apply_test_syntax_repair(suite, inputs, value)
 
     def addition_brief(self, suite):
         if not self.reviewed:
@@ -668,7 +1390,9 @@ class ProjectBuildRun(BuildRun):
             "addition_budget.suggested_path. Total new source must fit addition_budget.max_utf8_bytes "
             "and addition_budget.max_files, which are the remaining limits after the existing draft. "
             "Leave margin below the byte limit. Reuse importable setup from the draft when appropriate "
-            "and keep executable assertions for each requested criterion.",
+            "and keep executable assertions for each requested criterion. For Node tools, use the declared "
+            "node executable and the tool's supplied absolute JS entry point. Invoke npm only if declared."
+            + self.frontend_dom_test_brief,
             {"addition_budget": budget},
         )
 
@@ -681,7 +1405,7 @@ class ProjectBuildRun(BuildRun):
         self.stage = f"build_test_preflight_{index}"
         run_id = self.state["run_id"]
         image = self.bundle["sandbox"]["image_id"]
-        manifest = TestManifest(summary="Independent tests for syntax preflight", files=suite.files)
+        manifest = self.suite_type.manifest_type(summary="Independent tests for syntax preflight", files=suite.files)
         binding = {"image_id": image, "manifest": digest(manifest.model_dump()),
                    "policy": self.contract["test_preflight_policy"]}
 
@@ -716,6 +1440,16 @@ class ProjectBuildRun(BuildRun):
         from .project_environment import validate_suite_environment
         validate_suite_environment(suite, self.environment)
 
+    def validate_addition(self, suite, addition):
+        if not self.reviewed:
+            return
+        from .project_environment import suite_environment_issues
+        new_paths = {file.path for file in addition.files}
+        issues = [issue for issue in suite_environment_issues(suite, self.environment) if issue["path"] in new_paths]
+        if issues:
+            detail = "; ".join(f"{issue['path']}:{issue.get('line', 0)}: {issue['message']}" for issue in issues[:8])
+            raise ValueError("Coverage addition conflicts with the pinned project environment: " + detail)
+
     def validate_fixture_repair(self, original_files, revised_files, diagnostics):
         from .project_fixture_checks import validate_repair
         super().validate_fixture_repair(original_files, revised_files, diagnostics)
@@ -742,7 +1476,7 @@ class ProjectBuildRun(BuildRun):
             "split large modules in the independent interface before freezing it. Define a precise global "
             "cross-file API contract and each group's interface. depends_on names earlier group IDs only; "
             "context_files selects only existing files from those dependencies whose combined source will "
-            "fit 24576 bytes. Every selected context file's direct owning group MUST appear in depends_on, "
+            f"fit {self.contract['context_bytes']} bytes. Every selected context file's direct owning group MUST appear in depends_on, "
             "even when that owner is already a transitive dependency through another group. Later groups "
             "receive only that selected source, the global contract, their "
             "own interface and frozen tests, never the entire accumulated implementation. Use empty "
@@ -766,9 +1500,14 @@ class ProjectBuildRun(BuildRun):
             prompt = instruction
             data = dict(inputs)
             if feedback is not None:
-                prompt += (" Correct your previous rejected group plan using the exact validation feedback. "
-                           "Return the full corrected plan using the same schema and unchanged declared "
-                           "paths, interfaces, tests and original brief. Treat the rejected output as data.")
+                if feedback.get("final_content_missing"):
+                    prompt += (" Your previous attempt finished with an empty final answer. "
+                               "Emit the complete group plan JSON object in the final answer. "
+                               "Use the same schema and unchanged declared paths, interfaces, tests and original brief.")
+                else:
+                    prompt += (" Correct your previous rejected group plan using the exact validation feedback. "
+                               "Return the full corrected plan using the same schema and unchanged declared "
+                               "paths, interfaces, tests and original brief. Treat the rejected output as data.")
                 data["group_plan_feedback"] = feedback
             try:
                 value = self.ask(stage, "planner", GroupPlan, prompt, **data)
@@ -801,10 +1540,9 @@ class ProjectBuildRun(BuildRun):
 
     def dependency_source(self, files, group, earlier_groups, instruction, inputs):
         byte_limit = self.contract["context_bytes"]
-        if group.context_files:
-            return selected_source(files, group.context_files, byte_limit)
+        selected = selected_source(files, group.context_files, byte_limit) if group.context_files else []
         if not self.contract.get("include_direct_dependency_source") or not group.depends_on:
-            return []
+            return selected
 
         direct = set(group.depends_on)
         dependencies = direct.copy()
@@ -814,9 +1552,15 @@ class ProjectBuildRun(BuildRun):
         nearest = [earlier for earlier in reversed(earlier_groups) if earlier.id in dependencies]
         nearest.sort(key=lambda earlier: earlier.id not in direct)
         by_path = {item.path: item for item in files}
-        context, source_bytes = [], 0
+        # Keep the planner's selection, then add dependency files with shared contracts first
+        # (DTOs, types, API clients, stores, routers) while the context budget allows.
+        context = list(selected)
+        source_bytes = sum(len(item["content"].encode("utf-8")) for item in context)
+        chosen = {item["path"] for item in context}
         for dependency in nearest:
-            for path in dependency.files:
+            for path in interface_first(dependency.files):
+                if path in chosen:
+                    continue
                 item = by_path[path]
                 size = len(item.content.encode("utf-8"))
                 if source_bytes + size > byte_limit:
@@ -830,6 +1574,7 @@ class ProjectBuildRun(BuildRun):
                 except ValueError:
                     continue
                 context = candidate
+                chosen.add(path)
                 source_bytes += size
         return context
 
@@ -897,6 +1642,8 @@ class ProjectBuildRun(BuildRun):
             raise ValueError("Dependency interfaces exceed the bounded group context")
         stage = f"implement_group_{index}"
         artifact_type = group_artifact_type(self.bundle)
+        if self.opencode_worker is None:
+            artifact_type = exact_group_artifact(artifact_type, tuple(group.files))
         instruction = (
             "Implement ONLY this frozen group's exact file paths. Use workspace tools to write complete source "
             "to each approved path. " if self.opencode_worker is not None else
@@ -956,25 +1703,33 @@ class ProjectBuildRun(BuildRun):
         return boundaries
 
     def compile_component(self, artifact, suite, plan, index, slot, checkpoint, paths, *,
-                          repair_round=None, editable_paths=None, repair_intent=None, exact_edits=False):
+                          repair_round=None, editable_paths=None, repair_intent=None, exact_edits=False,
+                          repair_phase="repair"):
+        if repair_phase not in {"repair", "self"} or repair_phase == "self" and repair_round not in range(1, 4):
+            raise ValueError("Invalid compiler repair phase or self-repair round")
         run_id = self.state["run_id"]
         image = self.bundle["sandbox"]["image_id"]
         name = checkpoint["name"]
         policy = self.environment["verification"]["policy"]
         command = f"workbench-compile-checkpoint {name}"
         limit = self.contract["max_compile_repairs"]
+        # Remaining attempts can differ by component on resume. Workspace slots
+        # must use the original bound, not shrink into a neighboring component.
+        stride = ((self.bundle.get("build_contract") or self.contract)["max_compile_repairs"] + 1
+                  if getattr(self, "scoped_repairs", False) else limit + 1)
         if repair_round is None:
             checkpoint_stage, repair_stage, workspace_base = "build_compile_checkpoint", "build_compile_repair", 6000
             stage_slot = str(slot)
         else:
-            checkpoint_stage, repair_stage = "build_repair_compile_checkpoint", "build_repair_compile_repair"
+            prefix = "build_self_compile" if repair_phase == "self" else "build_repair_compile"
+            checkpoint_stage, repair_stage = prefix + "_checkpoint", prefix + "_repair"
             stage_slot = f"{repair_round}_{slot}"
-            workspace_base = 6100 + repair_round * self.contract["max_compile_checkpoints"] * (limit + 1)
+            workspace_base = (7100 if repair_phase == "self" else 6100) + repair_round * self.contract["max_compile_checkpoints"] * stride
         for attempt in range(limit + 1):
             stage = self.stage = f"{checkpoint_stage}_{stage_slot}_{attempt}"
-            component = ProjectArtifact(summary=f"Compile checkpoint {name}",
-                                        files=[f for f in artifact.files if f.path in paths])
-            workspace = workspace_base + slot * (limit + 1) + attempt
+            component = self.artifact_type(summary=f"Compile checkpoint {name}",
+                                           files=[f for f in artifact.files if f.path in paths])
+            workspace = workspace_base + slot * stride + attempt
             binding = {"image_id": image, "component_digest": digest(component.model_dump()),
                        "checkpoint": checkpoint, "group_index": index, "command": command}
 
@@ -985,7 +1740,7 @@ class ProjectBuildRun(BuildRun):
                                      cancel=self.runtime.events[run_id], deadline=self.runtime.deadline,
                                      read_only_project=True)
 
-            execution = self.runtime._build_receipt(run_id, stage, binding, execute)
+            execution = self._timed_check("compile", lambda: self.runtime._build_receipt(run_id, stage, binding, execute))
             rows = execution.get("commands") or []
             summary = sandbox_stage_results(rows[0]) if len(rows) == 1 else None
             status = compile_checkpoint_status(execution, summary, checkpoint, policy)
@@ -993,6 +1748,8 @@ class ProjectBuildRun(BuildRun):
                       "stage": stage, "execution": execution, "stage_results": summary}
             if repair_round is not None:
                 record["repair_round"] = repair_round
+                if repair_phase == "self":
+                    record["repair_phase"] = repair_phase
             self.output["verification"]["compile_checkpoints"].append(record)
             self.stages[stage] = {"status": status, "component_digest": binding["component_digest"],
                                   "checkpoint": name, "group_index": index}
@@ -1004,17 +1761,30 @@ class ProjectBuildRun(BuildRun):
                 self.output["error"] = {"stage": stage, "message": f"{name}: {message}"}
                 return None
 
+            repair_name = f"{repair_stage}_{stage_slot}_{attempt + 1}"
+            if not self.repair_time_available(repair_name, check="compile"):
+                self.output["error"] = {"stage": stage, "message": f"{name}: Not enough run time remains for "
+                                        "another compile repair and verification"}
+                return None
             self.output["compile_repair_attempts"] += 1
             feedback = {"compile_checkpoint": name,
                         "failed_execution": failure_feedback(execution, include_stage_results=True)}
             if repair_intent is not None:
                 feedback["repair_intent"] = repair_intent
-            repaired = self.repair_selected(
-                f"{repair_stage}_{stage_slot}_{attempt + 1}", component, suite, plan,
-                f"compiler failure in the {name} component", feedback, editable_paths=editable_paths,
-                exact_edits=exact_edits,
-            )
-            artifact = replace_selected(artifact, repaired, paths)
+            try:
+                repaired = self.repair_selected(
+                    repair_name, component, suite, plan,
+                    f"compiler failure in the {name} component", feedback, editable_paths=editable_paths,
+                    exact_edits=exact_edits,
+                )
+            except OutputCapReached as capped:
+                self.output.setdefault("capped_repairs", []).append(capped.stage)
+                if attempt + 1 >= limit:
+                    self.output["error"] = {"stage": capped.stage, "message": f"{name}: The last compile repair "
+                                            "reached its output cap; compiler errors remain"}
+                    return None
+                continue  # the next attempt rechecks the unchanged component and repairs again
+            artifact = replace_selected(artifact, repaired, paths, artifact_type=self.artifact_type)
 
     def compile_after_repair(self, previous, artifact, suite, grouping, selected, focus, *, exact_edits=False):
         before = {item.path: item.content for item in previous.files}
@@ -1105,6 +1875,10 @@ class ProjectBuildRun(BuildRun):
         return result["value"]
 
     def code_review(self, number, artifact, project, plan, baseline, *, tests_passed=False, previous_artifact=None):
+        if self.bundle.get('project_review_policy') == 'source-anchors-v1':
+            from .project_review_flow import review_project
+            return review_project(self, number, artifact, project, plan, baseline,
+                                  tests_passed=tests_passed, previous_artifact=previous_artifact)
         from .project_review import (ProjectCodeReview, REVIEW_BRIEF, ReviewCitationError, numbered_review_source,
                                      resolve_review_citations, review_chunks, style_findings)
 
@@ -1215,6 +1989,26 @@ class ProjectBuildRun(BuildRun):
         self.output["verification"]["code_reviews"].append(result)
         return result
 
+    def repair_within_budget(self, artifact, suite, baseline, plan, review, focus):
+        """Repair once; a capped top-tier attempt is spent and the next starts from the same evidence.
+
+        The code is unchanged after a capped attempt, so verification is not repeated. Returns None,
+        with the reason in output["error"], when attempts or run time run out first.
+        """
+        while True:
+            try:
+                return self.repair(artifact, suite, baseline, plan, review, focus=focus)
+            except OutputCapReached as capped:
+                self.output.setdefault("capped_repairs", []).append(capped.stage)
+                message = None
+                if self.output["repair_attempts"] >= self.limits["max_repair_attempts"]:
+                    message = "Every remaining repair attempt reached its output cap"
+                elif not self.repair_time_available(f"repair_{self.counters['repair'] + 1}"):
+                    message = "A repair reached its output cap and not enough run time remains for another"
+                if message:
+                    self.output["error"] = {"stage": capped.stage, "message": message}
+                    return None
+
     def repair(self, artifact, suite, baseline, plan, review=None, *, focus=None):
         stage = self.bounded("repair", "max_repair_attempts")
         self.output["repair_attempts"] += 1
@@ -1268,8 +2062,11 @@ class ProjectBuildRun(BuildRun):
             tree = [{"path": f.path, "bytes": len(f.content.encode("utf-8")),
                      "sha256": hashlib.sha256(f.content.encode("utf-8")).hexdigest()}
                     for f in artifact.files if editable_paths is None or f.path in editable_paths]
+            if not tree:
+                raise ValueError("No existing implementation files are available for repair")
+            selection_type = scoped_repair_selection(tuple(item["path"] for item in tree))
             selection_feedback = {**feedback, "diagnostic_source": diagnostic_source} if diagnostic_source else feedback
-            selection = RepairSelection.model_validate(self.ask(stage + "_select", "repairer", RepairSelection,
+            selection = selection_type.model_validate(self.ask(stage + "_select", "repairer", selection_type,
                 f"Diagnose this {problem} and select the smallest set of existing implementation files to repair. "
                 + focus_instruction +
                 "Select at most 16 files with combined source at most 32768 UTF-8 bytes. Use the tree's byte "
@@ -1277,6 +2074,7 @@ class ProjectBuildRun(BuildRun):
                 "are frozen. Do not select tests or create paths. Return diagnosis and selected paths only.",
                 contract=plan.contract, implementation_tree=tree,
                 frozen_tests=compact_suite(suite), **selection_feedback))
+            selection = selection.model_copy(update={"files": list(dict.fromkeys(selection.files))})
         else:
             selection = control_selection
             selection_proof = control_repair_proof(artifact, feedback["repair_target"], selection)
@@ -1354,7 +2152,53 @@ class ProjectBuildRun(BuildRun):
         self.stage = stage
         return replacement
 
-    def execute(self):
+    def _initial_test_suite(self):
+        stage = "build_tests"
+        brief = self.test_brief
+        if self.reviewed:
+            brief += (" List only application paths as strings in implementation_files. "
+                      "Put only the authored tests/ source in files.")
+        raw = self.ask(stage, "test_author", self.suite_type, brief)
+        declared = raw.get("implementation_files") if isinstance(raw, dict) else None
+        value, fixes = normalized_manifest(raw, declared, recover_test_paths=self.reviewed)
+        self.stages[stage]["manifest_corrections"] = fixes
+        if self.reviewed:
+            recovered = sorted(path for path in declared if path not in value["implementation_files"])
+            if recovered:
+                self.stages[stage]["recovered_test_paths"] = recovered
+            value, renames = normalize_authored_test_paths(value)
+            if renames:
+                self.stages[stage]["filename_corrections"] = renames
+        try:
+            return self.suite_type.model_validate(value)
+        except ValidationError as error:
+            limit = self.contract["test_bytes"]
+            details = error.errors(include_input=False, include_url=False)
+            if (not self.reviewed or len(details) != 1 or details[0]["loc"]
+                    or details[0]["msg"] != f"Value error, Build files exceed the {limit}-byte manifest bound"):
+                raise
+        source_bytes = sum(len(file["content"].encode("utf-8")) for file in value["files"])
+        feedback = {"observed_utf8_bytes": source_bytes, "max_utf8_bytes": limit}
+        self.stages[stage]["suite_size_repair"] = feedback
+        replacements = BuildTestSyntaxRepair.model_validate(self.ask(
+            "build_tests_retry", "test_author", BuildTestSyntaxRepair,
+            "The independent test suite exceeds its UTF-8 source limit. Return complete source for "
+            "exactly the same test files within the limit. Consolidate repeated setup and helper code. "
+            "Preserve every coverage reference, scenario, test method and meaningful assertion. "
+            "Keep HTTP and UI checks executable. Do not remove, skip or weaken tests.",
+            files=value["files"], coverage=value["coverage"], suite_size=feedback,
+        ))
+        revised = {file.path: file.content for file in replacements.files}
+        original = {file["path"]: file["content"] for file in value["files"]}
+        if revised.keys() != original.keys() or len(revised) != len(replacements.files):
+            raise ValueError("Suite size repair must return exactly the original test paths")
+        from .build_coverage import python_test_names
+        before, after = python_test_names(original), python_test_names(revised)
+        if any(not names <= after[path] for path, names in before.items()):
+            raise ValueError("Suite size repair removed or renamed a test method")
+        return self.suite_type.model_validate({**value, "files": replacements.model_dump()["files"]})
+
+    def prepare_test_suite(self):
         from .project_reuse import load_project_reuse
         self.reuse = load_project_reuse(self.bundle)
         if self.reuse is not None:
@@ -1376,24 +2220,27 @@ class ProjectBuildRun(BuildRun):
             from .build_coverage import validate_test_coverage
             if self.reviewed and self.fixture_problems(suite):
                 raise ValueError("Frozen checkpoint fixtures failed current preflight")
+            if self.test_defects(suite):
+                raise ValueError("Frozen checkpoint tests fail the generated-test lint; author a new suite")
+            reference_result = self.control(suite)
+            if reference_result is not None and not validate_baseline(reference_result, suite):
+                raise ValueError("Frozen checkpoint tests fail against the trusted reference; author a new suite")
             self.output.update(suite=suite.model_dump(), suite_digest=digest(suite.model_dump()))
             self.stages["build_frozen"] = {"digest": self.output["suite_digest"],
                 "coverage": validate_test_coverage(suite, plan.acceptance_criteria),
-                "reference_corrections": [], "trusted_control": "not_supplied",
+                "reference_corrections": [],
+                "trusted_control": "passed" if reference_result is not None else "not_supplied",
                 "reused_from": self.reuse.provenance["source"]}
         else:
-            raw = self.ask("build_tests", "test_author", ProjectTestSuite, self.test_brief)
-            value, fixes = normalized_manifest(raw, raw.get("implementation_files") if isinstance(raw, dict) else None)
-            self.stages["build_tests"]["manifest_corrections"] = fixes
-            if self.reviewed:
-                value, renames = normalize_authored_test_paths(value)
-                if renames:
-                    self.stages["build_tests"]["filename_corrections"] = renames
-            suite = self.check_suite(ProjectTestSuite.model_validate(value))
+            suite = self.check_suite(self._initial_test_suite())
         self.runtime.store.save_artifact(self.state["run_id"], "build_frozen", "raw", {
             **self.stages["build_frozen"], "plan_digest": digest(plan.model_dump()),
             "suite": suite.model_dump(), "suite_digest": self.output["suite_digest"],
         })
+        return suite
+
+    def execute(self):
+        suite = self.prepare_test_suite()
         grouping = self.grouping(suite)
         artifact = self.implement_groups(grouping, suite)
         if artifact is None:
@@ -1403,6 +2250,10 @@ class ProjectBuildRun(BuildRun):
     def before_acceptance(self, artifact):
         """Return readiness and the candidate, or no candidate when acceptance must stop."""
         return True, artifact
+
+    def verification_candidate(self, artifact, suite, baseline, report):
+        """Allow an approved workflow to reject a regression before review or delivery."""
+        return artifact
 
     def verify_and_repair(self, artifact, suite, grouping, *, prior_verification=()):
         """Verify an assembled implementation, review it, and apply bounded repairs."""
@@ -1429,7 +2280,8 @@ class ProjectBuildRun(BuildRun):
             project = assemble(artifact, suite, self.project_type)
             number = len(self.output["verification"]["baselines"])
             self.stage = f"build_verify_{number}"
-            baseline = self.runtime._build_execution(self.state, self.stage, number, project, suite)
+            baseline = self._timed_check("verification", lambda: self.runtime._build_execution(
+                self.state, self.stage, number, project, suite))
             report = {"suite_digest": self.output["suite_digest"], **baseline}
             if self.reviewed:
                 report["sandbox_stage_results"] = [
@@ -1440,6 +2292,12 @@ class ProjectBuildRun(BuildRun):
                 self.output["error"] = {"stage": self.stage,
                                         "message": "Required image checks did not produce a matching receipt"}
                 return "review_required"
+            retained = self.verification_candidate(artifact, suite, baseline, report)
+            if retained is not artifact:
+                # The previous receipt belongs to the rejected candidate. Always execute
+                # the restored source again; never credit it with another source's pass.
+                artifact = retained
+                continue
             focus = observe(baseline, report.get("sandbox_stage_results", []), self.stage)
             if failures is not None:
                 self.output["verification"]["open_failures"] = list(failures.open.values())
@@ -1463,8 +2321,15 @@ class ProjectBuildRun(BuildRun):
                 if self.reviewed and self.output["repair_attempts"] >= self.limits["max_repair_attempts"]:
                     self.output["error"] = {"stage": self.stage, "message": "Unresolved verification or review findings"}
                     return "review_required"
+                if not self.repair_time_available(f"repair_{self.counters['repair'] + 1}"):
+                    self.output["error"] = {"stage": self.stage, "message": "Unresolved verification or review "
+                                            "findings; not enough run time remains for another repair"}
+                    return "review_required"
                 previous = artifact
-                artifact = self.repair(artifact, suite, None if passed else baseline, grouping, review, focus=focus)
+                artifact = self.repair_within_budget(artifact, suite, None if passed else baseline, grouping,
+                                                     review, focus)
+                if artifact is None:
+                    return "review_required"
                 if self.compile_checkpoints:
                     repair_stage = self.stages[self.stage]
                     artifact = self.compile_after_repair(
@@ -1485,4 +2350,11 @@ class ProjectBuildRun(BuildRun):
             if quality["status"] != "passed":
                 return "review_required"
             self.output["artifact"] = project.model_dump()
+            if self.unverified_criteria:
+                self.output["error"] = {
+                    "stage": self.stage,
+                    "message": "Independent coverage remains unverified for criteria "
+                               + ", ".join(map(str, sorted(self.unverified_criteria))),
+                }
+                return "review_required"
             return "completed"

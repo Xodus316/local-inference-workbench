@@ -75,6 +75,8 @@ class GroupContextTests(unittest.TestCase):
         request = next(payload for name, _, _, payload in models.seen if name == stage)
         self.assertEqual(json.loads(request["messages"][1]["content"])["selected_source"],
                          [{"path": path, "content": models.sources[path]} for path in paths])
+        self.assertLessEqual(sum(len(models.sources[path].encode("utf-8")) for path in paths),
+                             result["bundle"]["build_contract"]["context_bytes"])
         if reviewed:
             self.assertEqual(result["result"]["stages"][stage]["context_paths"], paths)
 
@@ -135,8 +137,11 @@ class GroupContextTests(unittest.TestCase):
         ]
         plan = {"contract": "Backend catalog and authentication support the frontend", "groups": groups}
         for profile, explicit, expected in [
-            (REVIEWED_POLICY, [], ["api/App.java", "api/Product.java", "api/ApiException.java"]),
-            (REVIEWED_POLICY, ["api/Security.java"], ["api/Security.java"]),
+            # Explicit files keep priority, then complete direct and transitive
+            # dependencies fit within the approved 48 KiB source budget.
+            (REVIEWED_POLICY, [], ["api/App.java", "api/Product.java", "api/Security.java", "api/ApiException.java"]),
+            (REVIEWED_POLICY, ["api/Security.java"],
+             ["api/Security.java", "api/App.java", "api/Product.java", "api/ApiException.java"]),
             (POLICY, [], []),
         ]:
             with self.subTest(profile=profile, explicit=explicit):
