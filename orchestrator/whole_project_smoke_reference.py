@@ -6,7 +6,7 @@ import re
 
 from .build_coverage import parse_test_files, python_test_definitions
 from .build_workflow import actionable_failure, public_error, validate_baseline
-from .project_build import (ProjectTestSuite, execution_settled, matching_image_checks,
+from .project_build import (execution_settled, matching_image_checks,
                             sandbox_stage_results, validate_reference_test_replacement, ERROR_HEADLINE)
 from .project_fixture_checks import _bypasses
 from .store import digest
@@ -138,7 +138,7 @@ def validate_smoke_reference_correction(before, after, diagnostics):
             if not named:
                 raise ValueError("Smoke reference correction changed a file without a diagnosed failure")
             validate_reference_test_replacement(prior_files[path], revised_files[path], named,
-                                                ProjectTestSuite.manifest_type.byte_limit)
+                                                before.manifest_type.byte_limit)
             changed = True
     if not changed:
         raise ValueError("Smoke reference correction did not change the failed fixture or request")
@@ -187,7 +187,7 @@ def validate_smoke_reference(workflow, candidate, suite, *, allow_repair=True):
         workflow.counters["whole_self_reference_repair"] += 1
         workflow.evidence["budget_counters"] = dict(workflow.counters)
         stage = f"whole_self_reference_repair_{attempts + 1}"
-        raw = workflow._generate(stage, "implementer", ProjectTestSuite,
+        raw = workflow._generate(stage, "implementer", type(suite),
             "Correct the supplied smoke suite's named failures against a hidden trusted implementation of the "
             "public contract. The reference source and logs are not available. Repair request authentication, "
             "fixtures or shared setup using only the public brief and test-side failures. Preserve every test "

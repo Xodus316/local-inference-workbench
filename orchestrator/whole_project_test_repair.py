@@ -45,6 +45,15 @@ REFERENCE_GENERATION_LIMITS = {
     INLINE_DIAGNOSIS_POLICY_V2: {**METHOD_PATCH_GENERATION_LIMITS,
                                 "max_completion_tokens": DIAGNOSIS_OUTPUT_TOKENS},
 }
+
+
+def reference_generation_limits(tool_policy, completion_token_ceiling):
+    limits = REFERENCE_GENERATION_LIMITS[tool_policy]
+    if completion_token_ceiling is not None:
+        return {**limits, "max_completion_tokens": completion_token_ceiling}
+    return dict(limits)
+
+
 REFERENCE_REPAIR_GUIDANCE = (
     " This is pre-freeze correction of an unaccepted test draft that failed the trusted reference. "
     "The authorized test definitions may change here; the public brief's frozen-test restriction applies "

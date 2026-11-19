@@ -15,7 +15,7 @@ from .build_workflow import (actionable_failure, build_model_payload, normalized
                              reference_test_failures, validate_baseline)
 from .build_discovery import normalize_authored_test_paths
 from .project_build import (DEFAULT_TEST_BYTES, REVIEWED_POLICY, ProjectArtifact, ProjectBuildRun, ProjectProject,
-                            ProjectTestSuite, execution_settled, failure_feedback, project_test_types,
+                            execution_settled, failure_feedback, project_test_types,
                             replace_selected, scoped_repair_selection, selected_source, settled_group_response,
                             unittest_failure_excerpts, validate_project_prompt)
 from .ollama import _strict_json
@@ -23,8 +23,8 @@ from .project_opencode import OpenCodeOutputLimitError
 from .repository import MAX_FILE
 from .store import digest
 from .whole_project_limits import DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES, validate_source_bytes
-from .whole_project_sandbox import (SelfTestFixtureError, execute_self_test, validate_self_fixture_correction,
-                                    validate_self_suite)
+from .whole_project_sandbox import (SelfTestFixtureError, execute_self_test, smoke_test_type,
+                                    validate_self_fixture_correction, validate_self_suite)
 from .project_dependency_reference import validate_dependency_reference
 from .whole_project_repair import (POLICY as REPAIR_POLICY, focused_feedback, public_repair_plan,
                                    verification_observation, verification_regressions)
@@ -46,6 +46,7 @@ from .whole_project_test_repair import (DIAGNOSIS_POLICY, DIAGNOSIS_POLICY_V2, D
                                         METHOD_PATCH_STAGE, REFERENCE_GENERATION_LIMITS, REFERENCE_REPAIR_GUIDANCE,
                                         ReferenceDiagnosis, ReferenceMethodPatch, compose_reference_method_patch,
                                         reference_diagnosis_binding, reference_diagnosis_inputs, reference_diagnosis_type,
+                                        reference_generation_limits,
                                         reference_method_patch_inputs, reference_method_patch_type)
 from .whole_project_reference_history import (empty_reference_history, history_with_record,
                                                reference_attempt_record, validate_reference_history)
@@ -121,13 +122,14 @@ def _whole_project_types(source_bytes, test_manifest):
 
 def whole_project_types(bundle):
     suite_type, _ = project_test_types(bundle)
+    manifest = suite_type.manifest_type
     supplemental = bundle.get("whole_project_regression_suite") or {}
     if supplemental.get("policy") == "reference-validated-regression-suite-v2":
-        from .supplemental_regression import RegressionManifest48, capacity_binding
-        if supplemental.get("capacity") != capacity_binding():
-            raise ValueError("Unapproved supplemental project assembly capacity")
-        return _whole_project_types(whole_project_source_bytes(bundle), RegressionManifest48)
-    return _whole_project_types(whole_project_source_bytes(bundle), suite_type.manifest_type)
+        from .supplemental_regression import supplemental_suite_type
+        supplemental_manifest = supplemental_suite_type(supplemental.get("capacity")).manifest_type
+        if supplemental_manifest.byte_limit > manifest.byte_limit:
+            manifest = supplemental_manifest
+    return _whole_project_types(whole_project_source_bytes(bundle), manifest)
 
 
 class WholeProjectPlan(BuildPlan):
@@ -663,7 +665,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if arguments.get("tool_policy") is not None:
             expected["tool_policy"] = arguments["tool_policy"]
         if arguments.get("tool_policy") in REFERENCE_GENERATION_LIMITS:
-            expected["generation_limits"] = REFERENCE_GENERATION_LIMITS[arguments["tool_policy"]]
+            expected["generation_limits"] = reference_generation_limits(
+                arguments["tool_policy"], identity.get("completion_token_ceiling"))
         if (any(receipt.get(key) != value for key, value in expected.items())
                 or resident.get("digest") != identity["model_digest"]
                 or resident.get("context_length") != settings["context"]):
@@ -740,6 +743,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         inline = tool_policy is not None
         bounded_method = tool_policy in REFERENCE_GENERATION_LIMITS
         reference_repair = tool_policy == INLINE_SMOKE_POLICY and stage in SMOKE_REFERENCE_REPAIR_STAGES
+        # These reserves guarantee room before dispatch. A provider with a larger
+        # completion ceiling can use additional context left by the rendered prompt.
         output_reserve = (REFERENCE_GENERATION_LIMITS[tool_policy]["max_completion_tokens"] if bounded_method else
                           SMOKE_OUTPUT_TOKENS if tool_policy == INLINE_SMOKE_POLICY else SELECTION_OUTPUT_TOKENS)
         data = dict(data)
@@ -1031,10 +1036,12 @@ class WholeProjectBuildRun(ProjectBuildRun):
 
     def _author_self_suite(self, artifact, paths):
         stage = "whole_self_tests"
+        suite_type = smoke_test_type(self)
+        byte_limit = suite_type.manifest_type.byte_limit
         brief = (
             "Write your own compact executable Python unittest smoke suite for this application. Use valid "
             "fixtures and three to five focused checks for critical behavior, including a meaningful failure path. "
-            "Aim for under 8192 UTF-8 bytes in one or two files. "
+            f"Aim for under 8192 UTF-8 bytes in one or two files. The maximum is {byte_limit} UTF-8 bytes. "
             "Workbench also runs the image's required build and runtime checks. Select the highest-priority smoke "
             "checks and avoid an exhaustive endpoint or UI matrix. Map tested behaviors to criterion numbers "
             "from the plan. Verify API registration and a protected call if the plan declares them. "
@@ -1059,11 +1066,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 "not on cls in setUpClass or other classmethods. In class fixtures use explicit conditional "
                 "AssertionError checks, preserving the same asserted conditions."
             )
-        value = self._generate(stage, "implementer", ProjectTestSuite, brief, data, source, **options)
+        value = self._generate(stage, "implementer", suite_type, brief, data, source, **options)
         try:
             return validate_self_suite(self, value, artifact)
         except ValueError as error:
-            feedback = _suite_feedback(value, error, byte_limit=ProjectTestSuite.manifest_type.byte_limit,
+            feedback = _suite_feedback(value, error, byte_limit=byte_limit,
                                        file_limit=self.contract["test_files"])
             self.stages[stage]["validation_error"] = feedback["validation_error"]
             correction = {}
@@ -1079,7 +1086,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     "Return the complete corrected suite, copying implementation_files exactly from its separate field."
                 )
             corrected = self._generate(
-                stage + "_retry", "implementer", ProjectTestSuite,
+                stage + "_retry", "implementer", suite_type,
                 brief + " Use the validation feedback to write a corrected complete smoke suite." + correction_brief,
                 {**data, "previous_suite_validation": feedback, **correction}, source, **options,
             )

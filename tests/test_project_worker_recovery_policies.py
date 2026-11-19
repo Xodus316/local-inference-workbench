@@ -68,7 +68,11 @@ class InlineWorkerPolicyTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "test projection byte limit"):
                     OpenCodeProjectWorker("fixture", "fixture", "fixture", role=role,
                         context=98304, thinking="medium", test_bytes=SUPPLEMENTAL_TEST_BYTES)
-            for capacity in (True, 49153, 65536):
+            for role in ("planner", "implementer", "repairer", "test_author"):
+                worker = OpenCodeProjectWorker("fixture", "fixture", "fixture", role=role,
+                    context=98304, thinking="medium", test_bytes=65536, completion_token_ceiling=65536)
+                self.assertEqual((worker.test_bytes, worker.completion_token_ceiling), (65536, 65536))
+            for capacity in (True, 49153, 65537):
                 with self.assertRaisesRegex(ValueError, "test projection byte limit"):
                     OpenCodeProjectWorker("fixture", "fixture", "fixture", role="repairer",
                         context=98304, thinking="medium", test_bytes=capacity)
@@ -91,6 +95,12 @@ class InlineWorkerPolicyTests(unittest.TestCase):
                 self.assertEqual(configured["provider"][_PROVIDER]["models"]["fixture"]["limit"]["output"], 32768)
                 self.assertEqual(env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"], "32768")
                 self.assertEqual(original["permission"], {"read": "allow"})
+                worker.completion_token_ceiling = 65536
+                env = worker._project_environment(Path(directory), {"output_tokens": 65536}, (), "instruction",
+                                                  {"type": "object"}, tool_policy=policy)
+                configured = json.loads((Path(directory) / "workbench-opencode.json").read_text())
+                self.assertEqual(configured["provider"][_PROVIDER]["models"]["fixture"]["limit"]["output"], 65536)
+                self.assertEqual(env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"], "65536")
 
     def test_live_guard_forbids_tool_calls_compaction_and_second_step(self):
         for forbidden in ({"type": "tool_use"}, {"type": "compaction"}, {"type": "step_start"}):

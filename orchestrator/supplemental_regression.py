@@ -6,6 +6,7 @@ These cases do not claim acceptance-criterion coverage for an independent suite.
 
 from hashlib import sha256
 import json
+from typing import ClassVar
 
 from pydantic import Field, model_validator
 
@@ -13,22 +14,30 @@ from orchestrator.build_coverage import python_test_names
 from orchestrator.build_discovery import CASE_LINE, COUNT_LINE, covered_cases_ran, discovery_case
 from orchestrator.build_models import BuildTestFile, UnittestDiscoveryCommand
 from orchestrator.build_sandbox import validate_artifact
-from orchestrator.project_build import TestManifest, execution_settled, matching_image_checks, sandbox_stage_results
+from orchestrator.project_build import (TestManifest, WholeProjectTestManifest, execution_settled,
+                                        matching_image_checks, sandbox_stage_results)
 from orchestrator.schemas import Record
 from orchestrator.store import digest
+from orchestrator.whole_project_limits import WHOLE_PROJECT_TEST_BYTES
 
 
 POLICY = "reference-validated-regression-suite-v2"
 REGRESSION_POLICY = POLICY
 CAPACITY_POLICY = "supplemental-test-capacity-v1"
+CAPACITY_POLICY_64 = "supplemental-test-capacity-v2"
 TEST_BYTES = 49152
 INDEPENDENT_TEST_BYTES = 32768
 
 
-def capacity_binding():
-    """The only supported extension; independent tests retain their old cap."""
-    return {"policy": CAPACITY_POLICY, "test_bytes": TEST_BYTES,
-            "independent_test_bytes": INDEPENDENT_TEST_BYTES, "test_files": 15}
+def capacity_binding(test_bytes=TEST_BYTES):
+    """Return the exact capacity record for a supported approval."""
+    if test_bytes == WHOLE_PROJECT_TEST_BYTES:
+        return {"policy": CAPACITY_POLICY_64, "test_bytes": WHOLE_PROJECT_TEST_BYTES,
+                "independent_test_bytes": WHOLE_PROJECT_TEST_BYTES, "test_files": 15}
+    if test_bytes == TEST_BYTES:
+        return {"policy": CAPACITY_POLICY, "test_bytes": TEST_BYTES,
+                "independent_test_bytes": INDEPENDENT_TEST_BYTES, "test_files": 15}
+    raise ValueError("Unapproved supplemental test capacity")
 
 
 class SupplementalTestManifest(TestManifest):
@@ -44,6 +53,7 @@ class RegressionCase(Record):
 
 
 class RegressionSuite48(Record):
+    manifest_type: ClassVar[type[TestManifest]] = SupplementalTestManifest
     implementation_files: list[str] = Field(max_length=128)
     files: list[BuildTestFile] = Field(min_length=1, max_length=15)
     commands: list[UnittestDiscoveryCommand] = Field(min_length=1, max_length=1)
@@ -56,7 +66,7 @@ class RegressionSuite48(Record):
 
     @model_validator(mode="after")
     def complete_discovery(self):
-        manifest = SupplementalTestManifest(summary="Approved supplemental regression tests", files=self.files)
+        manifest = self.manifest_type(summary="Approved supplemental regression tests", files=self.files)
         validate_artifact(manifest)
         if any(not file.path.endswith(".py") for file in self.files):
             raise ValueError("Regression suites contain Python tests and helpers only")
@@ -69,6 +79,18 @@ class RegressionSuite48(Record):
         if len(set(self.implementation_files)) != len(self.implementation_files):
             raise ValueError("Regression application inventory must be unique")
         return self
+
+
+class RegressionSuite64(RegressionSuite48):
+    manifest_type = WholeProjectTestManifest
+
+
+def supplemental_suite_type(capacity):
+    if capacity == capacity_binding(WHOLE_PROJECT_TEST_BYTES):
+        return RegressionSuite64
+    if capacity == capacity_binding():
+        return RegressionSuite48
+    raise ValueError("Unapproved supplemental test capacity")
 
 
 def regression_cases_passed(receipt, suite):
@@ -89,14 +111,16 @@ def validate_regression_suite(value, bundle, paths):
     fields = {"policy", "suite", "suite_digest", "image_id", "reference_digest",
               "source_files_sha256", "reference_report", "capacity"}
     if (not isinstance(value, dict) or value.keys() != fields or value["policy"] != POLICY
-            or value["capacity"] != capacity_binding()
             or value["image_id"] != (bundle.get("sandbox") or {}).get("image_id")
             or value["reference_digest"] != (bundle.get("project_reference") or {}).get("digest")
             or not isinstance(value["suite"], dict)
             or value["suite"].keys() != {"files", "commands", "cases"}
             or value["suite_digest"] != digest(value["suite"])):
         raise ValueError("Supplemental regression suite differs from its approved task, image or reference")
-    suite = RegressionSuite48(implementation_files=list(paths), **value["suite"])
+    suite_type = supplemental_suite_type(value["capacity"])
+    if suite_type is RegressionSuite64 and (bundle.get("build_contract") or {}).get("test_bytes") != WHOLE_PROJECT_TEST_BYTES:
+        raise ValueError("64 KiB supplemental capacity requires the corresponding whole-project test contract")
+    suite = suite_type(implementation_files=list(paths), **value["suite"])
     hashes = {file.path: sha256(file.content.encode("utf-8")).hexdigest() for file in suite.files}
     if value["source_files_sha256"] != hashes:
         raise ValueError("Supplemental regression test bytes changed")

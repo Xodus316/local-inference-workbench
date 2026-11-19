@@ -3,7 +3,7 @@ from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
 
-from .project_build import (EXPANDED_TEST_BYTES, REFERENCE_TEST_REPAIR, REVIEWED_POLICY,
+from .project_build import (REFERENCE_TEST_REPAIR, REVIEWED_POLICY,
                             WHOLE_PROJECT_REPAIR_SELECTED_BYTES, offline_project_contract)
 from .project_dependency_reference import validate_dependency_reference
 from .role_isolation import KEY as ISOLATION_KEY, POLICY as ISOLATION_POLICY, SESSION, validate_role_isolation
@@ -11,7 +11,7 @@ from .store import digest
 from .whole_project import POLICY, WORKER_ROLES
 from .whole_project_checkpoint import REPAIR_POLICY
 from .whole_project_gates import POLICY as GATE_POLICY
-from .whole_project_limits import DEFAULT_SOURCE_BYTES, validate_source_bytes
+from .whole_project_limits import DEFAULT_SOURCE_BYTES, WHOLE_PROJECT_TEST_BYTES, validate_source_bytes
 
 FRESH_POLICY = 'fresh-whole-project-v1'
 FORBIDDEN = frozenset({
@@ -28,7 +28,7 @@ def source_identity():
 
 
 def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES,
-                           test_bytes=EXPANDED_TEST_BYTES, dependency_reference=None,
+                           test_bytes=WHOLE_PROJECT_TEST_BYTES, dependency_reference=None,
                            supplemental_suite=None):
     """Pure preparation with explicit workers, image, reference and bounded gates.
 
@@ -88,9 +88,11 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
     from .supplemental_test_capacity import projected_test_bytes
     for role, worker in value['whole_project_workers'].items():
         settings = value['generation'][role]
+        ceiling = worker.get('completion_token_ceiling')
         if (worker.get('role') != role or worker.get('model') != value['roles'][role]
                 or worker.get('source_bytes') != source_bytes
                 or worker.get('test_bytes') != projected_test_bytes(value, role)
+                or (ceiling is not None and settings.get('output_tokens') != ceiling)
                 or worker.get('context') != settings['context'] or worker.get('thinking') != settings['think']):
             raise ValueError('Worker identity differs from the fresh build configuration')
     return value

@@ -7,10 +7,11 @@ from .build_coverage import (correct_test_references, parse_test_files, python_t
                              python_test_names, validate_coverage_references)
 from .build_discovery import validate_discovery_suite
 from .build_workflow import actionable_failure, assemble, validate_baseline, validate_paths
-from .project_build import (ProjectTestSuite, execution_settled, failure_feedback,
+from .project_build import (ProjectTestSuite, WholeProjectTestSuite, execution_settled, failure_feedback,
                             matching_image_checks, sandbox_stage_results)
 from .store import digest
 from .unittest_fixture_lint import class_assertion_problems
+from .whole_project_limits import WHOLE_PROJECT_TEST_BYTES
 
 
 class SelfTestFixtureError(ValueError):
@@ -60,9 +61,15 @@ def _split_self_test_references(suite):
     return type(suite).model_validate({**value, "coverage": coverage})
 
 
+def smoke_test_type(workflow):
+    if getattr(workflow, "bundle", {}).get("test_suite_bytes") == WHOLE_PROJECT_TEST_BYTES:
+        return WholeProjectTestSuite
+    return ProjectTestSuite
+
+
 def validate_self_suite(workflow, raw, candidate):
     """Check a self-authored suite without scheduling the independent test author."""
-    suite = ProjectTestSuite.model_validate(raw)
+    suite = smoke_test_type(workflow).model_validate(raw)
     if set(suite.implementation_files) != {item.path for item in candidate.files}:
         raise ValueError("Self-tests must declare the exact whole-project implementation paths")
     validate_paths(suite, workflow.artifact_type, workflow.project_type)

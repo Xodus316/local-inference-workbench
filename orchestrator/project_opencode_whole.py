@@ -22,12 +22,13 @@ from .project_opencode import (
 from .project_opencode_review import _terminal_review
 from .repository import MAX_FILE, file_at
 from .store import MAX_ARTIFACT_BYTES
-from .whole_project_limits import DEFAULT_SOURCE_BYTES, MAX_SOURCE_FILES, validate_source_bytes
+from .whole_project_limits import (DEFAULT_SOURCE_BYTES, MAX_SOURCE_FILES, WHOLE_PROJECT_COMPLETION_TOKENS,
+                                   WHOLE_PROJECT_TEST_BYTES, validate_source_bytes)
 from .whole_project_selection import (INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
                                       selection_event_guard)
 from .whole_project_smoke import INLINE_SMOKE_POLICY, SMOKE_OUTPUT_TOKENS, SMOKE_STAGES
-from .whole_project_test_repair import (DIAGNOSIS_STAGE, DIAGNOSIS_TOOL_POLICIES,
-                                       METHOD_PATCH_STAGE, REFERENCE_GENERATION_LIMITS)
+from .whole_project_test_repair import (DIAGNOSIS_STAGE, DIAGNOSIS_TOOL_POLICIES, METHOD_PATCH_STAGE,
+                                       REFERENCE_GENERATION_LIMITS, reference_generation_limits)
 
 
 _ROLES = frozenset({"planner", "implementer", "test_author", "repairer"})
@@ -182,8 +183,10 @@ def _project_event(event, *, keep_text):
 class OpenCodeProjectWorker(OpenCodeWorker):
     """Use one approved model, role and reasoning profile per worker."""
 
+    completion_token_ceiling = None
+
     def __init__(self, executable, endpoint, model, *, role, context, thinking, source_bytes=DEFAULT_SOURCE_BYTES,
-                 test_bytes=DEFAULT_TEST_BYTES):
+                 test_bytes=DEFAULT_TEST_BYTES, completion_token_ceiling=None):
         if (role not in _ROLES or type(context) is not int or context < 2048
                 or not (thinking is True or (type(thinking) is str and thinking in {"low", "medium", "high", "xhigh"}))):
             raise ValueError("OpenCode requires an explicit whole-project role and thinking profile")
@@ -191,18 +194,24 @@ class OpenCodeProjectWorker(OpenCodeWorker):
         self.context = context
         self.thinking = thinking
         self.source_bytes = validate_source_bytes(source_bytes)
-        allowed_test_bytes = {DEFAULT_TEST_BYTES, EXPANDED_TEST_BYTES}
+        allowed_test_bytes = {DEFAULT_TEST_BYTES, EXPANDED_TEST_BYTES, WHOLE_PROJECT_TEST_BYTES}
         if role in {"implementer", "repairer"}:
             allowed_test_bytes.add(SUPPLEMENTAL_TEST_BYTES)
         if type(test_bytes) is not int or test_bytes not in allowed_test_bytes:
             raise ValueError("OpenCode requires an approved test projection byte limit")
+        if completion_token_ceiling is not None and (type(completion_token_ceiling) is not int
+                or completion_token_ceiling != WHOLE_PROJECT_COMPLETION_TOKENS or completion_token_ceiling >= context):
+            raise ValueError("OpenCode completion ceiling must be 65,536 tokens and fit its context")
         self.test_bytes = test_bytes
+        self.completion_token_ceiling = completion_token_ceiling
         super().__init__(executable, endpoint, model, model)
 
     def identity(self):
         identity = {**super().identity(), "policy": "whole-project-opencode-v2", "role": self.role,
                     "context": self.context, "thinking": self.thinking, "auto_compaction": True,
-                    "source_bytes": self.source_bytes, "max_output_tokens": self.context}
+                    "source_bytes": self.source_bytes, "max_output_tokens": self.completion_token_ceiling or self.context}
+        if self.completion_token_ceiling is not None:
+            identity["completion_token_ceiling"] = self.completion_token_ceiling
         if self.test_bytes != DEFAULT_TEST_BYTES:
             identity["test_bytes"] = self.test_bytes
         return identity
@@ -232,7 +241,10 @@ class OpenCodeProjectWorker(OpenCodeWorker):
         if output_tokens is not None and (type(output_tokens) is not int or output_tokens < 1):
             raise ValueError("OpenCode output tokens must be a positive integer")
         output_tokens = min(output_tokens or self.context, self.context)
-        if tool_policy == INLINE_SELECTION_POLICY:
+        if self.completion_token_ceiling is not None:
+            if settings.get("output_tokens") != self.completion_token_ceiling:
+                raise ValueError("OpenCode settings differ from the approved completion ceiling")
+        elif tool_policy == INLINE_SELECTION_POLICY:
             output_tokens = min(output_tokens, SELECTION_OUTPUT_TOKENS)
         elif tool_policy == INLINE_SMOKE_POLICY:
             output_tokens = min(output_tokens, SMOKE_OUTPUT_TOKENS)
@@ -266,6 +278,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
 
     def _session(self, *, stage, role, model, settings, original, editable, system, prompt,
                  schema, collect, cancel, deadline, scratch_parent, on_event, tool_policy=None):
+        limits = (reference_generation_limits(tool_policy, self.completion_token_ceiling)
+                  if tool_policy in REFERENCE_GENERATION_LIMITS else None)
         with _before_dispatch():
             if (tool_policy not in (None, INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, *REFERENCE_GENERATION_LIMITS)
                     or (tool_policy is not None and (schema is None or original or editable))
@@ -314,10 +328,10 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                     raise InterruptedError("OpenCode cancelled")
                 events = _session_events(output, 1 if single_step else None,
                                          on_event=selection_event_guard(None) if single_step else None)
-                if tool_policy in REFERENCE_GENERATION_LIMITS:
+                if limits is not None:
                     usage = (events[-1].get("part") or {}).get("tokens") or {}
                     if (any(type(usage.get(key)) is not int or usage[key] < 0 for key in ("output", "reasoning"))
-                            or usage["output"] + usage["reasoning"] > REFERENCE_GENERATION_LIMITS[tool_policy]["max_completion_tokens"]):
+                            or usage["output"] + usage["reasoning"] > limits["max_completion_tokens"]):
                         raise ValueError("Bounded method repair lacks valid total completion usage within its approved cap")
                 resident = self._resident()
                 if (not resident or resident.get("context_length") != self.context
@@ -342,8 +356,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
         output_tokens = (sum(step["output"] + step["reasoning"] for step in usage)
                          if all({"output", "reasoning"} <= step.keys() for step in usage) else None)
         policy_receipt = {"tool_policy": tool_policy} if tool_policy is not None else {}
-        if tool_policy in REFERENCE_GENERATION_LIMITS:
-            policy_receipt["generation_limits"] = dict(REFERENCE_GENERATION_LIMITS[tool_policy])
+        if limits is not None:
+            policy_receipt["generation_limits"] = limits
         return {**result, "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": output_tokens},
                 "receipt": {"stage": stage, "role": role, "worker": self.identity(),
                 "model_digest": self.model_digest, "context": self.context, "thinking": self.thinking,

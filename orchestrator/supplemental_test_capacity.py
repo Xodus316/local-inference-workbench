@@ -2,16 +2,16 @@
 from hashlib import sha256
 
 from .store import digest
-from .supplemental_regression import POLICY, capacity_binding
+from .supplemental_regression import POLICY, supplemental_suite_type
 
 
 def projected_test_bytes(bundle, role):
     independent = bundle['build_contract']['test_bytes']
     regression = bundle.get('whole_project_regression_suite') or {}
-    if regression.get('policy') == POLICY and role in {'implementer', 'repairer'}:
-        if regression.get('capacity') != capacity_binding():
-            raise ValueError('Unapproved supplemental test capacity')
-        return capacity_binding()['test_bytes']
+    if regression.get('policy') == POLICY:
+        manifest = supplemental_suite_type(regression.get('capacity')).manifest_type
+        if role in {'implementer', 'repairer'}:
+            return max(independent, manifest.byte_limit)
     return independent
 
 

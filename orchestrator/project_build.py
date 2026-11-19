@@ -26,6 +26,7 @@ from .project_repair import VerificationFailures
 from .repository import relative
 from .schemas import Record
 from .store import digest, encoded
+from .whole_project_limits import WHOLE_PROJECT_TEST_BYTES
 
 POLICY = "offline-project-v1"
 REVIEWED_POLICY = "offline-project-reviewed-v1"
@@ -46,7 +47,7 @@ def offline_project_contract(profile=POLICY, *, test_bytes=DEFAULT_TEST_BYTES):
     if profile not in (POLICY, REVIEWED_POLICY):
         raise ValueError("Unknown offline project profile")
     if type(test_bytes) is not int or (test_bytes != DEFAULT_TEST_BYTES
-            and (profile != REVIEWED_POLICY or test_bytes != EXPANDED_TEST_BYTES)):
+            and (profile != REVIEWED_POLICY or test_bytes not in (EXPANDED_TEST_BYTES, WHOLE_PROJECT_TEST_BYTES))):
         raise ValueError("Unsupported offline project test-suite budget")
     contract = {
         "profile": profile,
@@ -113,10 +114,14 @@ def project_enabled(bundle):
         raise ValueError("Offline projects require operator enablement and the exact approved contract")
     approved = bundle.get("build_contract")
     expected = offline_project_contract(profile, test_bytes=bundle.get("test_suite_bytes", DEFAULT_TEST_BYTES))
-    if (profile == REVIEWED_POLICY and isinstance(approved, dict)
-            and approved.get("repair_selected_bytes") == WHOLE_PROJECT_REPAIR_SELECTED_BYTES):
+    if profile == REVIEWED_POLICY and isinstance(approved, dict) and (
+            approved.get("repair_selected_bytes") == WHOLE_PROJECT_REPAIR_SELECTED_BYTES
+            or expected["test_bytes"] == WHOLE_PROJECT_TEST_BYTES):
         from .whole_project import POLICY as WHOLE_PROJECT_POLICY
-        if bundle.get("whole_project_workflow") == WHOLE_PROJECT_POLICY:
+        whole_project = bundle.get("whole_project_workflow") == WHOLE_PROJECT_POLICY
+        if expected["test_bytes"] == WHOLE_PROJECT_TEST_BYTES and (not whole_project or "project_worker" in bundle):
+            raise ValueError("64 KiB of test source requires the whole-project workflow")
+        if whole_project and approved.get("repair_selected_bytes") == WHOLE_PROJECT_REPAIR_SELECTED_BYTES:
             expected["repair_selected_bytes"] = WHOLE_PROJECT_REPAIR_SELECTED_BYTES
     if isinstance(approved, dict) and "mechanical_test_repair_generation" not in approved:
         # Older approvals keep their original settings when a checkpoint is reconstructed.
@@ -248,7 +253,22 @@ class ExpandedProjectProject(ProjectProject):
     test_manifest_type: ClassVar[type[TestManifest]] = ExpandedTestManifest
 
 
+class WholeProjectTestManifest(TestManifest):
+    byte_limit = WHOLE_PROJECT_TEST_BYTES
+
+
+class WholeProjectTestSuite(ProjectTestSuite):
+    manifest_type = WholeProjectTestManifest
+
+
+class WholeProjectAssembly(ProjectProject):
+    byte_limit = ProjectArtifact.byte_limit + WHOLE_PROJECT_TEST_BYTES
+    test_manifest_type = WholeProjectTestManifest
+
+
 def project_test_types(bundle):
+    if bundle.get("test_suite_bytes") == WHOLE_PROJECT_TEST_BYTES:
+        return WholeProjectTestSuite, WholeProjectAssembly
     if bundle.get("test_suite_bytes") == EXPANDED_TEST_BYTES:
         return ExpandedProjectTestSuite, ExpandedProjectProject
     return ProjectTestSuite, ProjectProject
