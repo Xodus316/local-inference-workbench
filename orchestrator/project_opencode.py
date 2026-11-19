@@ -95,7 +95,15 @@ def _capture(pipe, chunks, overflow, on_event=None, errors=None, project_event=N
             errors.append(ValueError("OpenCode output ended with an incomplete event"))
 
 
-def _session_events(output, max_steps):
+class OpenCodeOutputLimitError(ValueError):
+    """An isolated OpenCode session reported a terminal length stop."""
+
+    def __init__(self, steps):
+        super().__init__(f"OpenCode reached the output token limit on step {steps}")
+        self.steps = steps
+
+
+def _session_events(output, max_steps, *, on_event=None):
     events = []
     try:
         for line in output.decode("utf-8").splitlines():
@@ -119,8 +127,11 @@ def _session_events(output, max_steps):
     part = steps[-1].get("part")
     if not isinstance(part, dict):
         raise ValueError("OpenCode returned a malformed final step")
+    if on_event is not None:
+        for event in events:
+            on_event(event)
     if part.get("reason") == "length":
-        raise ValueError(f"OpenCode reached the output token limit on step {len(steps)}")
+        raise OpenCodeOutputLimitError(len(steps))
     if part.get("reason") != "stop":
         raise ValueError(f"OpenCode ended without a normal stop after {len(steps)} steps")
     return events

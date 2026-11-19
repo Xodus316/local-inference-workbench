@@ -19,6 +19,7 @@ from .project_build import (DEFAULT_TEST_BYTES, REVIEWED_POLICY, ProjectArtifact
                             replace_selected, scoped_repair_selection, selected_source, settled_group_response,
                             unittest_failure_excerpts, validate_project_prompt)
 from .ollama import _strict_json
+from .project_opencode import OpenCodeOutputLimitError
 from .repository import MAX_FILE
 from .store import digest
 from .whole_project_limits import DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES, validate_source_bytes
@@ -65,8 +66,10 @@ PLAN_BRIEF = (
     f"Use at most {MAX_SOURCE_FILES} paths under the supplied UTF-8 source budget. Keep tests out of the inventory. "
     "Each implementation_files item must be only a bare canonical relative path string, such as "
     "frontend/src/main.ts. Do not include path labels, purposes, required flags, metadata, colons or line breaks "
-    "inside an inventory item. Put each file's responsibilities and other details in implementation_steps. "
-    "Describe the exact cross-file contracts and observable acceptance criteria for the requested behavior. "
+    "inside an inventory item. Group implementation_steps by subsystem and name the cross-file contracts "
+    "where they matter. Use one or two concise sentences per entry. Record observable acceptance criteria "
+    "and a short test strategy. The implementer and test author also receive the complete brief, so refer "
+    "to it for full details instead of repeating it. Return compact JSON with no source code or commentary. "
     "Preserve the meaning of the supplied task and explicit contract clarifications. Separate required public "
     "behavior from implementation choices: do not add stricter field types, encodings, defaults, validation "
     "rules or response requirements that the supplied contract does not establish. Precision and representation "
@@ -593,8 +596,12 @@ class WholeProjectBuildRun(ProjectBuildRun):
                         runtime.store.finish_call(run_id, stage, {"dispatch_status": "not_dispatched",
                                                                   "worker_error": public_error(error)})
                     elif getattr(error, "backend_cleanup_confirmed", False):
-                        runtime.store.finish_call(run_id, stage, {"worker_error": public_error(error),
-                                                                  "backend_cleanup_confirmed": True})
+                        failure = {"worker_error": public_error(error), "backend_cleanup_confirmed": True}
+                        if (role == "planner" and stage in {"build_plan", "build_plan_retry"}
+                                and isinstance(error, OpenCodeOutputLimitError) and error.steps == 1
+                                and getattr(error, "scratch_cleanup", {}).get("scratch_cleanup_confirmed") is True):
+                            failure.update(finish_reason="length", scratch_cleanup_confirmed=True)
+                        runtime.store.finish_call(run_id, stage, failure)
                     else:
                         runtime._save_call_failure(run_id, stage, error)
                         if runtime.store.has_unknown(run_id):
@@ -606,6 +613,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 runtime.inference_lock.release()
         if result.get('dispatch_status') == 'completed_rejected':
             raise ValueError('The settled native response was rejected; it cannot be reused as accepted content')
+        if result.get("finish_reason") == "length" and "worker_error" in result:
+            raise OpenCodeOutputLimitError(1)
         if "worker_error" in result:
             raise ValueError(result["worker_error"])
         receipt = result.get("receipt", {})
@@ -882,19 +891,23 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 self.evidence["reference_attempt_history"] = history_with_record(self._reference_history(), record)
         return suite
 
-    def _completed_plan_response(self, value):
-        """Only a journalled normal completion may authorize a corrective plan call."""
+    def _settled_plan_response(self):
+        """Return the first planner call only when its journal confirms a settled response."""
         run_id = self.state["run_id"]
         calls = [call for call in self.runtime.store.get(run_id)["calls"] if call["stage"] == "build_plan"]
         if len(calls) != 1:
-            return False
+            return None
         call = calls[0]
         if (call.get("role") != "planner" or call.get("status") != "terminal" or call.get("finished") is None
                 or (call.get("backend_diagnostics") or {}).get("native_completion") in
                 {"unknown", "not_started_unknown"}):
-            return False
+            return None
         raw = self.runtime.store.cached(run_id, "build_plan")
-        if not settled_group_response(raw) or "worker_error" in raw:
+        return raw if settled_group_response(raw) else None
+
+    def _completed_plan_response(self, value):
+        raw = self._settled_plan_response()
+        if raw is None or "worker_error" in raw:
             return False
         if "planner" in self.workers:
             receipt = raw.get("receipt", {})
@@ -914,31 +927,40 @@ class WholeProjectBuildRun(ProjectBuildRun):
             return False
 
     def _author_plan(self):
-        # Keep generation outside the validation handler: worker, transport and
-        # unknown-completion errors do not authorize another model dispatch.
-        value = self.ask("build_plan", "planner", WholeProjectPlan, PLAN_BRIEF,
-                         max_utf8_source_bytes=self.source_bytes)
+        inputs = {"max_utf8_source_bytes": self.source_bytes}
         try:
-            return WholeProjectPlan.model_validate(value)
-        except ValidationError as error:
-            if not self.scoped_repairs or not isinstance(value, dict) or not self._completed_plan_response(value):
+            value = self.ask("build_plan", "planner", WholeProjectPlan, PLAN_BRIEF, **inputs)
+        except OpenCodeOutputLimitError:
+            raw = self._settled_plan_response() if self.scoped_repairs and "planner" in self.workers else None
+            if (raw is None or raw.get("finish_reason") != "length" or "worker_error" not in raw
+                    or raw.get("backend_cleanup_confirmed") is not True
+                    or raw.get("scratch_cleanup_confirmed") is not True):
                 raise
-            errors = error.errors(include_input=False, include_context=False, include_url=False)
-            feedback = {
-                "validation_error": public_error(error)[:800], "error_count": len(errors),
-                "errors": [{"path": ".".join(map(str, item["loc"]))[:200],
-                            "message": item["msg"][:400]} for item in errors[:8]],
-                "omitted_errors": max(0, len(errors) - 8), "rejected_plan_digest": digest(value),
-            }
-            self.stages["build_plan"]["validation_error"] = feedback
-            corrected = self.ask(
-                "build_plan_retry", "planner", WholeProjectPlan,
-                PLAN_BRIEF + " Correct the supplied rejected_plan using previous_plan_validation. "
-                "Return the complete corrected plan; preserve the task and its public contract. "
-                "This is the only plan correction attempt.",
-                max_utf8_source_bytes=self.source_bytes, previous_plan_validation=feedback, rejected_plan=value,
-            )
-            return WholeProjectPlan.model_validate(corrected)
+            self.stages["build_plan"] = {"role": "planner", "model": self.bundle["roles"]["planner"],
+                                         "finish_reason": "length"}
+            instruction = (" The previous attempt reached its output cap. Start over from the supplied task. "
+                           "Keep every required path, and use short single-sentence entries for the other fields.")
+        else:
+            try:
+                return WholeProjectPlan.model_validate(value)
+            except ValidationError as error:
+                if not self.scoped_repairs or not isinstance(value, dict) or not self._completed_plan_response(value):
+                    raise
+                errors = error.errors(include_input=False, include_context=False, include_url=False)
+                feedback = {
+                    "validation_error": public_error(error)[:800], "error_count": len(errors),
+                    "errors": [{"path": ".".join(map(str, item["loc"]))[:200],
+                                "message": item["msg"][:400]} for item in errors[:8]],
+                    "omitted_errors": max(0, len(errors) - 8), "rejected_plan_digest": digest(value),
+                }
+                self.stages["build_plan"]["validation_error"] = feedback
+                inputs.update(previous_plan_validation=feedback, rejected_plan=value)
+                instruction = " Correct the supplied rejected_plan using previous_plan_validation."
+        corrected = self.ask(
+            "build_plan_retry", "planner", WholeProjectPlan,
+            PLAN_BRIEF + instruction + " Return the complete plan. This is the only plan correction attempt.", **inputs,
+        )
+        return WholeProjectPlan.model_validate(corrected)
 
     def _implement(self, paths):
         result = self._opencode(

@@ -3,15 +3,17 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Event
 import unittest
 from unittest.mock import Mock
 from uuid import uuid4
 
 from orchestrator.config import Config
-from orchestrator.project_build import REVIEWED_POLICY
+from orchestrator.project_build import DEFAULT_TEST_BYTES, REVIEWED_POLICY
+from orchestrator.project_opencode import OpenCodeOutputLimitError
 from orchestrator.runtime import Runtime
 from orchestrator.store import digest
-from orchestrator.whole_project import POLICY, validate_whole_project_seed, whole_project_types
+from orchestrator.whole_project import POLICY, WholeProjectBuildRun, validate_whole_project_seed, whole_project_types
 from orchestrator.whole_project_limits import DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_BYTES
 from test_whole_project_sandbox import IMAGE, suite_value, verifier_receipt
 
@@ -145,6 +147,55 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.assertEqual(evidence["final_self_check"]["suite_digest"], evidence["self_suite_digest"])
         self.assertEqual(evidence["independent_suite_digest"], output["suite_digest"])
         self.assertNotEqual(output["suite_digest"], evidence["self_suite_digest"])
+
+    def planner_flow(self, *, clean_scratch, retry_fails=False):
+        worker = self.worker("planner")
+        identity = worker.identity()
+        flow = object.__new__(WholeProjectBuildRun)
+        flow.runtime, flow.workers = self.runtime, {"planner": worker}
+        flow.source_bytes, flow.scoped_repairs, flow.stages = DEFAULT_SOURCE_BYTES, True, {}
+        flow.bundle = {"roles": {"planner": identity["model"]}, "whole_project_workers": {"planner": identity},
+                       "build_contract": {"test_bytes": DEFAULT_TEST_BYTES},
+                       "generation": {"planner": self.config.generation_for("planner").model_dump()}}
+        flow.model_inputs = lambda data: {"prompt": "The original brief", **data}
+        run_id = self.runtime.store.create(flow.bundle)
+        flow.state = {"run_id": run_id}
+        self.runtime.events[run_id] = Event()
+        self.runtime.deadline = float("inf")
+
+        def plan(*, stage, **_kwargs):
+            if stage == "build_plan" or retry_fails:
+                error = OpenCodeOutputLimitError(1)
+                error.backend_cleanup_confirmed = True
+                error.scratch_cleanup = {"scratch_cleanup_confirmed": clean_scratch}
+                raise error
+            receipt = {"worker": identity, "stage": stage, "role": "planner", "context": identity["context"],
+                       "thinking": identity["thinking"], "model_digest": identity["model_digest"],
+                       "resident": {"digest": identity["model_digest"], "context_length": identity["context"]}}
+            return {"value": PLAN, "receipt": receipt}
+
+        worker.generate.side_effect = plan
+        return flow, worker
+
+    def test_settled_planning_cutoff_retries_from_brief_without_partial_output(self):
+        flow, worker = self.planner_flow(clean_scratch=True)
+        self.assertEqual(flow._author_plan().model_dump(), PLAN)
+        self.assertEqual(flow._author_plan().model_dump(), PLAN)
+        requests = [call.kwargs for call in worker.generate.call_args_list]
+        self.assertEqual([request["stage"] for request in requests], ["build_plan", "build_plan_retry"])
+        initial = requests[0]["payload"]
+        retry = requests[1]["payload"]
+        self.assertEqual(initial["messages"][1], retry["messages"][1])
+        self.assertEqual(initial["schema"], retry["schema"])
+        self.assertIn("reached its output cap", retry["messages"][0]["content"])
+
+    def test_planning_cutoff_requires_cleanup_and_gets_at_most_one_retry(self):
+        for clean_scratch, count in ((False, 1), (True, 2)):
+            with self.subTest(clean_scratch=clean_scratch):
+                flow, worker = self.planner_flow(clean_scratch=clean_scratch, retry_fails=True)
+                with self.assertRaises(OpenCodeOutputLimitError):
+                    flow._author_plan()
+                self.assertEqual(worker.generate.call_count, count)
 
     def test_final_self_suite_regression_routes_back_through_independent_verification(self):
         self.regress_self_tests = True

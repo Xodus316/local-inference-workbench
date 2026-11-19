@@ -16,7 +16,8 @@ from uuid import uuid4
 
 from .project_build import DEFAULT_TEST_BYTES, EXPANDED_TEST_BYTES
 from .project_opencode import (
-    OpenCodeWorker, _AGENT, _PROVIDER, _executable_identity, _read_candidate, _session_events, _worker_path,
+    OpenCodeOutputLimitError, OpenCodeWorker, _AGENT, _PROVIDER, _executable_identity, _read_candidate,
+    _session_events, _worker_path,
 )
 from .project_opencode_review import _terminal_review
 from .repository import MAX_FILE, file_at
@@ -251,7 +252,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
         permission.update({"bash": "deny", "webfetch": "deny", "websearch": "deny"})
         if schema is not None:
             permission["edit"] = "deny"
-        if tool_policy in (INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, *REFERENCE_GENERATION_LIMITS):
+        if (self.role == "planner" and schema is not None
+                or tool_policy in (INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, *REFERENCE_GENERATION_LIMITS)):
             config["permission"] = {"*": "deny"}
             config["compaction"] = {"auto": False}
             agent["steps"] = 1
@@ -285,6 +287,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
             if git is None:
                 raise ValueError("OpenCode requires Git to delimit the scratch worktree")
         started = time.monotonic()
+        single_step = (role == "planner" and schema is not None) or tool_policy is not None
         with _scratch_tree(scratch_parent) as (directory, scratch_cleanup):
             with _before_dispatch():
                 state = Path(directory).resolve() / "private"
@@ -302,19 +305,15 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                 if cancel.is_set() or time.monotonic() >= deadline:
                     raise InterruptedError("OpenCode request expired before dispatch")
             try:
-                observer = selection_event_guard(on_event) if tool_policy is not None else on_event
+                observer = selection_event_guard(on_event) if single_step else on_event
                 output = self._execute(root, state, env, prompt, cancel,
                                        deadline, thinking=True, on_event=observer,
                                        project_event=partial(_project_event, keep_text=schema is not None),
                                        stdout_limit=MAX_ARTIFACT_BYTES)
                 if cancel.is_set():
                     raise InterruptedError("OpenCode cancelled")
-                events = _session_events(output, 1 if tool_policy is not None else None)
-                if tool_policy is not None:
-                    # Validate retained events as well as enforcing the live guard.
-                    guard = selection_event_guard(None)
-                    for event in events:
-                        guard(event)
+                events = _session_events(output, 1 if single_step else None,
+                                         on_event=selection_event_guard(None) if single_step else None)
                 if tool_policy in REFERENCE_GENERATION_LIMITS:
                     usage = (events[-1].get("part") or {}).get("tokens") or {}
                     if (any(type(usage.get(key)) is not int or usage[key] < 0 for key in ("output", "reasoning"))
@@ -333,6 +332,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                 except (ValueError, OSError) as cleanup_error:
                     raise ValueError(f"{error}. OpenCode cleanup could not be confirmed: {cleanup_error}") from error
                 error.backend_cleanup_confirmed = True
+                if isinstance(error, OpenCodeOutputLimitError):
+                    error.scratch_cleanup = scratch_cleanup  # Finalized as the context exits.
                 raise
         summaries = _receipt_events(events)
         usage = [event["part"].get("tokens", {}) for event in summaries if event["type"] == "step_finish"]
@@ -392,7 +393,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                 raise ValueError("OpenCode generation requires the Workbench system message, user message and schema")
         system = (("Use only the supplied inline task, diagnostics and current source. No tools are available. "
                    "Return one final JSON object now; do not explore a worktree.\n\n")
-                  if tool_policy in (INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, *REFERENCE_GENERATION_LIMITS)
+                  if role == "planner" or tool_policy in (INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, *REFERENCE_GENERATION_LIMITS)
                   else _STRUCTURED_SYSTEM_PREFIX) + messages[0]["content"]
 
         def collect(_root, events):
