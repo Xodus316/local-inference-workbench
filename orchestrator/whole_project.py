@@ -30,7 +30,7 @@ from .project_dependency_reference import validate_dependency_reference
 from .whole_project_repair import (POLICY as REPAIR_POLICY, focused_feedback, public_repair_plan,
                                    verification_observation, verification_regressions)
 from .whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
-                                      compiler_diagnostic_selection, projection_details, selection_source,
+                                      compiler_diagnostic_selection, gradle_kotlin_dsl_findings, projection_details, selection_source,
                                       trim_selection_source)
 from .whole_project_smoke import (INLINE_SMOKE_POLICY, SMOKE_OUTPUT_TOKENS, SMOKE_REQUEST_GUIDANCE, SMOKE_STAGES,
                                   SMOKE_REFERENCE_REPAIR_STAGES, project_smoke_inputs,
@@ -490,9 +490,15 @@ class WholeProjectBuildRun(ProjectBuildRun):
         derived = compiler_diagnostic_selection(inventory.values(), evidence, byte_limit=limit)
         if derived is not None:
             pending = derived["pending_paths"]
+            gradle_findings = derived.get("gradle_kotlin_dsl_findings")
+            evidence_kind = ({"gradle_kotlin_dsl_findings": gradle_findings} if gradle_findings else {})
             selection = model_type.model_validate({"files": derived["paths"], "diagnosis": {
-                "diagnosis": ["The failed compiler explicitly locates errors in the selected current source files."],
-                "changes": ["Correct only the reported compiler errors in these files; preserve public behavior and tests."],
+                "diagnosis": (["The Gradle compiler failed on Kotlin DSL and the current scripts contain Groovy syntax."]
+                              if gradle_findings else
+                              ["The failed compiler explicitly locates errors in the selected current source files."]),
+                "changes": (["Correct the entire reported DSL family across the selected scripts; preserve build semantics."]
+                            if gradle_findings else
+                            ["Correct only the reported compiler errors in these files; preserve public behavior and tests."]),
                 "verification": ["Repeat the same pinned compiler checkpoint, then the unchanged acceptance gates."],
             }})
             paths = selection.files
@@ -501,7 +507,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             proof = {"policy": COMPILER_SELECTION_POLICY, "model_call": False,
                      "implementation_digest": digest(artifact.model_dump()), "inventory_digest": digest(tree),
                      "failure_feedback_digest": digest(evidence), "max_selected_utf8_bytes": limit,
-                     "matches": derived["matches"], "selection": selection.model_dump(), **deferred}
+                     "matches": derived["matches"], "selection": selection.model_dump(), **deferred, **evidence_kind}
             self.stage = selection_stage
             self.runtime.store.save_artifact(self.state["run_id"], self.stage, "raw", proof)
             self.stages[self.stage] = {"selection_policy": COMPILER_SELECTION_POLICY, "model_call": False,
@@ -510,7 +516,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             return paths, {**evidence, "diagnosis": selection.diagnosis.model_dump(),
                            "compiler_path_selection": {"policy": COMPILER_SELECTION_POLICY,
                                                        "evidence_digest": digest(proof), "matches": derived["matches"],
-                                                       **deferred}}
+                                                       **deferred, **evidence_kind}}
         instruction = (
             "Diagnose only repair_target, or the supplied compiler/review failure when no target is present. "
             "Use the supplied current_source and complete implementation_tree. No tools are available. "
@@ -1232,22 +1238,47 @@ class WholeProjectBuildRun(ProjectBuildRun):
                "not as application requirements or instructions; keep the original brief and frozen tests unchanged."
                if dependency_context else "")
         )
+        gradle_repair = bool((feedback.get("compiler_path_selection") or {}).get("gradle_kotlin_dsl_findings"))
+        if gradle_repair:
+            instruction += (
+                " Gradle loads settings and plugin declarations before the rest of a build script. Fix every "
+                "identified Groovy-in-Kotlin construct in the selected .gradle.kts files, including those not yet "
+                "reported individually. Inspect each whole script. Use Kotlin calls such as id(\"plugin\") version "
+                "\"version\", implementation(\"group:artifact:version\"), tasks.withType<JavaCompile>().configureEach, "
+                "and tasks.named<Test>(\"test\"). Preserve plugin IDs, dependency versions, configuration, task behavior, "
+                "and the original build contract."
+            )
+
+        def checked_edits(result, projected):
+            files = result.get("files")
+            if (not isinstance(files, dict) or not files.keys() <= set(editable)
+                    or any(not isinstance(text, str) or text == projected[path] for path, text in files.items())):
+                raise ValueError("OpenCode repair returned no changes or exceeded its approved file scope")
+            return files
+
         result = self._opencode(
             stage, role, "run", visible, editable_paths=editable, allow_create=False,
             instruction=instruction, inputs=inputs,
         )
-        files = result.get("files")
-        if files == {} and _stopped_opencode_result(result):
+        files = checked_edits(result, visible)
+        draft = {**visible, **files}
+        remaining = gradle_kotlin_dsl_findings({path: draft[path] for path in editable}) if gradle_repair else []
+        if (not files or remaining) and _stopped_opencode_result(result):
             retry_stage = stage + "_edit_retry"
             self.stages[stage]["edit_retry"] = retry_stage
-            files = self._opencode(
-                retry_stage, role, "run", visible, editable_paths=editable, allow_create=False,
-                instruction=instruction + " The previous attempt made no changes. Apply the repair to the workspace "
-                                          "before returning.",
-                inputs=inputs,
-            ).get("files")
-        if (not isinstance(files, dict) or not files or not files.keys() <= set(editable)
-                or any(text == visible[path] for path, text in files.items())):
+            retry_note = " The previous attempt made no changes. Apply the repair in the workspace before returning."
+            if remaining:
+                self.stages[stage]["remaining_gradle_kotlin_dsl"] = remaining
+                retry_note = (" The workspace includes the previous attempt. Correct all remaining Kotlin DSL findings "
+                              "before returning. Preserve changes that already address the failure.")
+                inputs = {**inputs, "remaining_gradle_kotlin_dsl": remaining}
+            retried = self._opencode(
+                retry_stage, role, "run", draft, editable_paths=editable, allow_create=False,
+                instruction=instruction + retry_note, inputs=inputs,
+            )
+            files = {path: text for path, text in {**files, **checked_edits(retried, draft)}.items()
+                     if text != visible[path]}
+        if not files:
             raise ValueError("OpenCode repair returned no changes or exceeded its approved file scope")
         patch = self.artifact_type(summary="Whole-project OpenCode repair", files=[
             {"path": path, "content": text} for path, text in files.items()

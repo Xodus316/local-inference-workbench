@@ -15,6 +15,35 @@ _LOCATION = re.compile(
     r"(?<!\S)(?P<path>[^\s\"'<>()]+?)(?::(?P<line>[1-9][0-9]{0,6})(?::(?P<column>[1-9][0-9]{0,6}))?"
     r"(?=[:\s]|$)|\((?P<ts_line>[1-9][0-9]{0,6}),(?P<ts_column>[1-9][0-9]{0,6})\))"
 )
+_GRADLE_CHECKS = {"gradle-compile", "gradle-build"}
+_GRADLE_REPORTED_SOURCE = re.compile(r"(?m)^\s*Line ([1-9][0-9]{0,6}): ([^\r\n]+)")
+_KOTLIN_NON_CODE = re.compile(r'/\*.*?(?:\*/|$)|""".*?(?:"""|$)', re.S)
+_SINGLE_STRING = r"'[^'\\\r\n]{2,}'"
+_GROOVY_IN_KOTLIN = {
+    "plugin-call": re.compile(r"^\s*id\s+['\"]"),
+    "dependency-call": re.compile(r"^\s*(?:implementation|api|compileOnly|runtimeOnly|testImplementation|"
+                                  r"testCompileOnly|testRuntimeOnly|annotationProcessor)\s+['\"]"),
+    "string-assignment": re.compile(r"^\s*(?:rootProject\.name|group|version|options\.encoding|"
+                                    r"(?:val|var)\s+\w+(?:\s*:\s*String)?)\s*=\s*" + _SINGLE_STRING),
+    "task-type": re.compile(r"^\s*tasks\.withType\(\s*(?:JavaCompile|Test)\s*\)"),
+    "task-name": re.compile(r"^\s*tasks\.named\(\s*" + _SINGLE_STRING + r"\s*\)"),
+}
+
+
+def gradle_kotlin_dsl_findings(sources):
+    """Recognize common Groovy syntax in Kotlin build scripts without editing source."""
+    findings = []
+    for path, text in sorted(sources.items()):
+        if not path.endswith(".gradle.kts"):
+            continue
+        code = _KOTLIN_NON_CODE.sub(lambda match: re.sub(r"[^\r\n]", " ", match[0]), text)
+        for line, (raw, clean) in enumerate(zip(text.splitlines(), code.splitlines()), 1):
+            for kind, pattern in _GROOVY_IN_KOTLIN.items():
+                if pattern.match(clean):
+                    findings.append({"path": path, "line": line, "kind": kind, "source": raw.strip()[:280]})
+                    if len(findings) == 64:
+                        return findings
+    return findings
 
 
 def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16):
@@ -27,6 +56,7 @@ def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16)
     """
     inventory = {file.path: file for file in files}
     matches = {}
+    gradle_reported_source = set()
     for command in (feedback.get("failed_execution") or {}).get("commands", []):
         summary = command.get("sandbox_stage_results") or {}
         if (type(command.get("exit_code")) is not int or command["exit_code"] == 0
@@ -39,6 +69,9 @@ def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16)
             diagnostic = failure.get("diagnostic_excerpt") or failure.get("message", "")
             if not isinstance(diagnostic, str):
                 continue
+            if check in _GRADLE_CHECKS:
+                gradle_reported_source.update((int(line), snippet.strip()[:280])
+                                              for line, snippet in _GRADLE_REPORTED_SOURCE.findall(diagnostic))
             for location in _LOCATION.finditer(diagnostic):
                 reported = location["path"]
                 path = reported[7:] if reported.startswith("file:///") else reported
@@ -60,6 +93,12 @@ def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16)
                 if len(matches) > 64:
                     return None
     paths = dict.fromkeys(item["path"] for item in matches.values())
+    gradle_findings = gradle_kotlin_dsl_findings({path: file.content for path, file in inventory.items()})
+    gradle_confirmed = any(item["compiler_stage"] in _GRADLE_CHECKS and item["path"].endswith(".gradle.kts")
+                           for item in matches.values()) or any(
+        (item["line"], item["source"]) in gradle_reported_source for item in gradle_findings)
+    if gradle_confirmed:
+        paths.update(dict.fromkeys(item["path"] for item in gradle_findings))
     selected = []
     for path in paths:
         if len(selected) >= file_limit:
@@ -70,8 +109,13 @@ def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16)
             byte_limit -= size
     if not selected:
         return None
-    return {"paths": sorted(selected), "matches": list(matches.values()),
-            "pending_paths": sorted(paths.keys() - set(selected))}
+    result = {"paths": sorted(selected), "matches": list(matches.values()),
+              "pending_paths": sorted(paths.keys() - set(selected))}
+    if gradle_confirmed:
+        findings = [item for item in gradle_findings if item["path"] in selected]
+        if findings:
+            result["gradle_kotlin_dsl_findings"] = findings
+    return result
 
 
 def selection_source(files, evidence, *, byte_limit=SELECTION_SOURCE_BYTES):

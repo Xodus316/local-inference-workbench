@@ -11,7 +11,8 @@ from orchestrator.store import STAGES
 from orchestrator.whole_project import WholeProjectBuildRun
 from orchestrator.whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY,
                                                  SELECTION_OUTPUT_TOKENS, compiler_diagnostic_selection,
-                                                 projection_details, selection_event_guard, selection_source)
+                                                 gradle_kotlin_dsl_findings, projection_details, selection_event_guard,
+                                                 selection_source)
 
 
 def file(path, content):
@@ -99,6 +100,87 @@ class CompilerSelectionTests(unittest.TestCase):
         next_result = compiler_diagnostic_selection(files, next_feedback, byte_limit=WHOLE_PROJECT_REPAIR_SELECTED_BYTES)
         self.assertEqual(next_result["paths"], [second])
         self.assertEqual(next_result["pending_paths"], [])
+
+
+class GradleDialectRecoveryTests(unittest.TestCase):
+    SETTINGS = "api/settings.gradle.kts"
+    BUILD = "api/build.gradle.kts"
+    SOURCES = {
+        SETTINGS: "rootProject.name = 'example'\n",
+        BUILD: "plugins {\n    id 'java-library'\n}\ndependencies {\n    implementation 'g:a:1'\n}\n"
+               "tasks.withType(JavaCompile) {\n    options.encoding = 'UTF-8'\n}\n",
+    }
+
+    def test_settings_error_includes_the_same_syntax_family_in_the_build_script(self):
+        files = [file(path, content) for path, content in self.SOURCES.items()]
+        feedback = compile_feedback(f"e: file:///tmp/project/{self.SETTINGS}:1:20: "
+                                    "The character literal does not conform to the expected type String!")
+        result = compiler_diagnostic_selection(files, feedback, byte_limit=65536)
+        self.assertEqual(result["paths"], [self.BUILD, self.SETTINGS])
+        self.assertEqual([item["path"] for item in result["matches"]], [self.SETTINGS])
+        findings = result["gradle_kotlin_dsl_findings"]
+        self.assertEqual({item["kind"] for item in findings}, {
+            "plugin-call", "dependency-call", "string-assignment", "task-type"})
+
+    def test_truncated_gradle_diagnostic_can_bind_a_reported_line_to_current_source(self):
+        files = [file(path, content) for path, content in self.SOURCES.items()]
+        feedback = compile_feedback("  Line 5:     implementation 'g:a:1'\n             ^ Unexpected tokens\n")
+        result = compiler_diagnostic_selection(files, feedback, byte_limit=65536, file_limit=1)
+        self.assertEqual(result["paths"], [self.BUILD])
+        self.assertEqual(result["pending_paths"], [self.SETTINGS])
+        self.assertEqual(result["matches"], [])
+        feedback = compile_feedback("  Line 5:     implementation 'other:artifact:1'\n     ^ Unexpected tokens\n")
+        self.assertIsNone(compiler_diagnostic_selection(files, feedback, byte_limit=65536))
+
+    def test_valid_kotlin_comments_strings_and_character_literals_are_ignored(self):
+        self.assertEqual(gradle_kotlin_dsl_findings({self.BUILD: '''/*
+            id 'comment-only'
+            */
+            val letter = 'x'
+            val escaped = '\\n'
+            val documentation = """
+                implementation 'example-only'
+            """
+            // tasks.withType(JavaCompile) {
+            tasks.withType<JavaCompile>().configureEach { options.encoding = "UTF-8" }
+        '''}), [])
+
+    def test_partial_gradle_edit_gets_a_retry_before_recompilation(self):
+        flow = object.__new__(WholeProjectBuildRun)
+        flow.scoped_repairs = True
+        flow._regression_feedback = None
+        flow.dependency_reference = None
+        flow.source_bytes = 131072
+        flow.model_inputs = lambda data: {**data, "plan": {}}
+        flow.stages = {}
+        flow.artifact_type = ProjectArtifact
+        artifact = ProjectArtifact(summary="Candidate", files=[
+            {"path": path, "content": content} for path, content in self.SOURCES.items()])
+        suite = SimpleNamespace(files=[], commands=[])
+        partial = self.SOURCES[self.BUILD].replace("id 'java-library'", 'id("java-library")')
+        corrected = (partial.replace("implementation 'g:a:1'", 'implementation("g:a:1")')
+                     .replace("withType(JavaCompile)", "withType<JavaCompile>().configureEach")
+                     .replace("'UTF-8'", '"UTF-8"'))
+
+        def repair(stage, _role, _operation, visible, **arguments):
+            flow.stages[stage] = {}
+            if stage.endswith("_edit_retry"):
+                self.assertEqual(visible[self.BUILD], partial)
+                self.assertEqual(visible[self.SETTINGS], self.SOURCES[self.SETTINGS])
+                self.assertEqual({row["kind"] for row in arguments["inputs"]["remaining_gradle_kotlin_dsl"]},
+                                 {"dependency-call", "string-assignment", "task-type"})
+                return {"files": {self.BUILD: corrected, self.SETTINGS: 'rootProject.name = "example"\n'}}
+            return {"files": {self.BUILD: partial}, "receipt": {"scratch_cleanup_confirmed": True,
+                "events": [{"type": "step_finish", "part": {"reason": "stop"}}]}}
+
+        flow._opencode = Mock(side_effect=repair)
+        result = flow._patch("build_compile_repair_1_1", "repairer", artifact, suite,
+                             {"compiler_path_selection": {"gradle_kotlin_dsl_findings":
+                                 gradle_kotlin_dsl_findings(self.SOURCES)}},
+                             paths=list(self.SOURCES), compile_patch=False)
+        self.assertEqual(flow._opencode.call_count, 2)
+        self.assertEqual({entry.path: entry.content for entry in result.files},
+                         {self.BUILD: corrected, self.SETTINGS: 'rootProject.name = "example"\n'})
 
 
 class SelectionBudgetRecoveryTests(unittest.TestCase):
