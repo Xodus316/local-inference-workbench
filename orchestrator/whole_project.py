@@ -95,6 +95,13 @@ def _stopped_opencode_result(result):
     return final.get("type") == "step_finish" and isinstance(part, dict) and part.get("reason") == "stop"
 
 
+def _smoke_repair_feedback(result):
+    evidence = {"failed_execution": result["feedback"]}
+    if "repair_target" in result:
+        evidence["repair_target"] = result["repair_target"]
+    return evidence
+
+
 def whole_project_source_bytes(bundle):
     approved_workers = bundle.get("whole_project_workers", {})
     old_binding = approved_workers and "source_bytes" not in approved_workers.get("implementer", {})
@@ -1262,6 +1269,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         result["implementation_digest"] = digest(artifact.model_dump())
         self.stages[stage] = {"status": result["status"], "project_digest": result["project_digest"],
                               "suite_digest": result["suite_digest"]}
+        if "repair_target" in result:
+            self.stages[stage]["repair_target"] = result["repair_target"]
         return result
 
     def _save_self_candidate(self, artifact, *, repair_stage=None, predecessor=None):
@@ -1313,7 +1322,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             self._self_compile_round = next_attempt
             try:
                 revised = self._patch(repair_stage, self.self_repair_role, artifact, self.self_suite,
-                                      {"failed_execution": result["feedback"]})
+                                      _smoke_repair_feedback(result))
             finally:
                 self._self_compile_round = None
             if revised is None:
@@ -1342,7 +1351,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             stage = self.bounded("repair", "max_repair_attempts")
             self.output["repair_attempts"] += 1
             return False, self._patch(stage, "repairer", artifact, self.self_suite,
-                                      {"failed_execution": result["feedback"]})
+                                      _smoke_repair_feedback(result))
         self.output["error"] = {"stage": self.stage, "message": result.get("fixture_failure", {}).get(
             "message", "Final self-test verification did not pass")}
         return False, None

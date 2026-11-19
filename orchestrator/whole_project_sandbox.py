@@ -3,6 +3,7 @@
 import ast
 from collections import Counter
 from functools import lru_cache
+import re
 from typing import Literal
 
 from pydantic import Field
@@ -18,6 +19,14 @@ from .schemas import Record
 from .store import digest
 from .unittest_fixture_lint import class_assertion_problems
 from .whole_project_limits import WHOLE_PROJECT_TEST_BYTES
+
+
+_MISSING_SPRING_ROUTE = re.compile(
+    r"(?:org\.springframework\.web\.servlet\.resource\.)?NoResourceFoundException: "
+    r"No static resource (?P<path>/?[A-Za-z0-9._~/-]{1,240})\.")
+_SPRING_BASE = re.compile(r'^\s*@RequestMapping\(\s*(?:(?:path|value)\s*=\s*)?"(/[^"\r\n]*)"\s*\)', re.M)
+_SPRING_ENDPOINT = re.compile(
+    r'^\s*@(Get|Post|Put|Patch|Delete)Mapping\(\s*(?:(?:path|value)\s*=\s*)?"(/[^"\r\n]*)"\s*\)', re.M)
 
 
 class SelfTestFixtureError(ValueError):
@@ -127,7 +136,7 @@ def validate_self_suite(workflow, raw, candidate):
 
 
 def zero_test_fixture_failure(summaries):
-    """A complete zero-test fixture error cannot authorize application repair."""
+    """Identify a zero-test fixture error that needs independent application evidence."""
     for summary in summaries:
         for failure in summary.get("failures", []):
             if (failure.get("stage") != "python-unittest" or failure.get("status") != "failed"
@@ -141,6 +150,66 @@ def zero_test_fixture_failure(summaries):
             if errors:
                 return {"policy": "zero-test-fixture-stop-v1", "tests_run": 0, "errors": errors,
                         "message": "Smoke fixture failed before any test ran; application repair is not authorized by this result"}
+    return None
+
+
+def _missing_api_prefix_target(workflow, candidate, suite_digest, summaries, receipt):
+    environment = workflow.environment or {}
+    api = environment.get("api") or {}
+    prefix = api.get("path_prefix")
+    if (not prefix or api.get("base_url_kind") != "api_root"
+            or "trusted-api" not in (environment.get("verification") or {}).get("required_checks", [])):
+        return None
+    reference_digest = (getattr(workflow, "reference", None) or {}).get("digest")
+    proof = getattr(workflow, "evidence", {}).get("self_reference_validation", {})
+    proof_receipt = proof.get("receipt_digest")
+    if (not reference_digest or proof.get("status") != "passed" or proof.get("reference_digest") != reference_digest
+            or proof.get("suite_digest") != suite_digest
+            or not isinstance(proof_receipt, str) or not re.fullmatch(r"[a-f0-9]{64}", proof_receipt)):
+        return None
+    for summary in summaries:
+        checks = summary.get("checks", {})
+        if (checks.get("trusted-api-startup", {}).get("status") != "passed"
+                or checks.get("trusted-api", {}).get("status") != "failed"):
+            continue
+        for failure in summary.get("failures", []):
+            if failure.get("stage") != "trusted-api" or failure.get("status") != "failed":
+                continue
+            context_rows = failure.get("api_context")
+            if not isinstance(context_rows, list):
+                continue
+            for context in context_rows:
+                match = _MISSING_SPRING_ROUTE.fullmatch(context) if isinstance(context, str) else None
+                if match is None:
+                    continue
+                requested = "/" + match["path"].lstrip("/")
+                if not requested.startswith(prefix + "/"):
+                    continue
+                unprefixed = requested[len(prefix):]
+                if unprefixed == prefix or unprefixed.startswith(prefix + "/"):
+                    continue
+                routes = sorted(file.path for file in candidate.files
+                                if file.path.endswith(".java") and "@RestController" in file.content
+                                and any(base.rstrip("/") + endpoint == unprefixed
+                                        for base in _SPRING_BASE.findall(file.content)
+                                        for _verb, endpoint in _SPRING_ENDPOINT.findall(file.content)))
+                if not routes:
+                    continue
+                return {
+                    "id": "missing-api-prefix", "check": "trusted-api", "control_match": True,
+                    "summary": f"The candidate API does not mount the required {prefix} prefix.",
+                    "diagnostics": [f"The running candidate reported no route for {requested}.",
+                                    f"The current controller maps the same endpoint at {unprefixed}."],
+                    "source_paths": routes, "expected_prefix": prefix, "requested_path": requested,
+                    "unprefixed_path": unprefixed, "receipt_digest": digest(receipt),
+                    "reference_receipt_digest": proof_receipt,
+                    "repair_guidance": (
+                        f"Mount the declared API routes under {prefix} exactly once. Check server configuration, "
+                        "controller mappings, and security/JWT and CORS rules together. Preserve the public routes, "
+                        "authentication requirements, frontend contract, and frozen smoke tests. Fix the application "
+                        "rather than sending requests to the unprefixed endpoint."
+                    ),
+                }
     return None
 
 
@@ -177,15 +246,20 @@ def execute_self_test(workflow, candidate, suite, stage, index):
             or sandbox.get("read_only_root") is not True or not execution_settled(receipt)
             or not matching_image_checks(receipt, summaries, (workflow.environment or {}).get("verification"))):
         return result
-    fixture_failure = zero_test_fixture_failure(summaries) if getattr(workflow, "scoped_repairs", False) else None
-    if fixture_failure is not None:
-        result["fixture_failure"] = fixture_failure
-        result["feedback"] = failure_feedback(receipt, include_stage_results=True)
-    elif validate_baseline(receipt, suite):
+    if validate_baseline(receipt, suite):
         result["status"] = "passed"
     elif actionable_failure(receipt):
-        result["status"] = "failed"
         result["feedback"] = failure_feedback(receipt, include_stage_results=True)
+        scoped = getattr(workflow, "scoped_repairs", False)
+        fixture_failure = zero_test_fixture_failure(summaries) if scoped else None
+        repair_target = (_missing_api_prefix_target(workflow, candidate, result["suite_digest"], summaries, receipt)
+                         if scoped else None)
+        if repair_target is not None:
+            result.update(status="failed", repair_target=repair_target)
+        elif fixture_failure is not None:
+            result["fixture_failure"] = fixture_failure
+        else:
+            result["status"] = "failed"
     return result
 
 

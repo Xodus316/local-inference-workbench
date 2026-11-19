@@ -1,12 +1,14 @@
 """Check the handoff between OpenCode self-tests and the pinned verifier."""
 
 import json
+from collections import Counter
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 from orchestrator.project_build import ProjectArtifact, ProjectProject
 from orchestrator.store import digest
+from orchestrator.whole_project import WholeProjectBuildRun
 from orchestrator.whole_project_sandbox import execute_self_test, validate_self_suite
 
 
@@ -132,6 +134,67 @@ class WholeProjectSandboxTests(unittest.TestCase):
         self.workflow.runtime._build_execution.return_value = receipt
         result = execute_self_test(self.workflow, self.candidate, suite, "whole_self_verify_0", 8000)
         self.assertEqual(result["status"], "review_required")
+
+    def prefix_failure(self, *, route="/auth", missing="api/auth/register", reference_passed=True):
+        controller = "api/src/main/java/AuthController.java"
+        candidate = ProjectArtifact(summary="Application", files=[{"path": controller,
+            "content": f'@RestController\n@RequestMapping("{route}")\nclass AuthController {{\n'
+                       '    @PostMapping("/register")\n    void register() {}\n}\n'}])
+        suite = validate_self_suite(self.workflow, {**suite_value(), "implementation_files": [controller]}, candidate)
+        self.workflow.scoped_repairs = True
+        self.workflow.environment["api"] = {"path_prefix": "/api", "base_url_kind": "api_root"}
+        self.workflow.environment["verification"]["required_checks"].append("trusted-api")
+        self.workflow.reference = {"digest": "reference"}
+        self.workflow.evidence = {"self_reference_validation": {"status": "passed" if reference_passed else "failed",
+            "suite_digest": digest(suite.model_dump()), "reference_digest": "reference", "receipt_digest": "f" * 64}}
+        receipt = verifier_receipt(passed=False)
+        summary = {"policy": POLICY, "status": "failed", "exit_code": 1, "cleanup_confirmed": True,
+                   "checks": {name: {"status": status} for name, status in (
+                       ("python-unittest", "failed"), ("trusted-api", "failed"), ("trusted-api-startup", "passed"))},
+                   "failures": [
+                       {"stage": "trusted-api", "status": "failed", "api_context": [
+                           f"org.springframework.web.servlet.resource.NoResourceFoundException: No static resource {missing}."]},
+                       {"stage": "python-unittest", "status": "failed", "tests_run": 0,
+                        "test_failures_complete": True, "omitted_test_failures": 0,
+                        "test_failures": [{"test": "setUpClass (test_self.SelfCheck)", "status": "error"}]}]}
+        receipt["commands"][0]["stderr"] = "OFFLINE_PROJECT_RESULT " + json.dumps(summary)
+        self.workflow.runtime._build_execution.return_value = receipt
+        return candidate, suite, receipt
+
+    def test_reference_qualified_missing_api_prefix_dispatches_a_repair_and_reruns_frozen_smoke(self):
+        candidate, suite, receipt = self.prefix_failure()
+        result = execute_self_test(self.workflow, candidate, suite, "whole_self_verify_0", 8000)
+        self.assertEqual(result["status"], "failed")
+        target = result["repair_target"]
+        self.assertEqual((target["requested_path"], target["unprefixed_path"]), ("/api/auth/register", "/auth/register"))
+        self.assertEqual(target["source_paths"], [candidate.files[0].path])
+        self.assertEqual(target["receipt_digest"], digest(receipt))
+        self.assertEqual(target["reference_receipt_digest"], "f" * 64)
+
+        repaired = candidate.model_copy(update={"summary": "Repaired"})
+        flow = object.__new__(WholeProjectBuildRun)
+        flow.state, flow.runtime, flow.output = {"run_id": "run"}, SimpleNamespace(store=Mock()), {}
+        flow.counters, flow.evidence, flow.stages = Counter(), {"self_checks": []}, {}
+        flow.self_suite, flow.self_repair_role = suite, "repairer"
+        flow._save_self_candidate, flow.repair_time_available = Mock(), Mock(return_value=True)
+        flow._patch = Mock(return_value=repaired)
+        flow._self_check = Mock(side_effect=[result, {"status": "passed"}])
+        self.assertIs(flow._verify_self_suite(candidate), repaired)
+        self.assertEqual(flow._patch.call_args.args, ("whole_self_repair", "repairer", candidate, suite,
+                                                    {"failed_execution": result["feedback"], "repair_target": target}))
+        self.assertEqual(flow._self_check.call_args.args, (repaired, "whole_self_verify_1", 8001))
+
+    def test_prefix_repair_requires_reference_match_and_current_route_evidence(self):
+        for options in ({"reference_passed": False}, {"route": "/api/auth"}, {"missing": "other/auth/register"}, {}):
+            with self.subTest(options=options):
+                self.setUp()
+                candidate, suite, _receipt = self.prefix_failure(**options)
+                if not options:
+                    self.workflow.evidence["self_reference_validation"]["suite_digest"] = "stale"
+                result = execute_self_test(self.workflow, candidate, suite, "whole_self_verify_0", 8000)
+                self.assertEqual(result["status"], "review_required")
+                self.assertIn("fixture_failure", result)
+                self.assertNotIn("repair_target", result)
         self.assertNotIn("feedback", result)
 
 
