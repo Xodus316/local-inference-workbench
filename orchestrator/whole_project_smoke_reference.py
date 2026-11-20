@@ -10,6 +10,7 @@ from .project_build import (execution_settled, matching_image_checks,
                             sandbox_stage_results, validate_reference_test_replacement, ERROR_HEADLINE)
 from .project_fixture_checks import _bypasses
 from .store import digest
+from .unittest_fixture_lint import repair_shadowed_testcase_run
 from .whole_project_sandbox import compose_smoke_source_patch, smoke_source_patch_type, validate_self_suite
 from .whole_project_smoke import INLINE_SMOKE_POLICY, SMOKE_REQUEST_GUIDANCE
 
@@ -23,10 +24,13 @@ _FAILURE_BLOCK = re.compile(
     r"(.*?)(?=^={20,}\n|^-{20,}\nRan \d+ tests?|\Z)"
 )
 _FAILED_SUMMARY = re.compile(r"(?m)^-{20,}\nRan (\d+) tests? in [^\n]+\n\nFAILED \(([^\n]+)\)\n*\Z")
+_SHADOWED_RUN = re.compile(
+    r'\n  File "/usr/lib/python3\.\d+/unittest/case\.py", line \d+, in __call__\n'
+    r"    return self\.run\(\*args, \*\*kw(?:ds|args)\)\nTypeError: 'str' object is not callable\n*\Z")
 
 
-def _complete_test_log_failure(summary, receipt):
-    """Recover multiline unittest descriptions only from the full hashed test log."""
+def _complete_unittest_log(summary, receipt):
+    """Read the complete test-side log only when it matches the verifier receipt."""
     records = [item for item in summary.get("stage_receipts", []) if item.get("stage") == "python-unittest"]
     if len(records) != 1:
         return None
@@ -42,29 +46,47 @@ def _complete_test_log_failure(summary, receipt):
         if (not marker or len(encoded) > 32768 or len(encoded) != record.get("log_bytes")
                 or hashlib.sha256(encoded).hexdigest() != record.get("log_sha256")):
             continue
-        log = log.replace("\r\n", "\n")
-        terminal = _FAILED_SUMMARY.search(log)
-        blocks = _FAILURE_BLOCK.findall(log)
-        if terminal is None or not blocks or len(blocks) > 8:
+        return log.replace("\r\n", "\n")
+    return None
+
+
+def _complete_test_log_failure(summary, receipt):
+    """Recover multiline unittest descriptions only from the full hashed test log."""
+    log = _complete_unittest_log(summary, receipt)
+    if log is None:
+        return None
+    terminal = _FAILED_SUMMARY.search(log)
+    blocks = _FAILURE_BLOCK.findall(log)
+    if terminal is None or not blocks or len(blocks) > 8:
+        return None
+    counts = {}
+    for term in terminal[2].split(", "):
+        key, equals, value = term.partition("=")
+        if equals != "=" or key not in {"failures", "errors"} or not value.isdecimal() or key in counts:
             return None
-        counts = {}
-        for term in terminal[2].split(", "):
-            key, equals, value = term.partition("=")
-            if equals != "=" or key not in {"failures", "errors"} or not value.isdecimal() or key in counts:
-                return None
-            counts[key] = int(value)
-        if (sum(kind == "FAIL" for kind, _name, _body in blocks) != counts.get("failures", 0)
-                or sum(kind == "ERROR" for kind, _name, _body in blocks) != counts.get("errors", 0)):
+        counts[key] = int(value)
+    if (sum(kind == "FAIL" for kind, _name, _body in blocks) != counts.get("failures", 0)
+            or sum(kind == "ERROR" for kind, _name, _body in blocks) != counts.get("errors", 0)):
+        return None
+    rows = []
+    for kind, name, body in blocks:
+        headlines = ERROR_HEADLINE.findall(body)
+        if not headlines:
             return None
-        rows = []
-        for kind, name, body in blocks:
-            headlines = ERROR_HEADLINE.findall(body)
-            if not headlines:
-                return None
-            rows.append({"test": name, "status": "failed" if kind == "FAIL" else "error",
-                         "assertion": headlines[-1].strip()[:1200]})
-        return {"test_failures": rows, "test_failure_count": len(rows), "omitted_test_failures": 0,
-                "test_failures_complete": True, "tests_run": int(terminal[1])}
+        rows.append({"test": name, "status": "failed" if kind == "FAIL" else "error",
+                     "assertion": headlines[-1].strip()[:1200]})
+    return {"test_failures": rows, "test_failure_count": len(rows), "omitted_test_failures": 0,
+            "test_failures_complete": True, "tests_run": int(terminal[1])}
+
+
+def _shadowed_run_repair(suite, summaries, receipt):
+    for summary in summaries:
+        if any(failure.get("stage") == "python-unittest" and failure.get("status") == "failed"
+               and failure.get("tests_run") is None and "test_failures" not in failure
+               for failure in summary.get("failures", [])):
+            log = _complete_unittest_log(summary, receipt)
+            if log and _SHADOWED_RUN.search(log):
+                return repair_shadowed_testcase_run({file.path: file.content for file in suite.files})
     return None
 
 
@@ -184,6 +206,35 @@ def _repair_smoke_reference(workflow, candidate, suite, diagnostics):
     return None
 
 
+def _apply_shadowed_run_repair(workflow, candidate, suite, correction, failed_reference):
+    counter = "whole_self_reference_repair"
+    workflow.counters[counter] += 1
+    workflow.evidence["budget_counters"] = dict(workflow.counters)
+    stage = workflow.stage = f"whole_self_reference_repair_{workflow.counters[counter]}"
+    path = correction["path"]
+    patch = {"files": [{"path": path, "content": correction["content"]}]}
+    value = compose_smoke_source_patch(suite, smoke_source_patch_type((path,)), patch)
+    proof = {"policy": "rename-shadowed-unittest-run-v1", "decision": "rerun-reference", "model_call": False,
+             "failure_receipt_digest": failed_reference["receipt_digest"],
+             "previous_suite_digest": failed_reference["suite_digest"],
+             "fixture": {key: correction[key] for key in ("path", "class", "line", "attribute")}}
+    try:
+        revised = validate_self_suite(workflow, value, candidate)
+        if suite.model_dump(exclude={"files"}) != revised.model_dump(exclude={"files"}):
+            raise ValueError("Fixture rename changed the smoke manifest or coverage")
+        defects = workflow.test_defects(revised)
+        if defects:
+            raise ValueError(defects[0]["message"])
+    except ValueError as error:
+        workflow.stages[stage] = {**proof, "replacement_rejected": public_error(error)}
+        workflow.output["error"] = {"stage": stage, "message": public_error(error)}
+        return None
+    proof["revised_suite_digest"] = digest(revised.model_dump())
+    workflow.runtime.store.save_artifact(workflow.state["run_id"], stage, "raw", proof)
+    workflow.stages[stage] = proof
+    return revised
+
+
 def validate_smoke_reference(workflow, candidate, suite, *, allow_repair=True):
     """Return a reference-passing suite, or stop with review_required evidence."""
     if not workflow.scoped_repairs:
@@ -213,16 +264,18 @@ def validate_smoke_reference(workflow, candidate, suite, *, allow_repair=True):
             workflow.stages[workflow.stage]["status"] = "passed"
             workflow.evidence["self_reference_validation"] = dict(record)
             return suite
-        diagnostics = (reference_smoke_diagnostics(suite, summaries, receipt=result)
-                       if trusted and actionable_failure(result) else [])
-        record["status"] = "failed" if diagnostics else "review_required"
+        actionable = trusted and actionable_failure(result)
+        diagnostics = reference_smoke_diagnostics(suite, summaries, receipt=result) if actionable else []
+        fixture = _shadowed_run_repair(suite, summaries, result) if actionable and not diagnostics else None
+        record["status"] = "failed" if diagnostics or fixture else "review_required"
         workflow.stages[workflow.stage]["status"] = record["status"]
         attempts = workflow.counters["whole_self_reference_repair"]
-        if not diagnostics or not allow_repair or attempts >= MAX_REPAIRS:
+        if not (diagnostics or fixture) or not allow_repair or attempts >= MAX_REPAIRS:
             workflow.output["error"] = {"stage": workflow.stage, "message": (
                 "Smoke tests did not pass the pinned reference; no candidate repair is authorized"
                 + (" (smoke reference correction budget exhausted)" if attempts >= MAX_REPAIRS else ""))}
             return None
-        suite = _repair_smoke_reference(workflow, candidate, suite, diagnostics)
+        suite = (_apply_shadowed_run_repair(workflow, candidate, suite, fixture, record)
+                 if fixture else _repair_smoke_reference(workflow, candidate, suite, diagnostics))
         if suite is None:
             return None

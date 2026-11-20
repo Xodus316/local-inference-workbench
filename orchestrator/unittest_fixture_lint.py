@@ -19,6 +19,84 @@ def _own_nodes(node):
             yield from _own_nodes(child)
 
 
+def repair_shadowed_testcase_run(sources):
+    """Rename one internal string fixture that occupies unittest.TestCase.run."""
+    trees = {path: ast.parse(source) for path, source in sources.items()}
+    attributes = [(path, node) for path, tree in trees.items() for node in ast.walk(tree)
+                  if isinstance(node, ast.Attribute) and node.attr == "run"]
+    if not attributes:
+        return None
+    paths = {path for path, _node in attributes}
+    if len(paths) != 1:
+        return None
+    path = next(iter(paths))
+    tree = trees[path]
+    nodes = list(ast.walk(tree))
+    # External references or reflection would require a wider semantic analysis.
+    if any(isinstance(node, ast.Constant) and node.value == "run"
+           for module in trees.values() for node in ast.walk(module)):
+        return None
+    modules = {item.asname or item.name for entry in tree.body if isinstance(entry, ast.Import)
+               for item in entry.names if item.name == "unittest"}
+    case_aliases = {item.asname or item.name for entry in tree.body if isinstance(entry, ast.ImportFrom)
+                    and entry.module == "unittest" for item in entry.names if item.name == "TestCase"}
+    stores = [node for _, node in attributes if isinstance(node.ctx, ast.Store)]
+    if len(stores) != 1 or any(isinstance(node.ctx, ast.Del) for _, node in attributes):
+        return None
+    assignment = next((node for node in nodes if isinstance(node, ast.Assign) and node.targets == stores), None)
+    if assignment is None or not (
+            isinstance(assignment.value, ast.JoinedStr)
+            or isinstance(assignment.value, ast.Constant) and isinstance(assignment.value.value, str)
+            or isinstance(assignment.value, ast.Call) and isinstance(assignment.value.func, ast.Name)
+            and assignment.value.func.id == "str"):
+        return None
+
+    for cls in tree.body:
+        if not isinstance(cls, ast.ClassDef) or cls.decorator_list or cls.keywords or len(cls.bases) != 1:
+            continue
+        base = cls.bases[0]
+        if not (isinstance(base, ast.Name) and base.id in case_aliases
+                or isinstance(base, ast.Attribute) and isinstance(base.value, ast.Name)
+                and base.value.id in modules and base.attr == "TestCase"):
+            continue
+        methods = [node for node in cls.body if isinstance(node, ast.FunctionDef)]
+        owners = {}
+        for method in methods:
+            arguments = [*method.args.posonlyargs, *method.args.args]
+            if not arguments or any(not isinstance(item, ast.Name) or item.id != "classmethod"
+                                    for item in method.decorator_list):
+                continue
+            receiver = arguments[0].arg
+            # Keep the rewrite inside direct methods whose receiver is stable.
+            own = list(_own_nodes(method))
+            if any(isinstance(node, ast.Name) and node.id == receiver and not isinstance(node.ctx, ast.Load)
+                   for node in own):
+                continue
+            owners.update({node: method for node in own if isinstance(node, ast.Attribute)
+                           and node.attr == "run" and isinstance(node.value, ast.Name) and node.value.id == receiver})
+        setup = owners.get(stores[0])
+        if (setup is None or setup.name != "setUpClass" or not setup.decorator_list
+                or any(node not in owners for _, node in attributes)
+                or any(isinstance(node, ast.Call) and node.func in owners for node in nodes)
+                or any(method.name == "run" for method in methods)
+                or any(isinstance(node, ast.Name) and node.id == "run" and isinstance(node.ctx, ast.Store)
+                       for node in _own_nodes(cls))):
+            continue
+        # AST locations use UTF-8 byte offsets. Edit only the attribute tokens.
+        lines = sources[path].encode("utf-8").splitlines(keepends=True)
+        name = "fixture_run_id"
+        while any(name in source for source in sources.values()):
+            name += "_"
+        spans = sorted(((node.end_lineno - 1, node.end_col_offset) for node in owners), reverse=True)
+        for line, end in spans:
+            if lines[line][end - 3:end] != b"run":
+                return None
+            lines[line] = lines[line][:end - 3] + name.encode() + lines[line][end:]
+        return {"path": path, "class": cls.name, "line": stores[0].lineno, "attribute": name,
+                "content": b"".join(lines).decode("utf-8")}
+    return None
+
+
 def class_assertion_problems(path, tree):
     """Find missing arguments on proven unbound TestCase assertion calls.
 

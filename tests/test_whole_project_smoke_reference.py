@@ -62,7 +62,8 @@ class SmokeReferenceTests(unittest.TestCase):
             output={"plan": {"acceptance_criteria": ["Products work", "Concurrent updates persist"]}},
             environment={"verification": {"policy": "fixture-quality-v1", "required_checks": ["trusted-api", "python-unittest"]}},
             artifact_type=ProjectArtifact, project_type=ProjectProject, validate_suite=Mock(),
-            fixture_problems=Mock(return_value=[]), test_defects=defects)
+            fixture_problems=Mock(return_value=[]), test_defects=defects,
+            state={"run_id": "run"}, runtime=SimpleNamespace(store=Mock()))
         remaining = iter(receipts)
         count = 0
 
@@ -219,6 +220,59 @@ class SmokeReferenceTests(unittest.TestCase):
         incomplete["stage_receipts"][0]["log_complete"] = False
         bad = {"commands": [{"stdout": "", "stderr": log + "OFFLINE_PROJECT_RESULT " + json.dumps(incomplete)}]}
         self.assertEqual(reference_smoke_diagnostics(suite(), [incomplete], receipt=bad), [])
+
+    def shadowed_run_fixture(self):
+        source = SOURCE.replace("class Smoke(unittest.TestCase):\n",
+            "class Smoke(unittest.TestCase):\n"
+            "    @classmethod\n"
+            "    def setUpClass(cls):\n"
+            "        cls.run = str(123)\n"
+            "        cls.product = 'café-' + cls.run\n").replace(
+            "status = request()", "status = request(token=self.run)")
+        return suite(source)
+
+    def runner_crash_receipt(self):
+        crash = ("Traceback (most recent call last):\n"
+                 '  File "/usr/lib/python3.10/unittest/case.py", line 650, in __call__\n'
+                 "    return self.run(*args, **kwds)\nTypeError: 'str' object is not callable\n")
+        value = receipt()
+        report = summary()
+        report["failures"] = [{"stage": "python-unittest", "status": "failed", "exit_code": 1}]
+        report["stage_receipts"] = [{"stage": "python-unittest", "exit_code": 1,
+            "log_complete": True, "stream_relay_complete": True, "log_bytes": len(crash.encode()),
+            "log_sha256": hashlib.sha256(crash.encode()).hexdigest()}]
+        value["commands"][0].update(stdout="", stderr=crash + "OFFLINE_PROJECT_RESULT " + json.dumps(report))
+        return value
+
+    def test_runner_crash_renames_only_fixture_references_and_retries_reference(self):
+        original = self.shadowed_run_fixture()
+        crash = self.runner_crash_receipt()
+        workflow, candidate = self.workflow([crash, receipt(())])
+        revised = validate_smoke_reference(workflow, candidate, original)
+        self.assertEqual(revised.model_dump(exclude={"files"}), original.model_dump(exclude={"files"}))
+        original_source = original.files[0].content
+        self.assertEqual(revised.files[0].content, original_source.replace(".run", ".fixture_run_id"))
+        self.assertEqual(workflow.control.call_count, 2)
+        workflow._generate.assert_not_called()
+        proof = workflow.runtime.store.save_artifact.call_args.args[-1]
+        self.assertEqual(proof["failure_receipt_digest"], digest(crash))
+        self.assertEqual(proof["revised_suite_digest"], digest(revised.model_dump()))
+        self.assertFalse(proof["model_call"])
+        self.assertEqual(workflow.evidence["self_reference_validation"]["status"], "passed")
+
+    def test_runner_crash_does_not_repair_unverified_or_frozen_source(self):
+        unverified = self.runner_crash_receipt()
+        unverified["commands"][0]["stderr"] = unverified["commands"][0]["stderr"].replace(
+            "line 650", "line 651")
+        for crash, fixture, allow_repair in (
+                (unverified, self.shadowed_run_fixture(), True),
+                (self.runner_crash_receipt(), suite(), True),
+                (self.runner_crash_receipt(), self.shadowed_run_fixture(), False)):
+            workflow, candidate = self.workflow([crash])
+            self.assertIsNone(validate_smoke_reference(workflow, candidate, fixture, allow_repair=allow_repair))
+            workflow.control.assert_called_once()
+            workflow._generate.assert_not_called()
+            workflow.runtime.store.save_artifact.assert_not_called()
 
 
 if __name__ == "__main__":
