@@ -183,6 +183,91 @@ class GradleDialectRecoveryTests(unittest.TestCase):
                          {self.BUILD: corrected, self.SETTINGS: 'rootProject.name = "example"\n'})
 
 
+class JavaFormatterRecoveryTests(unittest.TestCase):
+    PATH = "api/src/main/java/JsonConfig.java"
+    SOURCE = """import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.util.StdDateFormat;
+import java.text.DateFormat;
+class JsonConfig {
+    Object mapper() {
+        var df = new StdDateFormat(new SimpleDateFormat("yyyy"), zone);
+        return JsonMapper.builder().dateFormat(df).build();
+    }
+}
+"""
+    PARTIAL = """import java.text.DateFormat;
+class JsonConfig {
+    Object mapper() {
+        return new DateFormat() {
+            @Override public StringBuffer format(Date value, StringBuffer target, FieldPosition fields) {
+                return target;
+            }
+            @Override public Date parse(String value) { return null; }
+            @Override public TimeZone getZone() { return null; }
+        };
+    }
+}
+"""
+    REFERENCE = {"documents": [
+        {"name": name, "content": content} for name, content in (
+            ("java.text.DateFormat",
+             "  public abstract java.lang.StringBuffer format(java.util.Date, java.lang.StringBuffer, java.text.FieldPosition);\n"
+             "  public java.util.Date parse(java.lang.String) throws java.text.ParseException;\n"
+             "  public abstract java.util.Date parse(java.lang.String, java.text.ParsePosition);\n"
+             "  public java.util.TimeZone getTimeZone();\n"),
+            ("java.text.Format", "  public java.lang.Object clone();\n"),
+            ("java.lang.Object", "  public java.lang.String toString();\n"),
+            ("com.fasterxml.jackson.databind.cfg.MapperBuilder", "  public B defaultDateFormat(java.text.DateFormat);\n"),
+            ("com.fasterxml.jackson.databind.json.JsonMapper$Builder", "public class JsonMapper$Builder extends MapperBuilder {\n}\n"),
+            ("com.fasterxml.jackson.databind.util.StdDateFormat",
+             "  public com.fasterxml.jackson.databind.util.StdDateFormat(java.util.TimeZone, java.util.Locale);\n"),
+        )
+    ]}
+
+    def test_pinned_api_evidence_and_partial_override_retry_before_recompilation(self):
+        flow = object.__new__(WholeProjectBuildRun)
+        flow.scoped_repairs, flow._regression_feedback = True, None
+        flow.dependency_reference, flow.contract = self.REFERENCE, {"repair_selected_bytes": 65536}
+        flow.source_bytes, flow.artifact_type = 131072, ProjectArtifact
+        flow.runtime, flow.state, flow.stages = SimpleNamespace(store=Mock()), {"run_id": "run"}, {}
+        flow.model_inputs = lambda data: {**data, "plan": {}}
+        artifact = ProjectArtifact(summary="Candidate", files=[{"path": self.PATH, "content": self.SOURCE}])
+        paths, evidence = flow._select_repair_paths("build_compile_repair_1_1", artifact, compile_feedback(
+            f"{self.PATH}:7: error: cannot find symbol | symbol: method dateFormat(StdDateFormat)"))
+        self.assertEqual(paths, [self.PATH])
+        self.assertEqual({row["kind"] for row in evidence["compiler_path_selection"]["java_date_format_findings"]},
+                         {"unsupported-builder-method", "unsupported-constructor"})
+        corrected = self.SOURCE.replace("new StdDateFormat(new SimpleDateFormat(\"yyyy\"), zone)",
+                                        "new SimpleDateFormat(\"yyyy\")").replace(".dateFormat(", ".defaultDateFormat(")
+
+        def repair(stage, _role, _operation, visible, **call):
+            flow.stages[stage] = {}
+            self.assertIn("defaultDateFormat(DateFormat)", call["instruction"])
+            if stage.endswith("_edit_retry"):
+                self.assertEqual(visible[self.PATH], self.PARTIAL)
+                self.assertEqual({row["signature"] for row in call["inputs"]["remaining_java_date_format"]},
+                                 {"parse(String, ParsePosition)", "getZone()"})
+                return {"files": {self.PATH: corrected}}
+            return {"files": {self.PATH: self.PARTIAL}, "receipt": {"scratch_cleanup_confirmed": True,
+                "events": [{"type": "step_finish", "part": {"reason": "stop"}}]}}
+
+        flow._opencode = Mock(side_effect=repair)
+        result = flow._patch("build_compile_repair_1_1", "repairer", artifact, SimpleNamespace(files=[], commands=[]),
+                             evidence, paths=paths, compile_patch=False)
+        self.assertEqual(flow._opencode.call_count, 2)
+        self.assertEqual(result.files[0].content, corrected)
+
+    def test_inherited_and_implemented_signatures_do_not_trigger_retry(self):
+        from orchestrator.whole_project_java_format import java_date_format_findings
+
+        valid = self.PARTIAL.replace("parse(String value)", "parse(String value, java.text.ParsePosition pos)").replace(
+            "getZone()", "getTimeZone()").replace("return target;", "return target; /* ignored } */").replace(
+            "@Override public TimeZone", "@Override public String toString() { return \"}\"; }\n"
+            "            @Override public TimeZone")
+        self.assertEqual(java_date_format_findings({self.PATH: valid}, self.REFERENCE), [])
+        self.assertEqual(java_date_format_findings({self.PATH: self.PARTIAL}, None), [])
+
+
 class SelectionBudgetRecoveryTests(unittest.TestCase):
     def setUp(self):
         self.artifact = ProjectArtifact(summary="Current source", files=[

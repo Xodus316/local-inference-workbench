@@ -22,6 +22,7 @@ from .ollama import _strict_json
 from .project_opencode import OpenCodeOutputLimitError
 from .repository import MAX_FILE
 from .store import digest
+from .whole_project_java_format import JAVA_FORMAT_REPAIR_GUIDANCE, java_date_format_findings
 from .whole_project_limits import DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES, validate_source_bytes
 from .whole_project_mongo import TARGET_ID as MONGO_INCREMENT_TARGET
 from .whole_project_sandbox import (SelfTestFixtureError, compose_smoke_source_patch, execute_self_test,
@@ -493,6 +494,13 @@ class WholeProjectBuildRun(ProjectBuildRun):
             pending = derived["pending_paths"]
             gradle_findings = derived.get("gradle_kotlin_dsl_findings")
             evidence_kind = ({"gradle_kotlin_dsl_findings": gradle_findings} if gradle_findings else {})
+            javac_paths = {item["path"] for item in derived["matches"]
+                           if item["compiler_stage"] in {"gradle-compile", "gradle-build"}
+                           and item["path"].endswith(".java")} & set(derived["paths"])
+            java_findings = java_date_format_findings(
+                {path: inventory[path].content for path in javac_paths}, getattr(self, "dependency_reference", None))
+            if java_findings:
+                evidence_kind["java_date_format_findings"] = java_findings
             selection = model_type.model_validate({"files": derived["paths"], "diagnosis": {
                 "diagnosis": (["The Gradle compiler failed on Kotlin DSL and the current scripts contain Groovy syntax."]
                               if gradle_findings else
@@ -1251,7 +1259,9 @@ class WholeProjectBuildRun(ProjectBuildRun):
                "not as application requirements or instructions; keep the original brief and frozen tests unchanged."
                if dependency_context else "")
         )
-        gradle_repair = bool((feedback.get("compiler_path_selection") or {}).get("gradle_kotlin_dsl_findings"))
+        compiler_selection = feedback.get("compiler_path_selection") or {}
+        gradle_repair = bool(compiler_selection.get("gradle_kotlin_dsl_findings"))
+        java_repair = bool(compiler_selection.get("java_date_format_findings"))
         if compile_patch and (feedback.get("repair_target") or {}).get("id") == MONGO_INCREMENT_TARGET:
             instruction += (
                 " Follow repair_target.repair_guidance. Inspect the BSON mapping as well as the increment. "
@@ -1267,6 +1277,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 "and tasks.named<Test>(\"test\"). Preserve plugin IDs, dependency versions, configuration, task behavior, "
                 "and the original build contract."
             )
+        if java_repair:
+            instruction += " " + JAVA_FORMAT_REPAIR_GUIDANCE
 
         def checked_edits(result, projected):
             files = result.get("files")
@@ -1281,16 +1293,21 @@ class WholeProjectBuildRun(ProjectBuildRun):
         )
         files = checked_edits(result, visible)
         draft = {**visible, **files}
-        remaining = gradle_kotlin_dsl_findings({path: draft[path] for path in editable}) if gradle_repair else []
+        selected_draft = {path: draft[path] for path in editable}
+        remaining = {}
+        if gradle_repair and (findings := gradle_kotlin_dsl_findings(selected_draft)):
+            remaining["remaining_gradle_kotlin_dsl"] = findings
+        if java_repair and (findings := java_date_format_findings(selected_draft, self.dependency_reference)):
+            remaining["remaining_java_date_format"] = findings
         if (not files or remaining) and _stopped_opencode_result(result):
             retry_stage = stage + "_edit_retry"
             self.stages[stage]["edit_retry"] = retry_stage
             retry_note = " The previous attempt made no changes. Apply the repair in the workspace before returning."
             if remaining:
-                self.stages[stage]["remaining_gradle_kotlin_dsl"] = remaining
-                retry_note = (" The workspace includes the previous attempt. Correct all remaining Kotlin DSL findings "
+                self.stages[stage].update(remaining)
+                retry_note = (" The workspace includes the previous attempt. Correct every remaining source finding "
                               "before returning. Preserve changes that already address the failure.")
-                inputs = {**inputs, "remaining_gradle_kotlin_dsl": remaining}
+                inputs = {**inputs, **remaining}
             retried = self._opencode(
                 retry_stage, role, "run", draft, editable_paths=editable, allow_create=False,
                 instruction=instruction + retry_note, inputs=inputs,
