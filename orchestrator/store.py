@@ -75,18 +75,18 @@ for number in range(16):
     STAGES.update(f"build_code_review_{number}_chunk_{chunk}" for chunk in range(1, 17))
     STAGES.update(f"build_code_review_{number}_chunk_{chunk}_citation_retry" for chunk in range(1, 17))
 for slot in range(1, 5):
-    STAGES.update(f"build_compile_checkpoint_{slot}_{attempt}" for attempt in range(3))
-    for attempt in range(1, 3):
+    STAGES.update(f"build_compile_checkpoint_{slot}_{attempt}" for attempt in range(5))
+    for attempt in range(1, 5):
         stage = f"build_compile_repair_{slot}_{attempt}"
         STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
     for repair in range(9):
-        STAGES.update(f"build_repair_compile_checkpoint_{repair}_{slot}_{attempt}" for attempt in range(3))
-        for attempt in range(1, 3):
+        STAGES.update(f"build_repair_compile_checkpoint_{repair}_{slot}_{attempt}" for attempt in range(5))
+        for attempt in range(1, 5):
             stage = f"build_repair_compile_repair_{repair}_{slot}_{attempt}"
             STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
     for repair in range(1, 4):
-        STAGES.update(f"build_self_compile_checkpoint_{repair}_{slot}_{attempt}" for attempt in range(3))
-        for attempt in range(1, 3):
+        STAGES.update(f"build_self_compile_checkpoint_{repair}_{slot}_{attempt}" for attempt in range(5))
+        for attempt in range(1, 5):
             stage = f"build_self_compile_repair_{repair}_{slot}_{attempt}"
             STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
 # The native selection policy requires every selection stage to end in _select.

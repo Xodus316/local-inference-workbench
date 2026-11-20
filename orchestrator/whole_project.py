@@ -295,6 +295,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if repair_policy not in (None, REPAIR_POLICY):
             raise ValueError("Unknown whole-project repair policy")
         self.scoped_repairs = repair_policy == REPAIR_POLICY
+        from .compile_progress import additional_repairs
+        additional_repairs(self.bundle)
         if not self.scoped_repairs:
             self.compile_checkpoints = []
         self._compiled_artifacts = set()
@@ -434,6 +436,12 @@ class WholeProjectBuildRun(ProjectBuildRun):
             key = f"whole_compile_{'initial' if repair_round is None else repair_round}_{slot}"
         contract = self.contract
         self.contract = {**contract, "max_compile_repairs": max(0, contract["max_compile_repairs"] - self.counters[key])}
+        from .compile_progress import additional_repairs
+        extra = additional_repairs(self.bundle)
+        if extra:
+            spent = self.counters[key]
+            kwargs.update(progress_limit=max(0, extra - max(0, spent - contract["max_compile_repairs"])),
+                          attempt_offset=spent)
         self._compile_budget_key = key
         try:
             return super().compile_component(*args, repair_round=repair_round, **kwargs)

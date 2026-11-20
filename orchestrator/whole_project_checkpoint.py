@@ -21,6 +21,7 @@ _BINDINGS = (
     "whole_project_test_author_policy", "whole_project_test_author_migration",
     "same_model_role_isolation",
     "project_review_policy", "whole_project_gate_policy", "fresh_project",
+    "whole_project_compile_progress_policy",
 )
 
 
@@ -33,7 +34,8 @@ def binding_digest(bundle):
     return digest({**{key: bundle.get(key) for key in _BINDINGS
                       if key not in {"run_timeout_seconds", "project_dependency_reference", "whole_project_regression_suite",
                                      "whole_project_test_author_policy", "whole_project_test_author_migration",
-                                     "same_model_role_isolation", "project_review_policy", "whole_project_gate_policy", "fresh_project"}
+                                     "same_model_role_isolation", "project_review_policy", "whole_project_gate_policy", "fresh_project",
+                                     "whole_project_compile_progress_policy"}
                       or key in bundle}, "workers": workers,
                    "reference_digest": (bundle.get("project_reference") or {}).get("digest")})
 
@@ -76,6 +78,8 @@ def validate_checkpoint(value, bundle):
             or value["repair_attempts"] > bundle["build"]["max_repair_attempts"]):
         raise ValueError("Whole-project checkpoint has invalid repair counters")
     compile_total = 0
+    from .compile_progress import additional_repairs
+    compile_limit = bundle["build_contract"]["max_compile_repairs"] + additional_repairs(bundle)
     if not 0 <= counters.get("whole_self_repair", 0) <= 3:
         raise ValueError("Whole-project checkpoint has invalid self-repair budget")
     for key, count in counters.items():
@@ -86,14 +90,14 @@ def validate_checkpoint(value, bundle):
         if self_match is not None:
             if (not 1 <= int(self_match[1]) <= counters.get("whole_self_repair", 0)
                     or not 1 <= int(self_match[2]) <= contract["max_compile_checkpoints"]
-                    or count > contract["max_compile_repairs"]):
+                    or count > compile_limit):
                 raise ValueError("Whole-project checkpoint has invalid self compiler budgets")
             compile_total += count
             continue
         match = _COMPILE_COUNTER.fullmatch(key)
         if (match is None or not 1 <= int(match[2]) <= contract["max_compile_checkpoints"]
                 or (match[1] != "initial" and int(match[1]) > value["repair_attempts"])
-                or count > contract["max_compile_repairs"]):
+                or count > compile_limit):
             raise ValueError("Whole-project checkpoint has invalid per-component compile budgets")
         compile_total += count
     if compile_total != value["compile_repair_attempts"]:

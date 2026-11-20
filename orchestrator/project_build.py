@@ -1748,7 +1748,7 @@ class ProjectBuildRun(BuildRun):
 
     def compile_component(self, artifact, suite, plan, index, slot, checkpoint, paths, *,
                           repair_round=None, editable_paths=None, repair_intent=None, exact_edits=False,
-                          repair_phase="repair"):
+                          repair_phase="repair", progress_limit=0, attempt_offset=0):
         if repair_phase not in {"repair", "self"} or repair_phase == "self" and repair_round not in range(1, 4):
             raise ValueError("Invalid compiler repair phase or self-repair round")
         run_id = self.state["run_id"]
@@ -1761,6 +1761,9 @@ class ProjectBuildRun(BuildRun):
         # must use the original bound, not shrink into a neighboring component.
         stride = ((self.bundle.get("build_contract") or self.contract)["max_compile_repairs"] + 1
                   if getattr(self, "scoped_repairs", False) else limit + 1)
+        if progress_limit or attempt_offset:
+            from .compile_progress import additional_repairs
+            stride += additional_repairs(self.bundle)
         if repair_round is None:
             checkpoint_stage, repair_stage, workspace_base = "build_compile_checkpoint", "build_compile_repair", 6000
             stage_slot = str(slot)
@@ -1769,7 +1772,8 @@ class ProjectBuildRun(BuildRun):
             checkpoint_stage, repair_stage = prefix + "_checkpoint", prefix + "_repair"
             stage_slot = f"{repair_round}_{slot}"
             workspace_base = (7100 if repair_phase == "self" else 6100) + repair_round * self.contract["max_compile_checkpoints"] * stride
-        for attempt in range(limit + 1):
+        for local_attempt in range(limit + progress_limit + 1):
+            attempt = attempt_offset + local_attempt
             stage = self.stage = f"{checkpoint_stage}_{stage_slot}_{attempt}"
             component = self.artifact_type(summary=f"Compile checkpoint {name}",
                                            files=[f for f in artifact.files if f.path in paths])
@@ -1794,6 +1798,9 @@ class ProjectBuildRun(BuildRun):
                                                source_hashes=source_hashes, image_id=image)
             record = {"checkpoint": name, "group_index": index, "attempt": attempt, "status": status,
                       "stage": stage, "execution": execution, "stage_results": summary}
+            scope = f"{checkpoint_stage}_{stage_slot}"
+            if progress_limit or attempt_offset:
+                record["compile_scope"] = scope
             if repair_round is not None:
                 record["repair_round"] = repair_round
                 if repair_phase == "self":
@@ -1803,7 +1810,14 @@ class ProjectBuildRun(BuildRun):
                                   "checkpoint": name, "group_index": index}
             if status == "passed":
                 return artifact
-            if status != "failed" or attempt == limit:
+            progress = None
+            if status == "failed" and local_attempt >= limit and local_attempt < limit + progress_limit:
+                from .compile_progress import progress_proof
+                history = [r for r in self.output["verification"]["compile_checkpoints"]
+                           if r.get("compile_scope") == scope]
+                progress = progress_proof(history, component.files, checkpoint, policy, image)
+                record["progress_recovery"] = progress
+            if status != "failed" or local_attempt >= limit and progress is None:
                 message = ("Compiler errors remain after the checkpoint repair budget"
                            if status == "failed" else "Compile checkpoint did not produce a conclusive compiler receipt")
                 self.output["error"] = {"stage": stage, "message": f"{name}: {message}"}
@@ -1817,6 +1831,9 @@ class ProjectBuildRun(BuildRun):
             self.output["compile_repair_attempts"] += 1
             feedback = {"compile_checkpoint": name,
                         "failed_execution": failure_feedback(execution, include_stage_results=True)}
+            if progress is not None:
+                self.output["compile_progress_repair_attempts"] = self.output.get("compile_progress_repair_attempts", 0) + 1
+                feedback["compile_progress_recovery"] = progress
             if repair_intent is not None:
                 feedback["repair_intent"] = repair_intent
             try:
@@ -1827,7 +1844,7 @@ class ProjectBuildRun(BuildRun):
                 )
             except OutputCapReached as capped:
                 self.output.setdefault("capped_repairs", []).append(capped.stage)
-                if attempt + 1 >= limit:
+                if local_attempt + 1 >= limit:
                     self.output["error"] = {"stage": capped.stage, "message": f"{name}: The last compile repair "
                                             "reached its output cap; compiler errors remain"}
                     return None

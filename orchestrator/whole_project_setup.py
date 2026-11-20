@@ -8,6 +8,7 @@ from .project_build import (REFERENCE_TEST_REPAIR, REVIEWED_POLICY,
 from .project_dependency_reference import validate_dependency_reference
 from .role_isolation import KEY as ISOLATION_KEY, POLICY as ISOLATION_POLICY, SESSION, validate_role_isolation
 from .store import digest
+from .compile_progress import KEY as COMPILE_PROGRESS_KEY, POLICY as COMPILE_PROGRESS_POLICY, additional_repairs
 from .whole_project import POLICY, WORKER_ROLES
 from .whole_project_checkpoint import REPAIR_POLICY
 from .whole_project_gates import POLICY as GATE_POLICY
@@ -59,6 +60,7 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
                        'initial_general_repairs': 0, 'initial_self_repairs': 0,
                        'operator_intervention': 'none_after_launch'},
     )
+    value[COMPILE_PROGRESS_KEY] = deepcopy(COMPILE_PROGRESS_POLICY)
     tokenizers = getattr(runtime, 'whole_project_prompt_tokenizers', {})
     if tokenizers:
         if not set(tokenizers) <= set(workers):
@@ -99,6 +101,7 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
 
 
 def validate_fresh_run(bundle):
+    additional_repairs(bundle)
     expected = {'policy': FRESH_POLICY, 'application_seed': None, 'plan_seed': None,
                 'self_suite_seed': None, 'independent_suite_seed': None,
                 'initial_general_repairs': 0, 'initial_self_repairs': 0,
