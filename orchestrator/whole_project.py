@@ -23,6 +23,7 @@ from .project_opencode import OpenCodeOutputLimitError
 from .repository import MAX_FILE
 from .store import digest
 from .whole_project_limits import DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES, validate_source_bytes
+from .whole_project_mongo import TARGET_ID as MONGO_INCREMENT_TARGET
 from .whole_project_sandbox import (SelfTestFixtureError, compose_smoke_source_patch, execute_self_test,
                                     smoke_source_patch_type, smoke_test_type, validate_self_fixture_correction,
                                     validate_self_suite)
@@ -517,6 +518,18 @@ class WholeProjectBuildRun(ProjectBuildRun):
                            "compiler_path_selection": {"policy": COMPILER_SELECTION_POLICY,
                                                        "evidence_digest": digest(proof), "matches": derived["matches"],
                                                        **deferred, **evidence_kind}}
+        if target.get("id") == MONGO_INCREMENT_TARGET and target.get("implementation_digest") == digest(artifact.model_dump()):
+            paths = target.get("source_paths")
+            if paths and paths == feedback["repair_target"]["source_paths"] and sum(sizes[path] for path in paths) <= limit:
+                selected_source(artifact.files, paths, limit)
+                policy = "mongo-decimal-increment-source-selection-v1"
+                proof = {"policy": policy, "model_call": False, "selected_paths": paths,
+                         "inventory_digest": digest(tree), "repair_target": target}
+                self.stage = selection_stage
+                self.runtime.store.save_artifact(self.state["run_id"], self.stage, "raw", proof)
+                self.stages[self.stage] = {"selection_policy": policy, "model_call": False, "selected_paths": paths,
+                                           "evidence_digest": digest(proof)}
+                return paths, evidence
         instruction = (
             "Diagnose only repair_target, or the supplied compiler/review failure when no target is present. "
             "Use the supplied current_source and complete implementation_tree. No tools are available. "
@@ -1239,6 +1252,12 @@ class WholeProjectBuildRun(ProjectBuildRun):
                if dependency_context else "")
         )
         gradle_repair = bool((feedback.get("compiler_path_selection") or {}).get("gradle_kotlin_dsl_findings"))
+        if compile_patch and (feedback.get("repair_target") or {}).get("id") == MONGO_INCREMENT_TARGET:
+            instruction += (
+                " Follow repair_target.repair_guidance. Inspect the BSON mapping as well as the increment. "
+                "Fix the write with exact decimal arithmetic and atomic updates. Preserve existing "
+                "indexes and validation, and remove any write-path workaround cited in the diagnostics."
+            )
         if gradle_repair:
             instruction += (
                 " Gradle loads settings and plugin declarations before the rest of a build script. Fix every "

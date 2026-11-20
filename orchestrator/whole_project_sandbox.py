@@ -19,6 +19,7 @@ from .schemas import Record
 from .store import digest
 from .unittest_fixture_lint import class_assertion_problems
 from .whole_project_limits import WHOLE_PROJECT_TEST_BYTES
+from .whole_project_mongo import mongo_increment_target
 
 
 _MISSING_SPRING_ROUTE = re.compile(
@@ -153,19 +154,23 @@ def zero_test_fixture_failure(summaries):
     return None
 
 
-def _missing_api_prefix_target(workflow, candidate, suite_digest, summaries, receipt):
-    environment = workflow.environment or {}
-    api = environment.get("api") or {}
-    prefix = api.get("path_prefix")
-    if (not prefix or api.get("base_url_kind") != "api_root"
-            or "trusted-api" not in (environment.get("verification") or {}).get("required_checks", [])):
-        return None
+def _passing_smoke_reference(workflow, suite_digest):
     reference_digest = (getattr(workflow, "reference", None) or {}).get("digest")
     proof = getattr(workflow, "evidence", {}).get("self_reference_validation", {})
     proof_receipt = proof.get("receipt_digest")
-    if (not reference_digest or proof.get("status") != "passed" or proof.get("reference_digest") != reference_digest
-            or proof.get("suite_digest") != suite_digest
-            or not isinstance(proof_receipt, str) or not re.fullmatch(r"[a-f0-9]{64}", proof_receipt)):
+    if (reference_digest and proof.get("status") == "passed" and proof.get("reference_digest") == reference_digest
+            and proof.get("suite_digest") == suite_digest
+            and isinstance(proof_receipt, str) and re.fullmatch(r"[a-f0-9]{64}", proof_receipt)):
+        return proof_receipt
+    return None
+
+
+def _missing_api_prefix_target(workflow, candidate, summaries, receipt, proof_receipt):
+    environment = workflow.environment or {}
+    api = environment.get("api") or {}
+    prefix = api.get("path_prefix")
+    if (not proof_receipt or not prefix or api.get("base_url_kind") != "api_root"
+            or "trusted-api" not in (environment.get("verification") or {}).get("required_checks", [])):
         return None
     for summary in summaries:
         checks = summary.get("checks", {})
@@ -252,8 +257,12 @@ def execute_self_test(workflow, candidate, suite, stage, index):
         result["feedback"] = failure_feedback(receipt, include_stage_results=True)
         scoped = getattr(workflow, "scoped_repairs", False)
         fixture_failure = zero_test_fixture_failure(summaries) if scoped else None
-        repair_target = (_missing_api_prefix_target(workflow, candidate, result["suite_digest"], summaries, receipt)
-                         if scoped else None)
+        repair_target = None
+        if scoped:
+            proof = _passing_smoke_reference(workflow, result["suite_digest"])
+            repair_target = _missing_api_prefix_target(workflow, candidate, summaries, receipt, proof)
+            if repair_target is None and fixture_failure is None:
+                repair_target = mongo_increment_target(candidate, summaries, receipt, proof)
         if repair_target is not None:
             result.update(status="failed", repair_target=repair_target)
         elif fixture_failure is not None:

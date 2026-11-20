@@ -197,6 +197,74 @@ class WholeProjectSandboxTests(unittest.TestCase):
                 self.assertIn("fixture_failure", result)
                 self.assertNotIn("repair_target", result)
 
+    def mongo_failure(self, *, mapping="", context=(), operation="click", receipt_suite=None):
+        paths = ["api/src/main/java/Link.java", "api/src/main/java/LinkService.java"]
+        candidate = ProjectArtifact(summary="Application", files=[
+            {"path": paths[0], "content":
+             '@Document(collection = "links")\npublic class Link {\n'
+             + mapping + '    private BigDecimal revenue = BigDecimal.ZERO;\n}\n'},
+            {"path": paths[1], "content":
+             'import org.springframework.data.mongodb.core.MongoTemplate;\n'
+             'class LinkService {\n    public Result click() {\n'
+             '        Update update = new Update().inc("count", 1).inc("revenue", new Decimal128(increment));\n'
+             '        return template.updateFirst(query, update, Link.class);\n    }\n}\n'},
+        ])
+        suite = validate_self_suite(self.workflow, {**suite_value(), "implementation_files": paths}, candidate)
+        self.workflow.scoped_repairs = True
+        self.workflow.reference = {"digest": "reference"}
+        self.workflow.evidence = {"self_reference_validation": {
+            "status": "passed", "suite_digest": receipt_suite or digest(suite.model_dump()),
+            "reference_digest": "reference", "receipt_digest": "e" * 64,
+        }}
+        receipt = verifier_receipt(passed=False)
+        summary = {"policy": POLICY, "status": "failed", "exit_code": 1, "cleanup_confirmed": True,
+                   "checks": {name: {"status": status} for name, status in (
+                       ("python-unittest", "failed"), ("trusted-api-startup", "passed"), ("mongodb-ready", "passed"))},
+                   "failures": [{"stage": "python-unittest", "status": "failed", "tests_run": 1,
+                                 "test_failures_complete": True, "omitted_test_failures": 0,
+                                 "api_context": list(context),
+                                 "test_failures": [{"test": "test_value (test_self.SelfCheck)", "status": "failed",
+                                    "assertion": f"AssertionError: 409 != 200 : POST /links/{{id}}/{operation}: 409 "
+                                                 "{'error': 'Duplicate value for a unique field'}"}]}]}
+        receipt["commands"][0]["stderr"] = "OFFLINE_PROJECT_RESULT " + json.dumps(summary)
+        self.workflow.runtime._build_execution.return_value = receipt
+        return candidate, suite, receipt
+
+    def test_mongo_repair_selects_both_files_using_reference_and_current_source(self):
+        candidate, suite, receipt = self.mongo_failure(context=(
+            "com.mongodb.MongoWriteException: WriteError{code=14, message='Cannot apply $inc to a value of non-numeric type.'}",
+        ))
+        result = execute_self_test(self.workflow, candidate, suite, "whole_self_verify_0", 8000)
+        target = result["repair_target"]
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(target["id"], "mongo-decimal-increment")
+        self.assertTrue(target["driver_type_error_observed"])
+        self.assertEqual(target["receipt_digest"], digest(receipt))
+        self.assertEqual(target["reference_receipt_digest"], "e" * 64)
+
+        flow = object.__new__(WholeProjectBuildRun)
+        flow.state, flow.runtime, flow.stages = {"run_id": "run"}, SimpleNamespace(store=Mock()), {}
+        flow.contract = {"repair_selected_bytes": 65536}
+        flow._generate = Mock(side_effect=AssertionError("Source-bound selection should not call the model"))
+        paths, feedback = flow._select_repair_paths("whole_self_repair", candidate, {"repair_target": target})
+        self.assertEqual(paths, [file.path for file in candidate.files])
+        self.assertEqual(feedback["repair_target"], target)
+        self.assertFalse(flow.stages["whole_self_repair_select"]["model_call"])
+
+    def test_mongo_repair_works_with_masked_exception_and_rejects_unrelated_conflicts(self):
+        candidate, suite, _ = self.mongo_failure()
+        result = execute_self_test(self.workflow, candidate, suite, "whole_self_verify_0", 8000)
+        self.assertFalse(result["repair_target"]["driver_type_error_observed"])
+
+        for options in ({"context": ("com.mongodb.MongoWriteException: E11000 duplicate key error",)},
+                        {"mapping": "    @Field(targetType = FieldType.DECIMAL128)\n"},
+                        {"operation": "rename"}, {"receipt_suite": "other-suite"}):
+            with self.subTest(options=options):
+                candidate, suite, _ = self.mongo_failure(**options)
+                result = execute_self_test(self.workflow, candidate, suite, "whole_self_verify_0", 8000)
+                self.assertEqual(result["status"], "failed")
+                self.assertNotIn("repair_target", result)
+
 
 if __name__ == "__main__":
     unittest.main()
