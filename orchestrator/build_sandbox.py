@@ -259,7 +259,12 @@ class DockerBuildExecutor:
                 if compile_tests:
                     args.extend(["--entrypoint", "python3", image, "-I", "-c", PYTHON_TEST_COMPILE])
                 else:
-                    args.extend([image or self.config.image, "/bin/sh", "-lc", command])
+                    args.append(image or self.config.image)
+                    if profile is not None and profile["entrypoint"] == "/usr/bin/tini":
+                        # Tini's getopt otherwise consumes the shell's -lc as
+                        # its own -l (license), exits zero, and never runs it.
+                        args.append("--")
+                    args.extend(["/bin/sh", "-lc", command])
                 shutil.copytree(project, copy, dirs_exist_ok=True)
                 before = _hashes(copy)
                 failure_stderr_bytes = getattr(self.config, "failure_stderr_bytes", None)

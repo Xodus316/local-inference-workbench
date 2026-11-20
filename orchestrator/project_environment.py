@@ -62,6 +62,20 @@ class ProjectCompileCheckpoint(Record):
     name: CheckName
     source_root: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$")
     required_checks: list[CheckName] = Field(min_length=1, max_length=8)
+    verification_profile: dict | None = None
+
+    @field_validator("verification_profile")
+    @classmethod
+    def trusted_profile(cls, value):
+        from .sandbox_profiles import normalize_verification_profile
+        return normalize_verification_profile(value) if value is not None else None
+
+    @model_serializer(mode="wrap")
+    def serialize_checkpoint(self, handler):
+        value = handler(self)
+        if self.verification_profile is None:
+            value.pop("verification_profile", None)
+        return value
 
     @model_validator(mode="after")
     def valid_component(self):
@@ -69,6 +83,11 @@ class ProjectCompileCheckpoint(Record):
             raise ValueError("Compile checkpoints require a portable implementation directory")
         if len(self.required_checks) != len(set(self.required_checks)):
             raise ValueError("Required compile checks must be distinct")
+        if self.verification_profile is not None:
+            requirements = self.verification_profile["verification"]
+            if (requirements is None or requirements["marker"] != "OFFLINE_PROJECT_RESULT"
+                    or requirements["required_checks"] != self.required_checks):
+                raise ValueError("Compile profile must retain the checkpoint result marker and required checks")
         return self
 
 
@@ -114,6 +133,10 @@ class ProjectEnvironment(Record):
             if (self.verification is None or len(names) != len(self.compile_checkpoints)
                     or len(roots) != len(self.compile_checkpoints)):
                 raise ValueError("Compile checkpoints require image verification and distinct names and directories")
+            if any(item.verification_profile is not None
+                   and item.verification_profile["verification"]["policy"] != self.verification.policy
+                   for item in self.compile_checkpoints):
+                raise ValueError("Compile profile must retain the image verification policy")
         if len(json.dumps(self.model_dump(), ensure_ascii=False, separators=(",", ":")).encode("utf-8")) > 8192:
             raise ValueError("Project environment metadata exceeds 8192 UTF-8 bytes")
         return self

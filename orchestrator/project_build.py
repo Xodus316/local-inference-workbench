@@ -767,8 +767,26 @@ def execution_settled(receipt):
     )
 
 
-def compile_checkpoint_status(receipt, summary, checkpoint, policy):
+def compile_checkpoint_status(receipt, summary, checkpoint, policy, *, source_hashes=None, image_id=None):
     """Classify only verified compiler outcomes as eligible for repair."""
+    profile = checkpoint.get("verification_profile")
+    if profile is not None:
+        from .sandbox_profiles import verification_profile_identity
+        effective = verification_profile_identity(profile, image_id)
+        sandbox = receipt.get("sandbox") or {}
+        if (source_hashes is None or sandbox.get("image_id") != image_id
+                or sandbox.get("network") != "disabled" or sandbox.get("read_only_root") is not True
+                or sandbox.get("read_only_project") is not True or sandbox.get("effective_runtime") != effective
+                or not receipt.get("commands")
+                or any(row.get("effective_runtime") != effective or row.get("profile_sources_unchanged") is not True
+                       or row.get("source_unchanged") is not True or row.get("source_sha256") != source_hashes
+                       for row in receipt["commands"])):
+            return "review_required"
+        if profile.get("require_complete_stdout", False):
+            from .build_sandbox_lifecycle import complete_stdout_capture
+            if not all(complete_stdout_capture(row, profile.get("stdout_capture_bytes", 4000))
+                       for row in receipt["commands"]):
+                return "review_required"
     requirements = {"policy": policy, "required_checks": checkpoint["required_checks"]}
     if (summary is None or summary.get("checkpoint") != checkpoint["name"]
             or not execution_settled(receipt)
@@ -1758,18 +1776,22 @@ class ProjectBuildRun(BuildRun):
             workspace = workspace_base + slot * stride + attempt
             binding = {"image_id": image, "component_digest": digest(component.model_dump()),
                        "checkpoint": checkpoint, "group_index": index, "command": command}
+            profile = checkpoint.get("verification_profile")
+            options = {"verification_profile": profile} if profile is not None else {}
 
             def execute():
                 executor = project_executor(self.runtime, self.state)
                 project_path = executor.materialize(run_id, workspace, component)
                 return executor.test(run_id, workspace, project_path, [command], image=image,
                                      cancel=self.runtime.events[run_id], deadline=self.runtime.deadline,
-                                     read_only_project=True)
+                                     read_only_project=True, **options)
 
             execution = self._timed_check("compile", lambda: self.runtime._build_receipt(run_id, stage, binding, execute))
             rows = execution.get("commands") or []
             summary = sandbox_stage_results(rows[0]) if len(rows) == 1 else None
-            status = compile_checkpoint_status(execution, summary, checkpoint, policy)
+            source_hashes = {f.path: hashlib.sha256(f.content.encode("utf-8")).hexdigest() for f in component.files}
+            status = compile_checkpoint_status(execution, summary, checkpoint, policy,
+                                               source_hashes=source_hashes, image_id=image)
             record = {"checkpoint": name, "group_index": index, "attempt": attempt, "status": status,
                       "stage": stage, "execution": execution, "stage_results": summary}
             if repair_round is not None:

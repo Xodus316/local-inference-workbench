@@ -10,7 +10,7 @@ INLINE_SELECTION_POLICY = "inline-no-tools-v2"
 SELECTION_OUTPUT_TOKENS = 32768
 SELECTION_SOURCE_BYTES = 131072
 COMPILER_SELECTION_POLICY = "compiler-diagnostic-paths-v1"
-_COMPILER_CHECKS = frozenset({"gradle-compile", "gradle-build", "frontend-typecheck", "frontend-build"})
+_COMPILER_CHECKS = frozenset({"gradle-compile", "gradle-build", "frontend-typecheck", "frontend-build", "frontend-parse"})
 _LOCATION = re.compile(
     r"(?<!\S)(?P<path>[^\s\"'<>()]+?)(?::(?P<line>[1-9][0-9]{0,6})(?::(?P<column>[1-9][0-9]{0,6}))?"
     r"(?=[:\s]|$)|\((?P<ts_line>[1-9][0-9]{0,6}),(?P<ts_column>[1-9][0-9]{0,6})\))"
@@ -69,6 +69,11 @@ def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16)
             diagnostic = failure.get("diagnostic_excerpt") or failure.get("message", "")
             if not isinstance(diagnostic, str):
                 continue
+            if check.startswith("frontend-"):
+                # Node/Vite dependency stack frames identify compiler internals,
+                # not application error locations. They must not invalidate
+                # separately reported SFC/TypeScript paths in this checkpoint.
+                diagnostic = re.sub(r"(?m)^\s*at\s+[^\r\n]*", "", diagnostic)
             if check in _GRADLE_CHECKS:
                 gradle_reported_source.update((int(line), snippet.strip()[:280])
                                               for line, snippet in _GRADLE_REPORTED_SOURCE.findall(diagnostic))

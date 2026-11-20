@@ -167,6 +167,7 @@ class VerificationProfiles(unittest.TestCase):
                 self.assertIn("NODE_ENV=production", args)
                 self.assertEqual(args[args.index("--entrypoint") + 1], "/usr/bin/tini")
                 self.assertLess(args.index("--entrypoint"), args.index(IMAGE))
+                self.assertEqual(args[args.index(IMAGE) + 1:][:3], ["--", "/bin/sh", "-lc"])
                 self.assertEqual(options["image_id"], IMAGE)
                 return {"exit_code": 0, "cleanup_confirmed": True, "timed_out": False,
                         "cancelled": False, "stdout": "", "stderr": ""}
