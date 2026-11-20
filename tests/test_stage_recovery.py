@@ -46,6 +46,19 @@ def fixture():
 
 
 class StageRoutingTests(unittest.TestCase):
+    def test_shared_diagnosis_uses_the_same_bounded_settled_restart(self):
+        from orchestrator.project_opencode_whole import OpenCodeSettledResponseError
+        flow, artifact, receipt, diagnostic = fixture()
+        flow._generate.side_effect = [OpenCodeSettledResponseError('structured-output-limit', {
+            'completed_requests': 1, 'scratch_cleanup_confirmed': True,
+            'native_receipts_digest': 'a' * 64, 'session_id': 'bound'}), diagnostic]
+        proof = flow.recovery.diagnose(artifact, None, receipt, checkpoint=CHECKPOINT)
+        self.assertEqual(proof['paths'], ['api/build.gradle.kts'])
+        self.assertEqual(flow._generate.call_args_list[-1].args[0], 'whole_recovery_1_retry_select')
+        self.assertIn('whole_recovery_1_retry_select', STAGES)
+        self.assertEqual(flow.counters['recovery_diagnosis'], 1)
+        self.assertEqual(flow.stage, 'build_compile_checkpoint_1_1')
+
     def test_every_workflow_phase_emits_an_owned_fix_request(self):
         cases = [
             ('build_plan_retry', 'planning', 'planner'),

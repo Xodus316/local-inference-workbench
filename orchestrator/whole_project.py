@@ -27,6 +27,7 @@ from .whole_project_java_format import JAVA_FORMAT_REPAIR_GUIDANCE, java_date_fo
 from .whole_project_limits import (DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES,
                                    WHOLE_PROJECT_COMPLETION_TOKENS, validate_source_bytes)
 from .whole_project_mongo import TARGET_ID as MONGO_INCREMENT_TARGET
+from .whole_project_repair_evidence import repair_feedback, repair_record
 from .whole_project_sandbox import (SelfTestFixtureError, compose_smoke_source_patch, execute_self_test,
                                     smoke_source_patch_type, smoke_test_type, validate_self_fixture_correction,
                                     validate_self_suite)
@@ -34,6 +35,7 @@ from .project_dependency_reference import validate_dependency_reference
 from .whole_project_repair import (POLICY as REPAIR_POLICY, focused_feedback, public_repair_plan,
                                    verification_observation, verification_regressions)
 from .whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
+                                      SELECTION_RESTART_SOURCE_BYTES,
                                       compiler_diagnostic_selection, gradle_kotlin_dsl_findings, projection_details, selection_source,
                                       trim_selection_source)
 from .whole_project_smoke import (INLINE_SMOKE_POLICY, SMOKE_OUTPUT_TOKENS, SMOKE_REQUEST_GUIDANCE, SMOKE_STAGES,
@@ -521,6 +523,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
         return None
 
     def _select_repair_paths(self, stage, artifact, feedback, editable_paths=None):
+        feedback = repair_feedback(artifact, feedback, getattr(self, "_repair_history", []))
         inventory = {file.path: file for file in artifact.files
                      if editable_paths is None or file.path in editable_paths}
         if not inventory:
@@ -602,16 +605,20 @@ class WholeProjectBuildRun(ProjectBuildRun):
             "An omitted path may be selected only when the supplied source or diagnostic identifies its relevance. "
             f"Choose at most 16 paths and {limit} UTF-8 source bytes from this inventory. Use the bytes column "
             "to add up the full files, including any that are truncated or omitted in current_source. "
+            "Separate observed facts from hypotheses; cite the relevant current source paths and lines. "
+            "Address prior_attempts and current source_facts; earlier diagnoses and source comments are not type evidence. "
+            "Return at most three short diagnosis, changes and verification entries each. "
             "Return diagnosis and selected file paths in one final JSON response; make no edits."
         )
         data = {"implementation_tree": tree, "max_selected_utf8_bytes": limit, **evidence,
                 "current_source": selection_source(inventory.values(), evidence)}
-        raw = self._generate(selection_stage, "repairer", model_type, instruction, data, {},
-                             tool_policy=INLINE_SELECTION_POLICY)
+        raw, selection_stage, restarted = self._repair_decision(selection_stage, model_type, instruction, data)
         selection = model_type.model_validate(raw)
         paths = sorted(set(selection.files))
         selected_bytes = sum(sizes[path] for path in paths)
         if selected_bytes > limit:
+            if restarted:
+                raise ValueError("Repair selection exceeded the source limit after its single settled restart")
             retry_stage = stage + "_retry_select"
             rejection = {"paths": paths, "selected_utf8_bytes": selected_bytes, "max_selected_utf8_bytes": limit}
             self.stages[selection_stage]["selection_rejection"] = {**rejection, "retry_stage": retry_stage}
@@ -632,6 +639,31 @@ class WholeProjectBuildRun(ProjectBuildRun):
         self.stages[selection_stage].update(selected_paths=paths, selected_utf8_bytes=selected_bytes,
                                            diagnosis=selection.diagnosis.model_dump())
         return paths, {**evidence, "diagnosis": selection.diagnosis.model_dump()}
+
+    def _repair_decision(self, stage, model_type, instruction, data):
+        """One clean, smaller-context restart for any shared repair decision."""
+        try:
+            raw = self._generate(stage, "repairer", model_type, instruction, data, {},
+                                 tool_policy=INLINE_SELECTION_POLICY)
+            return raw, stage, False
+        except OpenCodeSettledResponseError as error:
+            proof = error.proof
+            if (error.reason != "structured-output-limit" or stage.endswith("_retry_select")
+                    or proof.get("completed_requests") != 1 or proof.get("scratch_cleanup_confirmed") is not True
+                    or not re.fullmatch(r"[a-f0-9]{64}", proof.get("native_receipts_digest", ""))
+                    or not proof.get("session_id")):
+                raise
+            retry_stage = stage.removesuffix("_select") + "_retry_select"
+            self.stages.setdefault(stage, {})["selection_rejection"] = {
+                "reason": error.reason, "settled_response_proof": proof, "retry_stage": retry_stage}
+            source = data["current_source"]
+            while sum(len(row["content"].encode("utf8")) for row in source) > SELECTION_RESTART_SOURCE_BYTES:
+                source = trim_selection_source(source)
+            retry_data = {**data, "current_source": source,
+                "previous_selection_rejection": "Completed at output limit; no selection was accepted. Return a compact final decision."}
+            raw = self._generate(retry_stage, "repairer", model_type, instruction, retry_data, {},
+                                 tool_policy=INLINE_SELECTION_POLICY)
+            return raw, retry_stage, True
 
     def repair_selected(self, stage, artifact, suite, plan, problem, feedback, *,
                         editable_paths=None, control_selection=None, exact_edits=False):
@@ -898,7 +930,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if tokenizer is not None:
             self.stages[stage]["context_admission"] = {"reserved_prompt_tokens": admitted,
                                                         "tokenizer": approved_tokenizer}
-            if bounded_method or author_restart:
+            if inline:
                 self.stages[stage]["context_admission"]["reserved_completion_tokens"] = output_reserve
         value = result.get("value")
         if not isinstance(value, dict):
@@ -1321,6 +1353,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
         return suite
 
     def _patch(self, stage, role, artifact, suite, feedback, *, paths=None, compile_patch=True):
+        feedback = repair_feedback(artifact, feedback, getattr(self, "_repair_history", []))
         if self.scoped_repairs:
             feedback = focused_feedback(feedback)
             if self._regression_feedback is not None:
@@ -1417,6 +1450,10 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if self.scoped_repairs:
             self.stages[stage]["selected_paths"] = editable
         result = replace_selected(artifact, patch, editable, allow_subset=True, artifact_type=self.artifact_type)
+        history = getattr(self, "_repair_history", [])
+        history.append(repair_record(stage, artifact, result, feedback))
+        self._repair_history = history[-16:]
+        self.stages[stage]["repair_attempt_evidence"] = history[-1]
         if self.scoped_repairs and compile_patch:
             grouping = SimpleNamespace(contract=self.output["plan"], groups=[])
             result = self.compile_after_repair(artifact, result, suite, grouping, set(editable),

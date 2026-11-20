@@ -92,8 +92,9 @@ class InlineWorkerPolicyTests(unittest.TestCase):
                 self.assertEqual(configured["permission"], {"*": "deny"})
                 self.assertEqual(configured["compaction"], {"auto": False})
                 self.assertEqual(configured["agent"][_AGENT]["steps"], 1)
-                self.assertEqual(configured["provider"][_PROVIDER]["models"]["fixture"]["limit"]["output"], 32768)
-                self.assertEqual(env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"], "32768")
+                expected = 65536 if policy == INLINE_SELECTION_POLICY else 32768
+                self.assertEqual(configured["provider"][_PROVIDER]["models"]["fixture"]["limit"]["output"], expected)
+                self.assertEqual(env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"], str(expected))
                 self.assertEqual(original["permission"], {"read": "allow"})
                 worker.completion_token_ceiling = 65536
                 env = worker._project_environment(Path(directory), {"output_tokens": 65536}, (), "instruction",

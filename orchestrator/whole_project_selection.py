@@ -7,8 +7,9 @@ import re
 
 
 INLINE_SELECTION_POLICY = "inline-no-tools-v2"
-SELECTION_OUTPUT_TOKENS = 32768
-SELECTION_SOURCE_BYTES = 131072
+SELECTION_OUTPUT_TOKENS = 65536
+SELECTION_SOURCE_BYTES = 32768
+SELECTION_RESTART_SOURCE_BYTES = 16384
 COMPILER_SELECTION_POLICY = "compiler-diagnostic-paths-v1"
 _COMPILER_CHECKS = frozenset({"gradle-compile", "gradle-build", "frontend-typecheck", "frontend-build", "frontend-parse"})
 _LOCATION = re.compile(
@@ -142,6 +143,14 @@ def selection_source(files, evidence, *, byte_limit=SELECTION_SOURCE_BYTES):
                    if any(letter.isupper() for letter in token[1:]) or "_" in token}
     identified = {path for path, file in by_path.items() if path not in mentioned and any(
         re.search(r"(?<![\w])" + re.escape(token) + r"(?![\w])", file.content) for token in sorted(identifiers))}
+    # HTTP diagnostics often have no source location. Resolve literal route
+    # fragments against current source, then include their direct dependencies.
+    routes = re.findall(r"/(?:[A-Za-z][\w-]*/)*[A-Za-z][\w-]*", diagnostic)
+    route_words = {word.casefold().replace("-", "").rstrip("s") for route in routes for word in route.split("/")
+                   if len(word) >= 4}
+    routed = {path for path, file in by_path.items() if path.endswith(("Controller.java", "Service.java"))
+              and any(word in PurePosixPath(path).stem.casefold() for word in route_words)}
+    identified.update(routed - mentioned)
     current = "\n".join(by_path[path].content for path in sorted(mentioned | identified))
     dependencies = set()
     for path in by_path.keys() - mentioned - identified:

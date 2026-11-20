@@ -226,7 +226,9 @@ class StageRecovery:
             return None
         from .project_build import failure_feedback
         from .whole_project_selection import INLINE_SELECTION_POLICY, selection_source
+        from .whole_project_repair_evidence import repair_feedback
         feedback = failure_feedback(receipt, include_stage_results=True)
+        evidence = repair_feedback(artifact, {'failed_execution': feedback}, getattr(flow, '_repair_history', []))['repair_evidence']
         # Only candidate failure excerpts enter a diagnostic prompt. Never use
         # an entire profile result containing reference source or reference logs.
         diagnostic = '\n'.join(f.get('diagnostic_excerpt') or f.get('message', '') for f in summary['failures'])
@@ -251,12 +253,14 @@ class StageRecovery:
             'For an application cause, request minimal changes to existing application files and cite their exact '
             'current line numbers and source quotes plus a quote from the failure evidence. Otherwise request operator '
             'attention. Never change the task, tests, verifier, dependency pins, model, budgets or execution commands. '
-            'Do not grant passing credit or invent a missing environment capability. Make one decision without tools.')
+            'Do not grant passing credit or invent a missing environment capability. Account for prior_attempts and '
+            'source_facts, separating observed facts from hypotheses. Return concise explanations. Make one decision without tools.')
         data = {'failed_stage': failed_stage, 'failure_evidence': feedback, 'implementation_tree': tree,
-                'current_source': selection_source(artifact.files, feedback),
+                'repair_evidence': evidence,
+                'current_source': selection_source(artifact.files, {**feedback, 'repair_evidence': evidence}),
                 'project_dependency_reference': getattr(flow, 'dependency_reference', None)}
         try:
-            raw = flow._generate(stage, 'repairer', FailureDiagnosis, instruction, data, {}, tool_policy=INLINE_SELECTION_POLICY)
+            raw, _, _ = flow._repair_decision(stage, FailureDiagnosis, instruction, data)
             value, paths = validate_diagnosis(raw, artifact.files, diagnostic, flow.contract['repair_selected_bytes'])
         finally:
             flow.stage = failed_stage
