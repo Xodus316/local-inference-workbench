@@ -9,6 +9,7 @@ from .project_dependency_reference import validate_dependency_reference
 from .role_isolation import KEY as ISOLATION_KEY, POLICY as ISOLATION_POLICY, SESSION, validate_role_isolation
 from .store import digest
 from .compile_progress import KEY as COMPILE_PROGRESS_KEY, POLICY as COMPILE_PROGRESS_POLICY, additional_repairs
+from .stage_recovery import KEY as RECOVERY_KEY, POLICY as RECOVERY_POLICY, enabled as recovery_enabled
 from .whole_project import POLICY, WORKER_ROLES
 from .whole_project_checkpoint import REPAIR_POLICY
 from .whole_project_gates import POLICY as GATE_POLICY
@@ -61,6 +62,7 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
                        'operator_intervention': 'none_after_launch'},
     )
     value[COMPILE_PROGRESS_KEY] = deepcopy(COMPILE_PROGRESS_POLICY)
+    value[RECOVERY_KEY] = deepcopy(RECOVERY_POLICY)
     tokenizers = getattr(runtime, 'whole_project_prompt_tokenizers', {})
     if tokenizers:
         if not set(tokenizers) <= set(workers):
@@ -101,6 +103,8 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
 
 
 def validate_fresh_run(bundle):
+    if not recovery_enabled(bundle):
+        raise ValueError('Fresh runs require their frozen stage recovery policy')
     additional_repairs(bundle)
     expected = {'policy': FRESH_POLICY, 'application_seed': None, 'plan_seed': None,
                 'self_suite_seed': None, 'independent_suite_seed': None,

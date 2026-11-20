@@ -26,17 +26,25 @@ def stop(flow, message):
 
 
 def repair(flow, artifact, suite, result, kind):
-    if (result.get('status') != 'failed' or result.get('execution_settled') is not True
-            or not isinstance(result.get('feedback'), dict)):
-        stop(flow, 'Verification was inconclusive; application repair is not authorized')
     if (flow.output['repair_attempts'] >= flow.limits['max_repair_attempts']
             or not flow.repair_time_available(f"repair_{flow.counters['repair'] + 1}")):
         stop(flow, 'Verification failed and the frozen repair budget is exhausted')
+    allowed = result.get('status') == 'failed'
+    if not allowed and hasattr(flow, 'authorize_source_repair'):
+        profiles = flow.bundle['build'].get('verification_profiles', [])
+        profile = next((p for p in profiles if p['name'] == kind), None)
+        allowed = flow.authorize_source_repair(artifact, suite, result, profile=profile)
+    if (not allowed or result.get('execution_settled') is not True
+            or not isinstance(result.get('feedback'), dict)):
+        stop(flow, 'Verification was inconclusive; application repair is not authorized')
     stage = flow.bounded('repair', 'max_repair_attempts')
     flow.output['repair_attempts'] += 1
     snapshot(flow)  # Spend before dispatch; failures never refund an attempt.
+    feedback = {'failed_execution': deepcopy(result['feedback'])}
+    if 'source_recovery_request' in result:
+        feedback['stage_recovery_request'] = result['source_recovery_request']
     replacement = flow._patch(stage, 'repairer', artifact, suite,
-                              {'failed_execution': deepcopy(result['feedback'])})
+                              feedback)
     if replacement is None or digest(replacement.model_dump()) == digest(artifact.model_dump()):
         stop(flow, 'Verification repair did not produce a changed, compiled candidate')
     flow.evidence.setdefault('additional_gate_repairs', []).append({
@@ -70,6 +78,8 @@ def supplemental(flow, artifact, suite):
         'status', 'artifact_digest', 'binding_digest', 'execution_settled', 'final_regression_credit')}
     snapshot(flow)
     if result['status'] == 'passed':
+        if getattr(flow, 'recovery', None) is not None:
+            flow.recovery.verified(stage, result['execution'])
         return artifact
     return repair(flow, artifact, regression, result, 'early_supplemental')
 
@@ -100,6 +110,8 @@ def profiles(flow, artifact, suite, phase):
         snapshot(flow)
         if result['status'] != 'passed' or result.get('execution_settled') is not True:
             return repair(flow, artifact, suite, result, profile['name'])
+        if getattr(flow, 'recovery', None) is not None:
+            flow.recovery.verified(stage, result['candidate']['execution'])
     return artifact
 
 

@@ -22,6 +22,7 @@ _BINDINGS = (
     "same_model_role_isolation",
     "project_review_policy", "whole_project_gate_policy", "fresh_project",
     "whole_project_compile_progress_policy",
+    "whole_project_stage_recovery_policy",
 )
 
 
@@ -35,7 +36,7 @@ def binding_digest(bundle):
                       if key not in {"run_timeout_seconds", "project_dependency_reference", "whole_project_regression_suite",
                                      "whole_project_test_author_policy", "whole_project_test_author_migration",
                                      "same_model_role_isolation", "project_review_policy", "whole_project_gate_policy", "fresh_project",
-                                     "whole_project_compile_progress_policy"}
+                                     "whole_project_compile_progress_policy", "whole_project_stage_recovery_policy"}
                       or key in bundle}, "workers": workers,
                    "reference_digest": (bundle.get("project_reference") or {}).get("digest")})
 
@@ -78,6 +79,8 @@ def validate_checkpoint(value, bundle):
             or value["repair_attempts"] > bundle["build"]["max_repair_attempts"]):
         raise ValueError("Whole-project checkpoint has invalid repair counters")
     compile_total = 0
+    from .stage_recovery import validate_costs
+    validate_costs(bundle, counters)
     from .compile_progress import additional_repairs
     compile_limit = bundle["build_contract"]["max_compile_repairs"] + additional_repairs(bundle)
     if not 0 <= counters.get("whole_self_repair", 0) <= 3:

@@ -31,6 +31,8 @@ The `reference_project` build setting points to verifier-only source. It is pack
 
 ## What the runtime does
 
+New fresh approvals also bind the shared [cross-stage failure assessment and fix-request contract](stage-recovery.md). Existing bounded correction paths record owned requests. Settled inconclusive candidate executions can receive a source-grounded diagnosis and scoped application repair without rewriting the original verifier receipt; unknown execution, failed reference barriers and ungrounded diagnoses still stop. The contract documents all fourteen stage families, persistence, limits and validation evidence.
+
 1. Validate the plan's canonical file inventory and allow one correction of a settled malformed plan.
 2. Generate the application, compile declared components and repair within the approved component budgets. Compiler diagnostics and pinned public API signatures guide source selection.
 3. Generate smoke tests, reject fixture errors and run the reference before using a test failure to repair the application. Every required verification check must pass before advancing.

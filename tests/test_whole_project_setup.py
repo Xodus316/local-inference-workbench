@@ -80,6 +80,11 @@ class FreshSetupTests(unittest.TestCase):
         self.assertFalse(setup.FORBIDDEN.intersection(value))
         self.assertEqual(value['build_contract']['test_bytes'], 65536)
         self.assertEqual(value['build_contract']['repair_selected_bytes'], 65536)
+        from orchestrator.stage_recovery import KEY as RECOVERY_KEY
+        missing_policy = deepcopy(value)
+        missing_policy.pop(RECOVERY_KEY)
+        with self.assertRaisesRegex(ValueError, 'frozen stage recovery policy'):
+            setup.validate_fresh_run(missing_policy)
 
     def test_every_prior_work_key_and_control_source_are_rejected(self):
         for key in setup.FORBIDDEN:

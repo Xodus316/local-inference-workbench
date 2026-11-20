@@ -102,6 +102,8 @@ def _stopped_opencode_result(result):
 
 def _smoke_repair_feedback(result):
     evidence = {"failed_execution": result["feedback"]}
+    if 'source_recovery_request' in result:
+        evidence['stage_recovery_request'] = result['source_recovery_request']
     if "repair_target" in result:
         evidence["repair_target"] = result["repair_target"]
     return evidence
@@ -314,6 +316,41 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if self.scoped_repairs:
             self.evidence.update(repair_policy=REPAIR_POLICY, promotions=[], rollbacks=[], budget_counters={})
             self._reference_history()
+        from .stage_recovery import StageRecovery, enabled
+        self.recovery = StageRecovery(self) if enabled(self.bundle) else None
+
+    def diagnose_execution(self, artifact, suite, receipt, **options):
+        recovery = getattr(self, 'recovery', None)
+        return recovery.diagnose(artifact, suite, receipt, **options) if recovery is not None else None
+
+    def authorize_source_repair(self, artifact, suite, result, *, profile=None):
+        if result.get('fixture_failure') and getattr(self, 'recovery', None) is not None:
+            owner = 'implementer' if self.stage.startswith('whole_self_') else 'test_author'
+            self.recovery.request(self.stage, owner, 'correct_test_fixture', evidence=result['fixture_failure'],
+                status='blocked', reason='Test fixture correction requires its bounded author path and reference requalification; application repair is not authorized')
+            return False
+        if result.get('status') == 'failed':
+            return True
+        if (getattr(self, 'recovery', None) is None or result.get('status') != 'review_required'
+                or result.get('fixture_failure')):
+            return False
+        receipt = result.get('execution')
+        if receipt is None and isinstance(result.get('candidate'), dict):
+            # Reference-first profile checks must have actually reached the
+            # candidate before application repair can even be considered.
+            receipt = result['candidate'].get('execution')
+        if receipt is None:
+            self.recovery.request(self.stage, 'operator', 'repair_reference_or_verifier',
+                evidence={'result_digest': digest(result)}, status='blocked',
+                reason='The reference barrier failed before candidate verification; application source is not implicated')
+            return False
+        request = self.diagnose_execution(artifact, suite, receipt, profile=profile)
+        if request is None:
+            return False
+        result['source_recovery_request'] = request
+        result['feedback'] = failure_feedback(receipt, include_stage_results=True)
+        result['feedback']['stage_recovery_request'] = request
+        return True
 
     def _reference_history(self):
         if "reference_attempt_history" not in self.evidence:
@@ -488,6 +525,12 @@ class WholeProjectBuildRun(ProjectBuildRun):
                      if editable_paths is None or file.path in editable_paths}
         if not inventory:
             raise ValueError("No current implementation paths are available for this repair")
+        request = feedback.get('stage_recovery_request')
+        if request is not None:
+            paths = self.recovery.selection(request, artifact)
+            if not set(paths) <= set(inventory):
+                raise ValueError('Recovery request exceeds the approved editable source scope')
+            return paths, feedback
         target = dict(feedback.get("repair_target") or {})
         if "source_paths" in target:
             target["source_paths"] = [path for path in target["source_paths"] if path in inventory]
@@ -652,6 +695,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         self.stage = stage
         runtime, run_id = self.runtime, self.state["run_id"]
         identity, settings = self._worker_identity(role)
+        if getattr(self, 'recovery', None) is not None:
+            self.recovery.dispatch(stage, role, arguments)
         model = self.bundle["roles"][role]
         request = {"worker": identity, "role": role, "model": model, "settings": settings,
                    "operation": operation, "visible_files": {path: digest(text) for path, text in visible.items()},
@@ -861,6 +906,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         return value
 
     def ask(self, stage, role, model_type, instruction, **data):
+        if getattr(self, 'recovery', None) is not None:
+            self.recovery.dispatch(stage, role, data)
         if role == "test_author" or (role == "planner" and role in self.workers):
             if self.scoped_repairs and role == "test_author":
                 instruction += (REFERENCE_REPAIR_GUIDANCE
@@ -1021,6 +1068,14 @@ class WholeProjectBuildRun(ProjectBuildRun):
         except (KeyError, TypeError, ValueError):
             return False
 
+    def _validated_plan(self, value):
+        plan = WholeProjectPlan.model_validate(value)
+        if getattr(self, 'recovery', None) is not None:
+            missing = set((self.environment or {}).get('required_application_files', [])) - set(plan.implementation_files)
+            if missing:
+                raise ValueError('Plan omitted declared required application files: ' + ', '.join(sorted(missing)))
+        return plan
+
     def _author_plan(self):
         inputs = {"max_utf8_source_bytes": self.source_bytes}
         try:
@@ -1037,11 +1092,12 @@ class WholeProjectBuildRun(ProjectBuildRun):
                            "Keep every required path, and use short single-sentence entries for the other fields.")
         else:
             try:
-                return WholeProjectPlan.model_validate(value)
-            except ValidationError as error:
+                return self._validated_plan(value)
+            except ValueError as error:
                 if not self.scoped_repairs or not isinstance(value, dict) or not self._completed_plan_response(value):
                     raise
-                errors = error.errors(include_input=False, include_context=False, include_url=False)
+                errors = (error.errors(include_input=False, include_context=False, include_url=False)
+                          if isinstance(error, ValidationError) else [{'loc': ('implementation_files',), 'msg': str(error)}])
                 feedback = {
                     "validation_error": public_error(error)[:800], "error_count": len(errors),
                     "errors": [{"path": ".".join(map(str, item["loc"]))[:200],
@@ -1055,7 +1111,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             "build_plan_retry", "planner", WholeProjectPlan,
             PLAN_BRIEF + instruction + " Return the complete plan. This is the only plan correction attempt.", **inputs,
         )
-        return WholeProjectPlan.model_validate(corrected)
+        return self._validated_plan(corrected)
 
     def _implement(self, paths):
         stage = "implement"
@@ -1376,6 +1432,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
                               "suite_digest": result["suite_digest"]}
         if "repair_target" in result:
             self.stages[stage]["repair_target"] = result["repair_target"]
+        if result['status'] == 'passed' and getattr(self, 'recovery', None) is not None:
+            self.recovery.verified(stage, result['execution'])
         return result
 
     def _save_self_candidate(self, artifact, *, repair_stage=None, predecessor=None):
@@ -1408,7 +1466,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             self.evidence["self_checks"].append(result)
             if result["status"] == "passed":
                 return artifact
-            if result["status"] != "failed" or attempt >= MAX_SELF_REPAIRS:
+            if attempt >= MAX_SELF_REPAIRS or not self.authorize_source_repair(artifact, self.self_suite, result):
                 self.output["artifact"] = artifact.model_dump()
                 self.output["error"] = {"stage": self.stage, "message": result.get("fixture_failure", {}).get(
                     "message", "Self-test verification did not pass every required check"
@@ -1452,7 +1510,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 return ready, candidate
             from .whole_project_gates import final_gates
             return final_gates(self, candidate)
-        if result["status"] == "failed" and self.output["repair_attempts"] < self.limits["max_repair_attempts"]:
+        if (self.output["repair_attempts"] < self.limits["max_repair_attempts"]
+                and self.authorize_source_repair(artifact, self.self_suite, result)):
             stage = self.bounded("repair", "max_repair_attempts")
             self.output["repair_attempts"] += 1
             return False, self._patch(stage, "repairer", artifact, self.self_suite,
@@ -1493,13 +1552,16 @@ class WholeProjectBuildRun(ProjectBuildRun):
         self.output["artifact"] = artifact.model_dump()
         self.runtime.store.snapshot_result(self.state["run_id"], {"output": self.output, "stages": self.stages})
         if result["status"] == "passed":
+            if getattr(self, 'recovery', None) is not None:
+                self.recovery.verified(stage, result['execution'])
             return True, artifact
-        if (result["status"] == "failed" and self.output["repair_attempts"] < self.limits["max_repair_attempts"]
+        if (self.output["repair_attempts"] < self.limits["max_repair_attempts"]
+                and self.authorize_source_repair(artifact, suite, result)
                 and self.repair_time_available(f"repair_{self.counters['repair'] + 1}")):
             repair_stage = self.bounded("repair", "max_repair_attempts")
             self.output["repair_attempts"] += 1
             replacement = self._patch(repair_stage, "repairer", artifact, suite,
-                                      {"failed_execution": result["feedback"]})
+                                      _smoke_repair_feedback(result))
             if replacement is not None:
                 record = {"stage": repair_stage, "verification_stage": stage,
                           "predecessor_artifact_digest": before_digest,
@@ -1519,6 +1581,10 @@ class WholeProjectBuildRun(ProjectBuildRun):
         stage = self.bounded("repair", "max_repair_attempts")
         self.output["repair_attempts"] += 1
         evidence = {"failed_execution": failure_feedback(baseline, include_stage_results=True)} if baseline else {}
+        recovery_request = getattr(self, '_verification_recovery_request', None)
+        if recovery_request is not None:
+            evidence['stage_recovery_request'] = recovery_request
+            self._verification_recovery_request = None
         paths = None
         if focus:
             evidence.update(focus)
@@ -1587,10 +1653,20 @@ class WholeProjectBuildRun(ProjectBuildRun):
     def execute(self):
         from .whole_project_gates import VerificationGateStop
         try:
-            return self._execute()
+            status = self._execute()
+            if status != 'completed' and getattr(self, 'recovery', None) is not None:
+                error = self.output.get('error') or {'stage': self.stage, 'message': 'Stage did not meet its required gate'}
+                self.recovery.terminal(error['stage'], error['message'])
+            return status
         except (IndependentSuiteRepairExhausted, VerificationGateStop) as error:
             self.output["error"] = {"stage": self.stage, "message": str(error)}
+            if getattr(self, 'recovery', None) is not None:
+                self.recovery.terminal(self.stage, public_error(error))
             return "review_required"
+        except Exception as error:
+            if getattr(self, 'recovery', None) is not None:
+                self.recovery.terminal(self.stage, public_error(error))
+            raise
 
     def _execute(self):
         if 'fresh_project' in self.bundle:

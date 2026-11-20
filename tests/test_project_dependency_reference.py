@@ -60,7 +60,8 @@ class DependencyReferenceTests(unittest.TestCase):
         old_keys = [key for key in _BINDINGS if key not in {
             "project_dependency_reference", "whole_project_regression_suite", "whole_project_test_author_policy",
             "whole_project_test_author_migration", "same_model_role_isolation",
-            "project_review_policy", "whole_project_gate_policy", "fresh_project", "whole_project_compile_progress_policy"}]
+            "project_review_policy", "whole_project_gate_policy", "fresh_project", "whole_project_compile_progress_policy",
+            "whole_project_stage_recovery_policy"}]
         legacy = {key: bundle.get(key) for key in old_keys if key != "run_timeout_seconds" or key in bundle}
         legacy.update(workers={}, reference_digest=None)
         self.assertEqual(binding_digest(bundle), digest(legacy))

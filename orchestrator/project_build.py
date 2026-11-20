@@ -1809,7 +1809,14 @@ class ProjectBuildRun(BuildRun):
             self.stages[stage] = {"status": status, "component_digest": binding["component_digest"],
                                   "checkpoint": name, "group_index": index}
             if status == "passed":
+                if getattr(self, 'recovery', None) is not None:
+                    self.recovery.verified(stage, execution)
                 return artifact
+            source_request = None
+            if (status == 'review_required' and local_attempt < limit
+                    and hasattr(self, 'diagnose_execution') and self.repair_time_available(
+                        f'{repair_stage}_{stage_slot}_{attempt + 1}', check='compile')):
+                source_request = self.diagnose_execution(component, None, execution, checkpoint=checkpoint)
             progress = None
             if status == "failed" and local_attempt >= limit and local_attempt < limit + progress_limit:
                 from .compile_progress import progress_proof
@@ -1817,7 +1824,7 @@ class ProjectBuildRun(BuildRun):
                            if r.get("compile_scope") == scope]
                 progress = progress_proof(history, component.files, checkpoint, policy, image)
                 record["progress_recovery"] = progress
-            if status != "failed" or local_attempt >= limit and progress is None:
+            if (status != "failed" and source_request is None) or local_attempt >= limit and progress is None:
                 message = ("Compiler errors remain after the checkpoint repair budget"
                            if status == "failed" else "Compile checkpoint did not produce a conclusive compiler receipt")
                 self.output["error"] = {"stage": stage, "message": f"{name}: {message}"}
@@ -1831,6 +1838,9 @@ class ProjectBuildRun(BuildRun):
             self.output["compile_repair_attempts"] += 1
             feedback = {"compile_checkpoint": name,
                         "failed_execution": failure_feedback(execution, include_stage_results=True)}
+            if source_request is not None:
+                record['source_recovery_request'] = source_request
+                feedback['stage_recovery_request'] = source_request
             if progress is not None:
                 self.output["compile_progress_repair_attempts"] = self.output.get("compile_progress_repair_attempts", 0) + 1
                 feedback["compile_progress_recovery"] = progress
@@ -2367,11 +2377,20 @@ class ProjectBuildRun(BuildRun):
             if failures is not None:
                 self.output["verification"]["open_failures"] = list(failures.open.values())
             passed = validate_baseline(baseline, suite)
+            if passed and getattr(self, 'recovery', None) is not None:
+                self.recovery.verified(self.stage, baseline)
             if not passed and not actionable_failure(baseline):
-                self.output["error"] = {"stage": self.stage, "message": "Inconclusive sandbox test execution"}
-                if self.reviewed and execution_settled(baseline):
-                    self.code_review(number, artifact, project, grouping, report, previous_artifact=previously_reviewed)
-                return "review_required"
+                recovery_request = None
+                if (hasattr(self, 'diagnose_execution') and self.output['repair_attempts'] < self.limits['max_repair_attempts']
+                        and self.repair_time_available(f"repair_{self.counters['repair'] + 1}")):
+                    recovery_request = self.diagnose_execution(artifact, suite, baseline)
+                if recovery_request is not None:
+                    self._verification_recovery_request = recovery_request
+                else:
+                    self.output['error'] = {'stage': self.stage, 'message': 'Inconclusive sandbox test execution'}
+                    if self.reviewed and execution_settled(baseline) and getattr(self, 'recovery', None) is None:
+                        self.code_review(number, artifact, project, grouping, report, previous_artifact=previously_reviewed)
+                    return 'review_required'
             review = None
             if self.reviewed and passed:
                 review = self.code_review(number, artifact, project, grouping, report, tests_passed=True,

@@ -102,6 +102,8 @@ STAGES.update([stage + "_escalated" for stage in list(STAGES)
 
 
 # Evidence sidecars are finite, literal companions of approved review stages.
+STAGES.update(f'whole_recovery_{index}_select' for index in range(1, 17))
+STAGES.update(f'whole_recovery_request_{index}' for index in range(1, 65))
 STAGES.update(stage + suffix for stage in list(STAGES)
               if stage.startswith('build_code_review_') and '_chunk_' in stage
               for suffix in ('_source_anchors', '_expanded_review'))
