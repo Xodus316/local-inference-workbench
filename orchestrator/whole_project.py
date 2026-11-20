@@ -20,10 +20,12 @@ from .project_build import (DEFAULT_TEST_BYTES, REVIEWED_POLICY, ProjectArtifact
                             unittest_failure_excerpts, validate_project_prompt)
 from .ollama import _strict_json
 from .project_opencode import OpenCodeOutputLimitError
+from .project_opencode_whole import OpenCodeSettledResponseError
 from .repository import MAX_FILE
 from .store import digest
 from .whole_project_java_format import JAVA_FORMAT_REPAIR_GUIDANCE, java_date_format_findings
-from .whole_project_limits import DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES, validate_source_bytes
+from .whole_project_limits import (DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MAX_SOURCE_FILES,
+                                   WHOLE_PROJECT_COMPLETION_TOKENS, validate_source_bytes)
 from .whole_project_mongo import TARGET_ID as MONGO_INCREMENT_TARGET
 from .whole_project_sandbox import (SelfTestFixtureError, compose_smoke_source_patch, execute_self_test,
                                     smoke_source_patch_type, smoke_test_type, validate_self_fixture_correction,
@@ -38,7 +40,8 @@ from .whole_project_smoke import (INLINE_SMOKE_POLICY, SMOKE_OUTPUT_TOKENS, SMOK
                                   SMOKE_REFERENCE_REPAIR_STAGES, project_smoke_inputs,
                                   public_smoke_plan, smoke_author_data)
 from .whole_project_smoke_reference import validate_smoke_reference
-from .whole_project_test_author import (AUTHOR_GUIDANCE, COVERAGE_PATCH_POLICY, IndependentCoverageError,
+from .whole_project_test_author import (AUTHOR_GUIDANCE, AUTHOR_RESTART_STAGE, COVERAGE_PATCH_POLICY,
+                                        INLINE_AUTHOR_RESTART_POLICY, IndependentCoverageError,
                                         IndependentCoveragePatch, compose_coverage_patch, coverage_patch_inputs, coverage_patch_type,
                                         numbered_criteria, public_test_author_plan,
                                         validate_coverage_indices)
@@ -671,6 +674,9 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     if getattr(error, "not_dispatched", False):
                         runtime.store.finish_call(run_id, stage, {"dispatch_status": "not_dispatched",
                                                                   "worker_error": public_error(error)})
+                    elif isinstance(error, OpenCodeSettledResponseError):
+                        runtime.store.finish_call(run_id, stage, {"dispatch_status": "completed_rejected",
+                            "rejection_reason": error.reason, "settled_response_proof": error.proof})
                     elif getattr(error, "backend_cleanup_confirmed", False):
                         failure = {"worker_error": public_error(error), "backend_cleanup_confirmed": True}
                         if (role == "planner" and stage in {"build_plan", "build_plan_retry"}
@@ -688,6 +694,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
             finally:
                 runtime.inference_lock.release()
         if result.get('dispatch_status') == 'completed_rejected':
+            if "settled_response_proof" in result:
+                raise OpenCodeSettledResponseError(result["rejection_reason"], result["settled_response_proof"])
             raise ValueError('The settled native response was rejected; it cannot be reused as accepted content')
         if result.get("finish_reason") == "length" and "worker_error" in result:
             raise OpenCodeOutputLimitError(1)
@@ -767,7 +775,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         approved_tokenizer = self.bundle.get("whole_project_prompt_tokenizers", {}).get(role)
         if (tokenizer.identity() if tokenizer is not None else None) != approved_tokenizer:
             raise ValueError("The whole-project tokenizer differs from the approved model profile")
-        if tool_policy not in (None, INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, *REFERENCE_GENERATION_LIMITS):
+        if tool_policy not in (None, INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, INLINE_AUTHOR_RESTART_POLICY,
+                               *REFERENCE_GENERATION_LIMITS):
             raise ValueError("Unapproved whole-project structured tool policy")
         if tool_policy in {INLINE_METHOD_PATCH_POLICY, INLINE_METHOD_PATCH_POLICY_V3, INLINE_METHOD_PATCH_POLICY_V4} and not method_patch:
             raise ValueError("Inline method repair requires its exact patch schema and stage")
@@ -775,16 +784,21 @@ class WholeProjectBuildRun(ProjectBuildRun):
             raise ValueError("Inline diagnosis requires its exact diagnosis schema and stage")
         if tool_policy == INLINE_SMOKE_POLICY and (role != "implementer" or stage not in SMOKE_STAGES or visible):
             raise ValueError("Inline smoke generation requires its approved stage and empty worktree")
+        author_restart = tool_policy == INLINE_AUTHOR_RESTART_POLICY
+        if author_restart and (not self.scoped_repairs or stage != AUTHOR_RESTART_STAGE or role != "test_author"
+                               or model_type is not self.suite_type or visible):
+            raise ValueError("Independent author restart requires its exact suite schema and empty worktree")
         inline = tool_policy is not None
         bounded_method = tool_policy in REFERENCE_GENERATION_LIMITS
         reference_repair = tool_policy == INLINE_SMOKE_POLICY and stage in SMOKE_REFERENCE_REPAIR_STAGES
         # These reserves guarantee room before dispatch. A provider with a larger
         # completion ceiling can use additional context left by the rendered prompt.
-        output_reserve = (REFERENCE_GENERATION_LIMITS[tool_policy]["max_completion_tokens"] if bounded_method else
+        output_reserve = (WHOLE_PROJECT_COMPLETION_TOKENS if author_restart else
+                          REFERENCE_GENERATION_LIMITS[tool_policy]["max_completion_tokens"] if bounded_method else
                           SMOKE_OUTPUT_TOKENS if tool_policy == INLINE_SMOKE_POLICY else SELECTION_OUTPUT_TOKENS)
         data = dict(data)
         while True:
-            if inline and not reference_repair and not bounded_method:
+            if inline and not reference_repair and not bounded_method and not author_restart:
                 data["source_projection"] = projection_details(data["implementation_tree"], data["current_source"],
                                                               policy=tool_policy)
             inputs = self.model_inputs(data)
@@ -817,19 +831,21 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 raise ValueError("Complete smoke reference correction and output reserve exceed the approved context; inference was not dispatched")
             if bounded_method:
                 raise ValueError("Complete reference method correction and output reserve exceed the approved context; inference was not dispatched")
+            if author_restart:
+                raise ValueError("Independent author restart and its output reserve exceed the approved context")
             data["current_source"] = trim_selection_source(data["current_source"])
         options = {"tool_policy": tool_policy} if tool_policy is not None else {}
         result = self._opencode(stage, role, "generate", visible, payload=payload, **options)
         if "test_author_plan_projection" in inputs:
             self.stages.setdefault(stage, {})["test_author_plan_projection"] = inputs["test_author_plan_projection"]
         if inline:
-            if not bounded_method:
+            if not bounded_method and not author_restart:
                 self.stages[stage]["source_projection"] = inputs["source_projection"]
             self.stages[stage]["tool_policy"] = tool_policy
         if tokenizer is not None:
             self.stages[stage]["context_admission"] = {"reserved_prompt_tokens": admitted,
                                                         "tokenizer": approved_tokenizer}
-            if bounded_method:
+            if bounded_method or author_restart:
                 self.stages[stage]["context_admission"]["reserved_completion_tokens"] = output_reserve
         value = result.get("value")
         if not isinstance(value, dict):
@@ -853,6 +869,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 selected_policy = INLINE_DIAGNOSIS_POLICY
             elif data.get("diagnosis_policy") == DIAGNOSIS_POLICY_V2:
                 selected_policy = INLINE_DIAGNOSIS_POLICY_V2
+            if stage == AUTHOR_RESTART_STAGE:
+                selected_policy = INLINE_AUTHOR_RESTART_POLICY
             options = {"tool_policy": selected_policy} if selected_policy else {}
             return self._generate(stage, role, model_type, instruction, data, {}, **options)
         return super().ask(stage, role, model_type, instruction, **data)
@@ -1170,8 +1188,20 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 raise ValueError("Retained independent draft changed before correction")
             self.stages[stage] = {"reused_untrusted_draft": retained["source_draft_digest"]}
         else:
-            # Dispatch errors and unknown completions never enter the validation retry.
-            raw = self.ask(stage, "test_author", self.suite_type, brief, **data)
+            try:
+                raw = self.ask(stage, "test_author", self.suite_type, brief, **data)
+            except OpenCodeSettledResponseError as error:
+                if not self.scoped_repairs or error.reason not in {
+                        "structured-output-invalid", "structured-output-limit", "unverified-wire-format"}:
+                    raise
+                self.stages.setdefault(stage, {})["recovery"] = {
+                    "decision": "restart", "reason": error.reason, "next_stage": AUTHOR_RESTART_STAGE,
+                    "settled_response_proof_digest": digest(error.proof),
+                }
+                stage = AUTHOR_RESTART_STAGE
+                raw = self.ask(stage, "test_author", self.suite_type,
+                               brief + " Return the complete independent suite as one JSON object now.",
+                               **data)
         try:
             suite = self._parse_independent_suite(raw, paths, stage)
         except ValueError as error:
@@ -1184,7 +1214,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             if coverage_error is not None:
                 criteria = self.output["plan"]["acceptance_criteria"]
                 self.stages[stage]["coverage_validation"] = coverage_error.diagnostics
-                stage += "_retry"
+                stage = "build_tests_retry"
                 patch_inputs = coverage_patch_inputs(
                     coverage_error.suite, criteria, byte_limit=self.contract["test_bytes"],
                     file_limit=self.contract["test_files"])
@@ -1214,7 +1244,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     "unknown_criteria": coverage_error.diagnostics["unknown_criteria"],
                 }
                 return revised
-            stage += "_retry"
+            stage = "build_tests_retry"
             corrected = self.ask(
                 stage, "test_author", self.suite_type,
                 brief + " Use the validation feedback to write a corrected complete test suite.",

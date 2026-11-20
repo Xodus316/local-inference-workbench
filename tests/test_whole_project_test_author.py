@@ -2,15 +2,21 @@
 
 from copy import deepcopy
 import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from threading import Event, Lock
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
 from orchestrator.project_build import ProjectTestSuite
-from orchestrator.store import digest
+from orchestrator.project_opencode_whole import OpenCodeSettledResponseError
+from orchestrator.store import Store, digest
 from orchestrator.whole_project import WholeProjectBuildRun
-from orchestrator.whole_project_test_author import (IndependentCoverageError, IndependentCoveragePatch, public_test_author_plan,
-                                                    validate_coverage_correction, validate_coverage_indices)
+from orchestrator.whole_project_test_author import (AUTHOR_RESTART_STAGE, INLINE_AUTHOR_RESTART_POLICY,
+                                                    IndependentCoverageError, IndependentCoveragePatch,
+                                                    public_test_author_plan, validate_coverage_correction,
+                                                    validate_coverage_indices)
 
 
 CRITERIA = ["Public behavior " + str(index) for index in range(1, 13)]
@@ -167,6 +173,51 @@ class CoverageCorrectionTests(unittest.TestCase):
 
 
 class AuthorContextTests(unittest.TestCase):
+    def test_settled_authoring_restarts_once_and_reuses_the_journal_on_reentry(self):
+        workflow = flow()
+        del workflow.ask  # Exercise real dispatch and durable call records.
+        workflow.brief = {"prompt": "Public brief", "sources": []}
+        settings = {"context": 98304, "think": "xhigh", "output_tokens": 65536}
+        identity = {"model_digest": "fixture-digest"}
+        workflow.bundle.update(generation={"test_author": settings}, roles={"test_author": "fixture"},
+                               build_contract=workflow.contract)
+        workflow._worker_identity = Mock(return_value=(identity, settings))
+        proof = {"session_id": "completed-session", "native_receipts_digest": "a" * 64,
+                 "completed_requests": 3, "scratch_cleanup_confirmed": True}
+
+        def generate(*, stage, visible_files, tool_policy=None, **_arguments):
+            self.assertEqual(visible_files, {})
+            if stage == "build_tests":
+                raise OpenCodeSettledResponseError("unverified-wire-format", proof)
+            if stage == AUTHOR_RESTART_STAGE:
+                self.assertEqual(tool_policy, INLINE_AUTHOR_RESTART_POLICY)
+            value = draft() if stage == AUTHOR_RESTART_STAGE else correction_patch(draft())
+            return {"value": value, "receipt": {"stage": stage, "role": "test_author", "worker": identity,
+                "context": 98304, "thinking": "xhigh", "model_digest": identity["model_digest"],
+                "tool_policy": tool_policy, "resident": {"digest": identity["model_digest"], "context_length": 98304}}}
+
+        worker = Mock()
+        worker.generate.side_effect = generate
+        workflow.workers = {"test_author": worker}
+        with TemporaryDirectory() as directory:
+            store = Store(Path(directory))
+            try:
+                run_id = store.create(workflow.bundle)
+                workflow.state = {"run_id": run_id}
+                workflow.runtime = SimpleNamespace(store=store, _guard=Mock(), inference_lock=Lock(),
+                    events={run_id: Event()}, deadline=float("inf"), whole_project_prompt_tokenizers={})
+                self.assertEqual(workflow._author_independent_suite(["app.py"]).model_dump(), correction(draft()))
+                self.assertFalse(store.has_unknown_calls())
+                self.assertEqual(store.cached(run_id, "build_tests"), {"dispatch_status": "completed_rejected",
+                    "rejection_reason": "unverified-wire-format", "settled_response_proof": proof})
+                self.assertEqual([call["stage"] for call in store.get(run_id)["calls"]],
+                                 ["build_tests", AUTHOR_RESTART_STAGE, "build_tests_retry"])
+                self.assertEqual(workflow.stages["build_tests"]["recovery"]["decision"], "restart")
+                self.assertEqual(workflow._author_independent_suite(["app.py"]).model_dump(), correction(draft()))
+                self.assertEqual(worker.generate.call_count, 3)
+            finally:
+                store.close()
+
     def test_real_generation_projects_only_independent_author_and_retains_public_context(self):
         workflow = flow(draft())
         workflow.brief = {"prompt": "ALL PUBLIC REQUIREMENTS", "sources": [{"content": "PUBLIC HARNESS CONTRACT"}]}

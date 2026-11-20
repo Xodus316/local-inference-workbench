@@ -49,7 +49,7 @@ STAGES.update({"build_plan", "build_plan_retry", "build_tests", "implement", "im
                "build_frozen", "build_strength"})
 STAGES.update({"build_project_plan", "build_project_frozen", "build_project_acceptance"})
 STAGES.update({"build_project_plan_repair_1", "build_project_plan_repair_2"})
-STAGES.update({"build_tests_retry", "whole_self_tests", "whole_self_tests_retry",
+STAGES.update({"build_tests_restart", "build_tests_retry", "whole_self_tests", "whole_self_tests_retry",
                "whole_self_reference_repair_1", "whole_self_reference_repair_2", "whole_self_verify_0", "whole_self_verify_1",
                "whole_self_verify_final", "whole_self_repair", "whole_self_repair_select", "whole_self_repair_edit_retry"})
 STAGES.update(f"whole_self_verify_final_{number}" for number in range(1, 9))

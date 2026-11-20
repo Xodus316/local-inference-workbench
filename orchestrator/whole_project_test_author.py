@@ -13,6 +13,8 @@ from .store import digest
 
 
 COVERAGE_PATCH_POLICY = "whole-independent-coverage-patch-v1"
+AUTHOR_RESTART_STAGE = "build_tests_restart"
+INLINE_AUTHOR_RESTART_POLICY = "inline-independent-author-restart-v1"
 
 
 class IndependentCoverageRemap(Record):
