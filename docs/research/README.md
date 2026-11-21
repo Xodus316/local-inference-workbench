@@ -8,6 +8,7 @@ Run `python scripts/verify-benchmark-evidence.py` from the repository root to ch
 
 | Question | What was measured |
 |---|---|
+| [How far did the November 19 fresh Commerce runs get?](../commerce-fresh-evaluation-2026-11-19.md) | Eleven unattended launches from the brief. Five cleared compilation, and one passed candidate smoke verification before stopping at independent test authoring. Includes the recovery changes and focused replays. |
 | [What completed the Commerce workflow on November 18?](../commerce-end-to-end-completion-2026-11-18.md) | Successful checkpoint continuation: 13/13 independent tests, 14/14 ordinary and production regression cases, 4/4 smoke tests, full API-restart persistence, full review and all 19 audit sections passed. Step-by-step agent/harness changes, Strata routing comparison and remaining scope limits. |
 | [How far had the November 17 Commerce workflow reached?](../commerce-workflow-evaluation-2026-11-17.md) | Historical incomplete milestone: Gemma recovery, North–Qwen comparisons, test qualification and four workflow attempts. The 13 current tests and four smoke tests passed; original regression at 8/14 stopped acceptance before the later completion. |
 | [What preceded the November 17 Commerce tests?](../commerce-recovery-evaluation-2026-11-16.md) | November 16 attempts 000–010, native backend repair, reference-validated smoke tests and expanded API-restart persistence. Preserves the earlier result and then-prepared attempt 011. |
