@@ -95,6 +95,8 @@ The evidence does not establish that these are the best models for every role. T
 
 ## Development
 
+The [November 21 development summary](docs/development-summary-2026-11-21.md) records the latest fresh-run outcomes, shared recovery changes, selector accounting, all-role OpenCode compaction and the user-requested Run 17 cancellation. No new fresh end-to-end completion is claimed. Reusable [HyperQwen/OpenCode role bindings](examples/hyperqwen/README.md) and their CPU-only tests are included as an optional integration example.
+
 From the checkout, install the package and run `python -m unittest discover -s tests -v`. The offline suite exercises the workflow boundaries with deterministic model responses. A real generation requires the relevant local models. The runtime lives in `orchestrator/`; `graph.py` defines routing, `runtime.py` handles approvals and execution, `store.py` owns the durable journal, and `chat/` implements the interactive path.
 
 A [runnable API example](docs/api.md) shows preparation, approval and polling with the Python standard library.
