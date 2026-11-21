@@ -18,4 +18,3 @@ def validate_opencode_routes(profile):
                 for item in [*profile['whole_project_prompt_tokenizers'].values(), backend.get('tokenizer', {})])):
         raise ValueError('Workflow role routes differ from their frozen OpenCode/compaction identities')
     return routes
-
