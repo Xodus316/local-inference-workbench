@@ -24,7 +24,7 @@ from .repository import MAX_FILE, file_at
 from .store import MAX_ARTIFACT_BYTES
 from .whole_project_limits import (DEFAULT_SOURCE_BYTES, MAX_SOURCE_FILES, WHOLE_PROJECT_COMPLETION_TOKENS,
                                    WHOLE_PROJECT_TEST_BYTES, validate_source_bytes)
-from .whole_project_selection import (INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
+from .whole_project_selection import (INLINE_SELECTION_POLICY, INLINE_REVIEW_POLICY, COMPACTED_DECISION_STEPS, SELECTION_OUTPUT_TOKENS,
                                       selection_event_guard)
 from .whole_project_smoke import INLINE_SMOKE_POLICY, SMOKE_OUTPUT_TOKENS, SMOKE_STAGES
 from .whole_project_test_author import AUTHOR_RESTART_STAGE, INLINE_AUTHOR_RESTART_POLICY
@@ -32,12 +32,12 @@ from .whole_project_test_repair import (DIAGNOSIS_STAGE, DIAGNOSIS_TOOL_POLICIES
                                        REFERENCE_GENERATION_LIMITS, reference_generation_limits)
 
 
-_ROLES = frozenset({"planner", "implementer", "test_author", "repairer"})
+_ROLES = frozenset({"planner", "implementer", "test_author", "repairer", "reviewer"})
 _UNLOAD_SECONDS = 10
 _MAX_TEST_FILES = 15
 SUPPLEMENTAL_TEST_BYTES = 48 * 1024
 _WORKTREE_TOOLS = frozenset({"apply_patch", "edit", "glob", "grep", "list", "multiedit", "read", "write"})
-_INLINE_POLICIES = (INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, INLINE_AUTHOR_RESTART_POLICY,
+_INLINE_POLICIES = (INLINE_SELECTION_POLICY, INLINE_REVIEW_POLICY, INLINE_SMOKE_POLICY, INLINE_AUTHOR_RESTART_POLICY,
                     *REFERENCE_GENERATION_LIMITS)
 _STRUCTURED_SYSTEM_PREFIX = (
     "Use only the supplied evidence and any files in this read-only worktree. "
@@ -221,7 +221,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
     def identity(self):
         identity = {**super().identity(), "policy": "whole-project-opencode-v2", "role": self.role,
                     "context": self.context, "thinking": self.thinking, "auto_compaction": True,
-                    "source_bytes": self.source_bytes, "max_output_tokens": self.completion_token_ceiling or self.context}
+                    "source_bytes": self.source_bytes, "max_output_tokens": self.completion_token_ceiling or self.context,
+                    "structured_compaction_steps": COMPACTED_DECISION_STEPS}
         if self.completion_token_ceiling is not None:
             identity["completion_token_ceiling"] = self.completion_token_ceiling
         if self.test_bytes != DEFAULT_TEST_BYTES:
@@ -268,7 +269,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
         if schema is not None:
             # Constrain structured outputs, leaving compaction free to summarize.
             schema_name = ("workbench_plan" if self.role == "planner" else
-                           "workbench_repair" if self.role == "repairer" else "workbench_tests")
+                           "workbench_repair" if self.role == "repairer" else
+                           "workbench_review" if self.role == "reviewer" else "workbench_tests")
             agent["options"] = {"response_format": {"type": "json_schema", "json_schema": {
                 "name": schema_name, "strict": True, "schema": schema,
             }}}
@@ -279,8 +281,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
         if (self.role == "planner" and schema is not None
                 or tool_policy in _INLINE_POLICIES):
             config["permission"] = {"*": "deny"}
-            config["compaction"] = {"auto": False}
-            agent["steps"] = 1
+            agent["steps"] = COMPACTED_DECISION_STEPS
         config_path = state / "workbench-opencode.json"
         # OpenCode substitutes config variables before it decodes JSON.
         serialized = json.dumps(config).replace("{file:", r"\u007bfile:").replace("{env:", r"\u007benv:")
@@ -296,6 +297,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
             if (tool_policy not in (None, *_INLINE_POLICIES)
                     or (tool_policy is not None and (schema is None or original or editable))
                     or (tool_policy == INLINE_SELECTION_POLICY and role != "repairer")
+                    or (tool_policy == INLINE_REVIEW_POLICY and role != "reviewer")
                     or (tool_policy == INLINE_SMOKE_POLICY and (role != "implementer" or stage not in SMOKE_STAGES))
                     or (tool_policy == INLINE_AUTHOR_RESTART_POLICY and (role != "test_author" or stage != AUTHOR_RESTART_STAGE))
                     or (tool_policy in REFERENCE_GENERATION_LIMITS and (role != "test_author" or not
@@ -332,15 +334,15 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                 if cancel.is_set() or time.monotonic() >= deadline:
                     raise InterruptedError("OpenCode request expired before dispatch")
             try:
-                observer = selection_event_guard(on_event) if single_step else on_event
+                observer = selection_event_guard(on_event, allow_compaction=True) if single_step else on_event
                 output = self._execute(root, state, env, prompt, cancel,
                                        deadline, thinking=True, on_event=observer,
                                        project_event=partial(_project_event, keep_text=schema is not None),
                                        stdout_limit=MAX_ARTIFACT_BYTES)
                 if cancel.is_set():
                     raise InterruptedError("OpenCode cancelled")
-                events = _session_events(output, 1 if single_step else None,
-                                         on_event=selection_event_guard(None) if single_step else None)
+                events = _session_events(output, COMPACTED_DECISION_STEPS if single_step else None,
+                                         on_event=selection_event_guard(None, allow_compaction=True) if single_step else None)
                 if limits is not None:
                     usage = (events[-1].get("part") or {}).get("tokens") or {}
                     if (any(type(usage.get(key)) is not int or usage[key] < 0 for key in ("output", "reasoning"))
@@ -374,6 +376,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                 "receipt": {"stage": stage, "role": role, "worker": self.identity(),
                 "model_digest": self.model_digest, "context": self.context, "thinking": self.thinking,
                 "resident": resident, "events": summaries, **scratch_cleanup, **policy_receipt,
+                "agent_transport": "opencode-cli", "auto_compaction": True,
                 "elapsed_seconds": round(time.monotonic() - started, 3)}}
 
     def run(self, *, stage, role, model, settings, instruction, inputs, visible_files, editable_paths,
@@ -409,7 +412,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
     def generate(self, *, stage, role, model, settings, payload, visible_files, cancel, deadline,
                  scratch_parent, on_event=None, tool_policy=None):
         with _before_dispatch():
-            if role not in {"planner", "test_author", "implementer", "repairer"}:
+            if role not in _ROLES:
                 raise ValueError("Only an approved whole-project role can generate a structured response")
             original, _ = _projection(visible_files, self.source_bytes, test_bytes=self.test_bytes)
             messages = payload.get("messages", [])

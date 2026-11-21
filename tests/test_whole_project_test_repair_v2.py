@@ -98,8 +98,8 @@ class MethodAuthorWorkerTests(unittest.TestCase):
                 self.assertEqual(model["options"]["reasoningEffort"], "high")
                 if policy:
                     self.assertEqual(config["permission"], {"*": "deny"})
-                    self.assertEqual(config["compaction"], {"auto": False})
-                    self.assertEqual(config["agent"][_AGENT]["steps"], 1)
+        self.assertEqual(config["compaction"], {"auto": True})
+        self.assertEqual(config["agent"][_AGENT]["steps"], 9)
 
     def test_terminal_usage_over_cap_is_settled_rejection_with_cleanup(self):
         worker = fake_worker()

@@ -649,7 +649,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
         except OpenCodeSettledResponseError as error:
             proof = error.proof
             if (error.reason != "structured-output-limit" or stage.endswith("_retry_select")
-                    or proof.get("completed_requests") != 1 or proof.get("scratch_cleanup_confirmed") is not True
+                    or (proof.get("completed_requests") != 1 and not (
+                        proof.get("primary_requests") == 1 and type(proof.get("compaction_requests")) is int
+                        and 1 <= proof['compaction_requests'] <= 8
+                        and proof.get("completed_requests") == 1 + proof['compaction_requests']))
+                    or proof.get("scratch_cleanup_confirmed") is not True
                     or not re.fullmatch(r"[a-f0-9]{64}", proof.get("native_receipts_digest", ""))
                     or not proof.get("session_id")):
                 raise

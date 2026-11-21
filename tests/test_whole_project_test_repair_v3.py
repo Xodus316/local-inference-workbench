@@ -163,8 +163,8 @@ class ReferenceDiagnosisWorkerTests(unittest.TestCase):
                 config = json.loads(Path(env["OPENCODE_CONFIG"]).read_text(encoding="utf-8"))
                 self.assertEqual(config["provider"][_PROVIDER]["models"][worker.model_alias]["limit"]["output"], cap)
                 self.assertEqual(config["permission"], {"*": "deny"})
-                self.assertEqual(config["compaction"], {"auto": False})
-                self.assertEqual(config["agent"][_AGENT]["steps"], 1)
+                self.assertEqual(config["compaction"], {"auto": True})
+                self.assertEqual(config["agent"][_AGENT]["steps"], 9)
                 self.assertEqual(REFERENCE_GENERATION_LIMITS[policy]["max_completion_tokens"], cap)
                 self.assertIn(stage, STAGES)
                 wrong_stage = "build_tests_defect_1_file_1" if policy == INLINE_DIAGNOSIS_POLICY else "build_tests_diagnose_1_file_1"

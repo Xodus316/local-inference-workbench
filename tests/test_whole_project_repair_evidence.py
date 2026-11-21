@@ -121,6 +121,12 @@ class SettledSelectionRecoveryTests(unittest.TestCase):
         self.assertIn('prior_attempts', second.args[4]['repair_evidence'])
         self.assertEqual(SELECTION_OUTPUT_TOKENS, 65536)
 
+    def test_settled_compaction_proof_keeps_one_primary_decision_and_one_restart(self):
+        flow = self.run_selection([self.capped(completed_requests=3, primary_requests=1, compaction_requests=2)])
+        paths, _ = flow._select_repair_paths('whole_self_repair_2', artifact(), feedback())
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(flow._generate.call_count, 2)
+
     def test_second_limit_unknown_completion_or_missing_cleanup_stops_without_extra_dispatch(self):
         for errors in ([self.capped(), self.capped()], [OpenCodeOutputLimitError(1)],
                        [self.capped(scratch_cleanup_confirmed=False)], [self.capped(completed_requests=2)]):

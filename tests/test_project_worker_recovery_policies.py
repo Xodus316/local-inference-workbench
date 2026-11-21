@@ -90,8 +90,8 @@ class InlineWorkerPolicyTests(unittest.TestCase):
                                                   tool_policy=policy)
                 configured = json.loads((Path(directory) / "workbench-opencode.json").read_text())
                 self.assertEqual(configured["permission"], {"*": "deny"})
-                self.assertEqual(configured["compaction"], {"auto": False})
-                self.assertEqual(configured["agent"][_AGENT]["steps"], 1)
+                self.assertEqual(configured["compaction"], {"auto": True})
+                self.assertEqual(configured["agent"][_AGENT]["steps"], 9)
                 expected = 65536 if policy == INLINE_SELECTION_POLICY else 32768
                 self.assertEqual(configured["provider"][_PROVIDER]["models"]["fixture"]["limit"]["output"], expected)
                 self.assertEqual(env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"], str(expected))
@@ -109,6 +109,16 @@ class InlineWorkerPolicyTests(unittest.TestCase):
             guard({"type": "step_start"})
             with self.assertRaisesRegex(ValueError, "one model step"):
                 guard(forbidden)
+
+    def test_compacting_decision_guard_allows_compaction_but_keeps_tool_and_step_bounds(self):
+        guard = selection_event_guard(None, allow_compaction=True)
+        guard({"type": "compaction"})
+        for _ in range(9):
+            guard({"type": "step_start"})
+        with self.assertRaisesRegex(ValueError, "bounded compaction"):
+            guard({"type": "step_start"})
+        with self.assertRaisesRegex(ValueError, "no tool calls"):
+            selection_event_guard(None, allow_compaction=True)({"type": "tool_use"})
 
 
 if __name__ == "__main__":

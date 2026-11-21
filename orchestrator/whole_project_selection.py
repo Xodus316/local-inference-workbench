@@ -7,6 +7,8 @@ import re
 
 
 INLINE_SELECTION_POLICY = "inline-no-tools-v2"
+INLINE_REVIEW_POLICY = "native-isolated-code-review-v1"
+COMPACTED_DECISION_STEPS = 9
 SELECTION_OUTPUT_TOKENS = 65536
 SELECTION_SOURCE_BYTES = 32768
 SELECTION_RESTART_SOURCE_BYTES = 16384
@@ -195,7 +197,7 @@ def trim_selection_source(source):
     raise ValueError("Repair selection evidence and current source do not fit the approved context; inference was not dispatched")
 
 
-def selection_event_guard(callback):
+def selection_event_guard(callback, *, allow_compaction=False):
     """Stop an unexpected exploration loop while it is running, before collection."""
     starts = 0
 
@@ -205,7 +207,10 @@ def selection_event_guard(callback):
             callback(event)
         if event.get("type") == "step_start":
             starts += 1
-        if event.get("type") in {"tool_use", "compaction"} or starts > 1:
-            raise ValueError("Inline structured generation permits one model step and no tool calls")
+        if (event.get("type") == "tool_use"
+                or (event.get("type") == "compaction" and not allow_compaction)
+                or starts > (COMPACTED_DECISION_STEPS if allow_compaction else 1)):
+            raise ValueError("Inline structured generation permits bounded compaction and no tool calls"
+                             if allow_compaction else "Inline structured generation permits one model step and no tool calls")
 
     return observe
