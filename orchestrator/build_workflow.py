@@ -18,6 +18,7 @@ from .ollama import _strict_json
 from .repository import relative
 from .store import digest, encoded
 from .wire import wire_schema
+from .workflow_pause import WorkflowPaused
 
 
 TEST_BRIEF = (
@@ -226,6 +227,9 @@ class CodeBuild:
             run = ProjectBuildRun(self, state) if project_enabled(bundle) else BuildRun(self, state)
         try:
             status = run.execute()
+        except WorkflowPaused:
+            self.store.snapshot_result(state['run_id'], {'output': run.output, 'stages': run.stages})
+            raise
         except (ValueError, KeyError, TypeError, IndexError) as exc:
             run.output["error"] = {"stage": run.stage, "message": public_error(exc)}
             status = "failed"

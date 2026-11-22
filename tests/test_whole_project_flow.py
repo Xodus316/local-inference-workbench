@@ -150,6 +150,32 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.assertEqual(evidence["independent_suite_digest"], output["suite_digest"])
         self.assertNotEqual(output["suite_digest"], evidence["self_suite_digest"])
 
+    def test_pause_after_repair_receipt_preserves_budgets_and_replays_without_dispatch(self):
+        self.provider.pause.return_value = {'released': True}
+        worker = self.runtime.whole_project_workers['repairer']
+        write = worker.run.side_effect
+
+        def pause_after_repair(**kwargs):
+            value = write(**kwargs)
+            if kwargs['stage'] == 'repair_1':
+                self.runtime.pause(self.runtime.active_run_id)
+            return value
+
+        worker.run.side_effect = pause_after_repair
+        paused = self.run_workflow(expected_status='paused')
+        self.assertEqual(paused['calls'][-1]['stage'], 'repair_1')
+        self.assertEqual(paused['calls'][-1]['status'], 'terminal')
+        self.assertNotIn('error', paused['result']['output'])
+        self.assertTrue(paused['pause']['cleanup']['released'])
+        self.runtime.approve(paused['id'], paused['digest'], resume=True)
+        self.runtime.queue.join()
+        result = self.runtime.store.get(paused['id'])
+        self.assertEqual(result['status'], 'completed', result)
+        self.assertEqual(worker.run.call_count, 1)
+        self.assertEqual(result['result']['output']['repair_attempts'], 1)
+        self.assertEqual(self.verified, [(8000, False, 'draft'), (8001, False, 'self-fixed'),
+                                        (0, True, 'self-fixed'), (1, True, 'finished'), (8002, False, 'finished')])
+
     def test_incomplete_implementation_and_noop_repair_recover_before_advancing(self):
         self.plan = {**PLAN, "implementation_files": ["app.py", "helper.py"]}
         worker = self.runtime.whole_project_workers["implementer"]

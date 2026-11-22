@@ -24,6 +24,8 @@ A custom launcher must bind the returned worker, tokenizer and provider identiti
 
 The bridge verifies role, session, pinned model, sampling, reasoning/completion limits, schema and terminal native usage. Structured/no-tool decisions permit one primary response and at most eight stopped compaction requests. Only the pinned CLI's summary protocol can be treated as an auxiliary compaction; it cannot replace the final schema-bound response. Unknown execution remains a barrier. Compaction manages context and does not enlarge a single response's completion ceiling.
 
+[Pause and restart instructions](../../docs/workflow-pause.md) cover the Workflows controls, API and external pause command. The included `run_workflow.py` runs or resumes an already prepared bundle with matching local configuration and deployment inputs. It waits through **pausing**, saves a durable **paused** acknowledgement after draining transport and stopping its owned container, and reconstructs the approved workers when resumed in a new process. Wait for **paused** and launcher cleanup before shutting down.
+
 Run the synthetic CPU-only checks from the repository root:
 
 ```powershell

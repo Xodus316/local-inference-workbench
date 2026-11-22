@@ -99,6 +99,9 @@ class ChatIntegration(unittest.TestCase):
         self.assertIn("hidden", controls.by_id["research-assessment"])
         self.assertIn("search-sources", controls.by_id)
         self.assertIn("hidden", controls.by_id["build-files"])
+        for button in ('pause', 'resume'):
+            self.assertIn('hidden', controls.by_id[button])
+        self.assertEqual(controls.by_id['pause-note']['role'], 'status')
         for element in ("build-path", "copy-file", "download-file", "download-manifest", "build-verification"):
             self.assertIn(element, controls.by_id)
 

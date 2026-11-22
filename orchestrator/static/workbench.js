@@ -169,6 +169,9 @@
       dt.textContent = name; dd.textContent = value; info.append(dt, dd);
     }
     el("input").textContent = JSON.stringify(row.bundle, null, 2);
+    el('pause-note').textContent = row.status === 'pausing'
+      ? 'Pause requested. Finishing the current operation and saving its result; keep the computer on until Paused.'
+      : row.status === 'paused' ? 'Paused. Progress is saved. Reopen the same data directory after restart and choose Resume saved run.' : '';
     if (previous?.id !== row.id) el("input-view").open = row.status === "prepared";
     el("calls").replaceChildren();
     for (const call of row.calls || []) {
@@ -192,10 +195,11 @@
     el("review").textContent = result.review ? JSON.stringify(result.review, null, 2) : "";
     el("workspace-block").hidden = !result.worktree;
     el("workspace").textContent = result.worktree ? result.worktree + "\n" + JSON.stringify(result.tests || [], null, 2) : "";
-    el("resume").hidden = row.status !== "interrupted";
+    el("resume").hidden = !["interrupted", "paused"].includes(row.status);
+    el("pause").hidden = !["queued", "running"].includes(row.status);
     el("approve").hidden = row.status !== "prepared";
     el("apply").hidden = row.status !== "awaiting_apply" || !result.apply_digest;
-    el("cancel").hidden = !["queued", "running", "prepared"].includes(row.status);
+    el("cancel").hidden = !["queued", "running", "pausing", "paused", "prepared"].includes(row.status);
     for (const button of el("runs").querySelectorAll("button")) button.setAttribute("aria-pressed", String(button.dataset.id === row.id));
   }
   async function select(id) {
@@ -236,7 +240,7 @@
   async function mutation(path, body) {
     if (busy) return;
     revision++; busy = true; message("");
-    const buttons = ["prepare-button", "approve", "resume", "apply", "cancel"];
+    const buttons = ["prepare-button", "approve", "resume", "pause", "apply", "cancel"];
     for (const id of buttons) el(id).disabled = true;
     try { renderRun(await api(path, typeof body === "function" ? await body() : body)); }
     catch (error) { message(error.message + ". Check Saved runs for the latest state."); }
@@ -308,7 +312,7 @@
       return body;
     });
   };
-  for (const action of ["approve", "resume", "cancel", "apply"]) el(action).onclick = () => {
+  for (const action of ["approve", "resume", "pause", "cancel", "apply"]) el(action).onclick = () => {
     if (!selected || busy || el(action).hidden) return;
     let body = {};
     if (action === "approve" || action === "resume") body = {digest: selected.digest};

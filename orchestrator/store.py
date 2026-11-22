@@ -157,6 +157,10 @@ class Store:
                 CREATE TABLE IF NOT EXISTS approvals (
                     run_id TEXT PRIMARY KEY, digest TEXT NOT NULL, approved_at REAL NOT NULL,
                     deadline REAL);
+                CREATE TABLE IF NOT EXISTS workflow_pauses (
+                    run_id TEXT PRIMARY KEY, approval_digest TEXT NOT NULL,
+                    requested_at REAL NOT NULL, paused_at REAL, remaining_seconds REAL,
+                    cleanup TEXT, resumed_at REAL);
             """)
             columns = self.db.execute("PRAGMA table_info(approvals)").fetchall()
             if any(column[1] == "deadline" and column[3] for column in columns):
@@ -180,7 +184,7 @@ class Store:
                                     (status, path.stat().st_mtime, run_id, stage))
             self.db.execute("UPDATE runs SET status='apply_failed',error='Inspect the isolated workspace' WHERE status='applying'")
             self.db.execute(
-                "UPDATE runs SET status='interrupted' WHERE status IN ('running','queued','cancelling')"
+                "UPDATE runs SET status='interrupted' WHERE status IN ('running','queued','cancelling','pausing')"
             )
 
     def capacity(self):
@@ -228,7 +232,108 @@ class Store:
                 "SELECT * FROM approvals WHERE run_id=?", (run_id,)
             ).fetchone()
             result["approval"] = dict(approval) if approval else None
+            pause = self.db.execute('SELECT * FROM workflow_pauses WHERE run_id=?', (run_id,)).fetchone()
+            if pause:
+                result['pause'] = dict(pause)
+                result['pause']['cleanup'] = json.loads(pause['cleanup']) if pause['cleanup'] else None
             return result
+
+    def unsettled_operations(self, run_id):
+        """Native calls and nested sandbox intents must all have durable receipts."""
+        if self.has_unknown(run_id):
+            return True
+        folder = self.directory / 'artifacts' / run_id
+        for path in folder.glob('*.request.json'):
+            receipt = path.with_name(path.name.removesuffix('.request.json') + '.raw.json')
+            if not receipt.is_file():
+                return True
+            value = json.loads(receipt.read_text(encoding='utf8'))
+            if not isinstance(value, dict):
+                return True
+            if 'commands' in value and (not isinstance(value['commands'], list)
+                    or any(not isinstance(row, dict) or row.get('cleanup_confirmed') is not True
+                           for row in value['commands'])):
+                return True
+        # Nested mutation/profile operations also retain exact owned-container
+        # lifecycle receipts, even when their outer report has been saved.
+        for lifecycle in (self.directory / 'build-workspaces' / run_id).glob('*.lifecycle'):
+            receipt = lifecycle / 'result.json'
+            if not receipt.is_file() or json.loads(receipt.read_text(encoding='utf8')).get('cleanup_confirmed') is not True:
+                return True
+        return False
+
+    def pause_request(self, run_id):
+        from .workflow_pause import request_path
+        path = request_path(self.directory, run_id)
+        if not path.exists():
+            return None
+        value = json.loads(path.read_text(encoding='utf8'))
+        row = self.get(run_id)
+        if (value.get('policy') != 'workflow-pause-v1' or value.get('run_id') != run_id
+                or value.get('approval_digest') != row['digest'] or not row['approved']):
+            raise ValueError('Pause request differs from the approved workflow')
+        with self.lock, self.db:
+            self.db.execute('INSERT INTO workflow_pauses(run_id,approval_digest,requested_at) VALUES(?,?,?) '
+                'ON CONFLICT(run_id) DO UPDATE SET requested_at=excluded.requested_at,paused_at=NULL,'
+                'remaining_seconds=NULL,cleanup=NULL,resumed_at=NULL WHERE workflow_pauses.resumed_at IS NOT NULL',
+                (run_id, row['digest'], value['requested_at']))
+            if row['status'] in {'running', 'queued'}:
+                self.update(run_id, 'pausing')
+        return value
+
+    def request_pause(self, run_id):
+        from .workflow_pause import write_request
+        row = self.get(run_id)
+        if row['status'] == 'paused':
+            return row
+        if row['status'] not in {'running', 'queued', 'pausing'} or not row['approved']:
+            raise ValueError('Only an approved active workflow can be paused')
+        write_request(self.directory, run_id, row['digest'])
+        self.pause_request(run_id)
+        return self.get(run_id)
+
+    def complete_pause(self, run_id, cleanup):
+        with self.lock, self.db:
+            row = self.get(run_id)
+            if not self.pause_request(run_id) or self.unsettled_operations(run_id):
+                raise ValueError('Cannot acknowledge pause with unresolved operations')
+            deadline = row['approval']['deadline']
+            now = time.time()
+            remaining = None if deadline is None else max(0, deadline - now)
+            self.db.execute('UPDATE workflow_pauses SET paused_at=?,remaining_seconds=?,cleanup=?,resumed_at=NULL '
+                'WHERE run_id=?', (now, remaining, encoded(cleanup), run_id))
+            self.update(run_id, 'paused')
+
+    def resume_pause(self, run_id, timeout):
+        from .workflow_pause import request_path
+        with self.lock, self.db:
+            row = self.get(run_id)
+            pause = row.get('pause') or {}
+            if (row['status'] != 'paused' or pause.get('paused_at') is None
+                    or pause.get('approval_digest') != row['digest']
+                    or not row['approval'] or row['approval']['digest'] != row['digest']
+                    or self.unsettled_operations(run_id)):
+                raise ValueError('Paused workflow is not settled or its approval changed')
+            remaining = pause['remaining_seconds']
+            # Runtime has verified the unchanged configuration digest. Its timeout
+            # is the original allowance; deadline - approved_at grows across pauses.
+            limit = timeout
+            if ((remaining is None) != (row['approval']['deadline'] is None)
+                    or (remaining is None) != (limit is None)
+                    or remaining is not None and (type(remaining) not in (int, float) or not math.isfinite(remaining)
+                        or type(limit) not in (int, float) or not math.isfinite(limit) or remaining > limit)):
+                raise ValueError('Saved pause runtime allowance differs from its approval')
+            if remaining is not None and remaining <= 0:
+                raise ValueError('The workflow exhausted its active runtime allowance')
+            request_path(self.directory, run_id).unlink(missing_ok=True)
+            now = time.time()
+            self.db.execute('UPDATE approvals SET deadline=? WHERE run_id=?',
+                (None if remaining is None else now + remaining, run_id))
+            self.db.execute('UPDATE workflow_pauses SET resumed_at=? WHERE run_id=?', (now, run_id))
+
+    def clear_pause_request(self, run_id):
+        from .workflow_pause import request_path
+        request_path(self.directory, run_id).unlink(missing_ok=True)
 
     def approve(self, run_id, digest_value, timeout):
         with self.lock, self.db:
@@ -376,6 +481,8 @@ class Store:
         import shutil
 
         with self.lock, self.db:
+            self.clear_pause_request(run_id)
+            self.db.execute('DELETE FROM workflow_pauses WHERE run_id=?', (run_id,))
             self.db.execute("DELETE FROM calls WHERE run_id=?", (run_id,))
             self.db.execute("DELETE FROM approvals WHERE run_id=?", (run_id,))
             self.db.execute("DELETE FROM runs WHERE id=?", (run_id,))

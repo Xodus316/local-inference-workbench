@@ -29,7 +29,7 @@ if input("Approve this run? [y/N] ").strip().lower() == "y":
     api(path + "/approve", {"digest": prepared["digest"]})
     while True:
         run = api(path)
-        if run["status"] not in {"queued", "running", "cancelling"}:
+        if run["status"] not in {"queued", "running", "pausing", "cancelling"}:
             print(json.dumps({"status": run["status"], "result": run.get("result"),
                               "error": run.get("error")}, indent=2))
             break
@@ -41,6 +41,8 @@ For `balanced` or `verified`, the readers first see the source packet independen
 For `plan` or `edit`, add an absolute allowlisted `repository` directory and a list of relative `files`. Inspect the prepared scope. An accepted edit returns a proposed diff and an application digest. The application call uses that digest so it cannot authorize a different diff. Read the resulting worktree path and any execution receipts in the run result before integrating the patch.
 
 The model journal records intent before dispatch and saves a returned completion before validating it. If a call ends in an uncertain state, the journal gives the operator a record to reconcile with the native runtime. Research requests send generated queries to the configured provider after approval. Model calls use the local Ollama endpoint.
+
+Use `POST /api/runs/{id}/pause` with `{}` to request a durable pause. Wait for **paused** before shutdown, then reopen the same state/configuration and call `/resume` with the saved approval digest. See [pause and restart](workflow-pause.md) for safe boundaries, cleanup and standalone launchers.
 
 ## Research a question on the Internet
 

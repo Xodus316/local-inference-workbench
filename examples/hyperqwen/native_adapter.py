@@ -476,6 +476,18 @@ class ReviewerProvider:
             'native_source_sha256':native_source_identity(), 'review_worker':self.worker.identity(),
             'agent_transport':'opencode-cli', 'auto_compaction':True}
 
+    def pause(self, run_id):
+        if self.backend is None:
+            raise ValueError('Pause requires the owned backend lifecycle')
+        if self.backend.owner is None:
+            if self.backend._create_dispatched:
+                raise ValueError('Dispatched backend creation remains unresolved')
+            return {'owned_backend': 'not_created', 'released': True}
+        receipt = self.backend.deactivate()
+        if receipt.get('stopped') is not True or receipt.get('transport_drained') is not True:
+            raise ValueError('Owned backend did not settle for pause')
+        return receipt
+
     def admit(self, model, settings, payload, stage):
         self._pending.value = None
         policy = generation_policy(stage, 'reviewer', REVIEW_POLICY)

@@ -100,7 +100,7 @@ class Handler(BaseHTTPRequestHandler):
                 return {"runs":runtime.store.list()}
         if method == "POST" and path == "/api/runs":
             return runtime.prepare(self.json_body())
-        match = re.fullmatch(r"/api/runs/([0-9a-f-]{36})(?:/(approve|resume|apply|cancel))?", path)
+        match = re.fullmatch(r"/api/runs/([0-9a-f-]{36})(?:/(approve|resume|apply|cancel|pause))?", path)
         if not match:
             raise KeyError(path)
         run_id, action = match.groups()
@@ -111,6 +111,8 @@ class Handler(BaseHTTPRequestHandler):
             payload = self.json_body()
             if action == "cancel" and payload == {}:
                 return runtime.cancel(run_id)
+            if action == 'pause' and payload == {}:
+                return runtime.pause(run_id)
             if set(payload) != {"digest"} or not isinstance(payload["digest"], str):
                 raise ValueError("Expected approval digest")
             if action in {"approve","resume"}:

@@ -20,6 +20,7 @@ from .schemas import Request
 from .stages import Stages
 from .store import Store, digest
 from .test_runner import run_test
+from .workflow_pause import WorkflowPaused
 
 
 class Runtime(CodeBuild, Stages):
@@ -172,8 +173,8 @@ class Runtime(CodeBuild, Stages):
     def approve(self, run_id, approved_digest, resume=False):
         with self.management:
             row = self.store.get(run_id)
-            expected = "interrupted" if resume else "prepared"
-            if self.stopping or row["status"] != expected or row["digest"] != approved_digest:
+            expected = {"interrupted", "paused"} if resume else {"prepared"}
+            if self.stopping or row["status"] not in expected or row["digest"] != approved_digest:
                 raise ValueError("Run state or approval digest changed")
             if not self._config_matches(row["bundle"]):
                 raise ValueError("Configuration changed; prepare another scope")
@@ -184,9 +185,11 @@ class Runtime(CodeBuild, Stages):
                 raise ValueError("The interrupted run has an unresolved call or approval")
             if self.queue.full():
                 raise ValueError("Workflow queue is full")
-            self.events[run_id] = threading.Event()
+            if row['status'] == 'paused':
+                self.store.resume_pause(run_id, self.config.run_timeout_seconds)
             self.store.approve(run_id, approved_digest, self.config.run_timeout_seconds)
             self.store.update(run_id, "queued", approved=True)
+            self.events[run_id] = threading.Event()
             self.queue.put_nowait(run_id)
             return self.store.get(run_id)
 
@@ -195,6 +198,8 @@ class Runtime(CodeBuild, Stages):
             raise RuntimeError("cancelled")
         if time.monotonic() >= self.deadline:
             raise TimeoutError("Workflow deadline expired")
+        if self.store.pause_request(run_id) and not self.store.unsettled_operations(run_id):
+            raise WorkflowPaused()
 
     def _call(self, state, stage, role, payload, schema=None):
         run_id = state["run_id"]
@@ -218,6 +223,7 @@ class Runtime(CodeBuild, Stages):
             if self.store.has_unknown_calls():
                 raise RuntimeError("native_completion_unknown; resolve the physical backend before another call")
             self.provider.admit(model, generation, payload, stage)
+            self._guard(run_id)
             self.store.begin_call(run_id, stage, role, model, payload)
             request_deadline = None if self.deadline == math.inf else self.deadline
             if stage == "decider":
@@ -334,6 +340,19 @@ class Runtime(CodeBuild, Stages):
                 with self.management:
                     self._guard(run_id)
                     self.store.update(run_id, status, result=result)
+            except WorkflowPaused:
+                try:
+                    release = getattr(self.provider, 'pause', None)
+                    cleanup = release(run_id) if callable(release) else {'inference': 'settled', 'owned_backend': 'not_managed'}
+                    with self.management:
+                        if self.events[run_id].is_set():
+                            self.store.update(run_id, 'cancelled')
+                        else:
+                            self.store.complete_pause(run_id, cleanup)
+                        self.active_run_id = None
+                        self.events.pop(run_id, None)
+                except Exception as exc:
+                    self.store.update(run_id, 'blocked', error='Pause cleanup failed: ' + type(exc).__name__)
             except Exception as exc:
                 unknown = self.store.has_unknown(run_id)
                 cancelled = self.events[run_id].is_set()
@@ -341,8 +360,9 @@ class Runtime(CodeBuild, Stages):
                                   error="native_completion_unknown" if unknown else type(exc).__name__)
             finally:
                 with self.management:
-                    self.active_run_id = None
-                    self.events.pop(run_id, None)
+                    if self.active_run_id == run_id:
+                        self.active_run_id = None
+                        self.events.pop(run_id, None)
                 self.queue.task_done()
 
     def metrics(self, run_id):
@@ -365,11 +385,16 @@ class Runtime(CodeBuild, Stages):
     def cancel(self, run_id):
         with self.management:
             row = self.store.get(run_id)
+            self.store.clear_pause_request(run_id)
             if run_id in self.events:
                 self.events[run_id].set()
-            elif row["status"] in {"prepared","awaiting_apply","interrupted"}:
+            elif row["status"] in {"prepared","awaiting_apply","interrupted","paused"}:
                 self.store.update(run_id, "cancelled")
             return self.store.get(run_id)
+
+    def pause(self, run_id):
+        with self.management:
+            return self.store.request_pause(run_id)
 
     def apply(self, run_id, approval):
         with self.management:

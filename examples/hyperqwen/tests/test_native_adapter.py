@@ -38,6 +38,26 @@ def executable(root):
 
 
 class FreshNativeAdapterTests(unittest.TestCase):
+    def test_pause_requires_owned_backend_release_and_transport_drain(self):
+        provider = object.__new__(adapter.ReviewerProvider)
+        receipt = {'stopped': True, 'transport_drained': True, 'container_id': 'owned'}
+        from unittest.mock import Mock
+        provider.backend = types.SimpleNamespace(owner='owned', deactivate=Mock(return_value=receipt))
+        self.assertEqual(provider.pause('run'), receipt)
+        provider.backend.deactivate.assert_called_once_with()
+        for key in ('stopped', 'transport_drained'):
+            provider.backend.deactivate.return_value = {**receipt, key: False}
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'did not settle'):
+                provider.pause('run')
+
+    def test_pause_never_treats_an_unknown_create_as_not_created(self):
+        provider = object.__new__(adapter.ReviewerProvider)
+        provider.backend = types.SimpleNamespace(owner=None, _create_dispatched=True)
+        with self.assertRaisesRegex(ValueError, 'remains unresolved'):
+            provider.pause('run')
+        provider.backend._create_dispatched = False
+        self.assertTrue(provider.pause('run')['released'])
+
     def test_preview_builds_all_fresh_roles_without_process_network_or_prior_files(self):
         with tempfile.TemporaryDirectory() as folder:
             exe = executable(Path(folder))

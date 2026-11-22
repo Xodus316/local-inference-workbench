@@ -94,7 +94,7 @@ class LocalProcess:
         if not self.owned or self.process.stdin is None or self.process.stdin.closed:
             raise ValueError("This panel does not own a running service")
         if status["inference_active"] or status.get("active_run_id") or status.get("queued", 0):
-            raise ValueError("Wait for active work to finish, or cancel it from Workflows or Chat.")
+            raise ValueError("Pause the workflow and wait for Paused, or cancel active work from Workflows or Chat.")
         self.process.stdin.close()
 
     def diagnostics(self):
