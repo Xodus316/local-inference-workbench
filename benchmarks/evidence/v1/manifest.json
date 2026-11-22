@@ -22,6 +22,31 @@
       "sha256": "8fc21c4f3ad2ed524ee918332d61e59513244c01272a7284d96b8d28760347e0"
     },
     {
+      "path": "build/combat/inkling-2026-11-21/README.md",
+      "bytes": 2991,
+      "sha256": "6edbbcaffe276c6474c779c0c4667c1ee2db67fa52d305b67c2995e75c1158c7"
+    },
+    {
+      "path": "build/combat/inkling-2026-11-21/results.json",
+      "bytes": 7232,
+      "sha256": "f673ab7318e82196d98303006041d638d4b405401ded5d782ac9621be0cdca5c"
+    },
+    {
+      "path": "build/combat/inkling-2026-11-21/submissions/ud-iq4-xs.py.txt",
+      "bytes": 5224,
+      "sha256": "e54d49a3306042e4016fcc84f2adaf2acba68cd03422e5bec44e259dee7ac57e"
+    },
+    {
+      "path": "build/combat/inkling-2026-11-21/submissions/ud-q4-k-m.py.txt",
+      "bytes": 7235,
+      "sha256": "948eab4f31d5cc20d2dade2cd4257dfdfbe8a2e5b8639ba8b88dca288640640b"
+    },
+    {
+      "path": "build/combat/inkling-2026-11-21/suite.json",
+      "bytes": 24047,
+      "sha256": "49a6282bf0c83adfa74a80294a100239b94bc153562ff9aff798ae8b935f041d"
+    },
+    {
       "path": "build/inventory/faults.json",
       "bytes": 5504,
       "sha256": "2253b6b4bec5ce06868d15a2578eb61b2d54555caf606b4752164b2984acd196"
@@ -93,8 +118,8 @@
     },
     {
       "path": "build/README.md",
-      "bytes": 4021,
-      "sha256": "1670bd96a285bceb30a97ba3569c028bae81efc71bd8245f37ce5d1fa8cb1f62"
+      "bytes": 4356,
+      "sha256": "636c9d31f6b52abd94a8270648fb05a8529193e8d9a3732c1560ca73aa9d3094"
     },
     {
       "path": "build/test-authorship/occupancy/heldout.json",

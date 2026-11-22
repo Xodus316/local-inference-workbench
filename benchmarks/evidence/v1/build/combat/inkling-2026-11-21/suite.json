@@ -1,0 +1,168 @@
+{
+  "assumptions": [
+    "The 'active arc' for combat is 'Front' for both ships, implying 'Front faces Front'.",
+    "Simultaneous combat means both ships' damage is calculated using the state at the beginning of the turn, and then both are applied to the state.",
+    "A weapon with recharge N skips N subsequent turns after firing. For example, if it fires on Turn 1 and N=1, it will not fire on Turn 2 and will fire again on Turn 3.",
+    "A stalemate (Draw) occurs if both ships are alive but no weapon on either ship can ever deal damage (e.g., all weapons have 0 damage).",
+    "The program reads the entire JSON from stdin before starting the simulation.",
+    "Weapon cooldowns for all weapons on all arcs are updated every turn, but only weapons on the active 'Front' arc contribute to the combat described in the prompt's 'available arc' requirement."
+  ],
+  "commands": [
+    "python3 -m unittest discover -s tests -v"
+  ],
+  "coverage": [
+    {
+      "catches": "Incorrect winner calculation or failure to handle simultaneous combat correctly.",
+      "criterion": 1,
+      "expected_result": "Ship 1 Wins",
+      "scenario": "Ship 1 has higher damage and survives, while Ship 2 is destroyed.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_simple_win"
+    },
+    {
+      "catches": "Program crashes instead of exiting gracefully.",
+      "criterion": 2,
+      "expected_result": "Non-zero exit code",
+      "scenario": "Input string is not valid JSON.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_malformed_json"
+    },
+    {
+      "catches": "KeyError causing crash instead of handled exit.",
+      "criterion": 3,
+      "expected_result": "Non-zero exit code",
+      "scenario": "Required fields like ship2 are missing from the JSON object.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_missing_fields"
+    },
+    {
+      "catches": "Incorrect cooldown math (e.g., off-by-one error in recharge logic).",
+      "criterion": 4,
+      "expected_result": "Proper combat progress",
+      "scenario": "Weapon with recharge 1 should skip one turn.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_weapon_recharge"
+    },
+    {
+      "catches": "Incorrect handling of simultaneous death (e.g., declaring a winner because of order of application).",
+      "criterion": 5,
+      "expected_result": "Draw",
+      "scenario": "Both ships reach 0 hull in the same turn.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_draw_simultaneous_destruction"
+    },
+    {
+      "catches": "Damage skipping shield or applying incorrectly to hull.",
+      "criterion": 6,
+      "expected_result": "Correct hull reduction",
+      "scenario": "Damage exceeds shield value, remaining damage goes to hull.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_shield_to_hull_transition"
+    },
+    {
+      "catches": "Cooldowns not decrementing or decrementing too much.",
+      "criterion": 7,
+      "expected_result": "Weapon availability on turn 3 (for N=1)",
+      "scenario": "Weapon cooldowns decrement at the end of each turn.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_weapon_recharge"
+    },
+    {
+      "catches": "Infinite loop if destruction check is missing.",
+      "criterion": 8,
+      "expected_result": "Winner declared",
+      "scenario": "Simulation stops when one ship's hull reaches 0.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_simple_win"
+    },
+    {
+      "catches": "Incorrect output format.",
+      "criterion": 9,
+      "expected_result": "Ship 1 Wins",
+      "scenario": "The winner is printed to stdout.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_simple_win"
+    },
+    {
+      "catches": "Unhandled JSONDecodeError.",
+      "criterion": 10,
+      "expected_result": "Non-zero exit status",
+      "scenario": "JSON parsing errors are handled.",
+      "test_file": "tests/test_simulation.py",
+      "test_name": "TestStarshipCombat.test_malformed_json"
+    },
+    {
+      "catches": "Shield overflow not applied to hull when damage exceeds shield value.",
+      "criterion": 1,
+      "expected_result": "Ship 1 Wins",
+      "scenario": "Ship1 has high damage weapon, Ship2 has 5 shield and 10 hull. Damage 100 should kill Ship2 in 1 turn after depleting 5 shield.",
+      "test_file": "tests/test_shield_overflow.py",
+      "test_name": "TestShieldOverflow.test_shield_excess_hits_hull"
+    },
+    {
+      "catches": "Destroyed ship fires and changes battle result.",
+      "criterion": 3,
+      "expected_result": "Ship 2 Wins",
+      "scenario": "Ship1 has hull 0 but powerful weapons, Ship2 has hull 10 with low damage. Ship1 must not fire.",
+      "test_file": "tests/test_initial_destruction.py",
+      "test_name": "TestInitialDestruction.test_destroyed_ship_does_not_fire"
+    },
+    {
+      "catches": "Only first weapon fires instead of all available weapons on arc.",
+      "criterion": 2,
+      "expected_result": "Ship 1 Wins",
+      "scenario": "Ship1 has two 5-damage weapons (total 10), Ship2 has one 4-damage weapon and hull 10. Both weapons must fire to kill Ship2.",
+      "test_file": "tests/test_multiple_weapons.py",
+      "test_name": "TestMultipleWeapons.test_all_weapons_fire_simultaneously"
+    },
+    {
+      "catches": "Turn with no firing declared stalemate instead of continuing.",
+      "criterion": 4,
+      "expected_result": "Ship 2 Wins",
+      "scenario": "Ship1 weapons all recharging, Ship2 has damage weapon. Battle should continue, not end in draw.",
+      "test_file": "tests/test_pending_recharge.py",
+      "test_name": "TestPendingRecharge.test_battle_continues_when_one_ship_recharging"
+    },
+    {
+      "catches": "Processing only the first ready weapon changes the battle winner.",
+      "criterion": 5,
+      "expected_result": "Ship 2 Wins",
+      "scenario": "{\"expected\": \"Ship 2 Wins\", \"ship1\": [20, 5, [{\"damage\": 4, \"recharge\": 0}]], \"ship2\": [14, 5, [{\"damage\": 4, \"recharge\": 0}, {\"damage\": 4, \"recharge\": 0}]]}",
+      "test_file": "tests/test_multiple_weapons.py",
+      "test_name": "TestMultipleWeapons.test_weapon_count_changes_winner"
+    },
+    {
+      "catches": "Faulty simulation returns Draw",
+      "criterion": 7,
+      "expected_result": "Ship 2 Wins",
+      "scenario": "{\"ship1_hull\":2,\"ship2_hull\":1,\"ship2_damage\":1,\"ship2_recharge\":1,\"expected\":\"Ship 2 Wins\",\"faulty_expected\":\"Draw\"}",
+      "test_file": "tests/test_pending_recharge.py",
+      "test_name": "TestPendingRecharge.test_ship2_recharge_changes_winner"
+    }
+  ],
+  "files": [
+    {
+      "content": "import subprocess\nimport json\nimport unittest\n\ndef run_cli(input_data):\n    \"\"\"Helper to run the CLI with given input (string or dict).\"\"\"\n    if isinstance(input_data, dict):\n        input_str = json.dumps(input_data)\n    else:\n        input_str = input_data\n\n    process = subprocess.Popen(\n        ['python3', 'solution.py'],\n        stdin=subprocess.PIPE,\n        stdout=subprocess.PIPE,\n        stderr=subprocess.PIPE,\n        text=True\n    )\n    try:\n        stdout, stderr = process.communicate(input=input_str, timeout=10)\n    except subprocess.TimeoutExpired:\n        process.kill()\n        process.communicate()\n        return -1, \"\", \"Timeout\"\n    return process.returncode, stdout.strip(), stderr.strip()\n\nclass TestStarshipCombat(unittest.TestCase):\n    def setUp(self):\n        pass\n\n    def create_ship(self, hull, shield_val, front_weapons=None, back_weapons=None, left_weapons=None, right_weapons=None):\n        \"\"\"Helper to create a completely independent ship object to avoid shallow copy bugs.\"\"\"\n        return {\n            \"hull\": hull,\n            \"shields\": {\"Front\": shield_val, \"Back\": shield_val, \"Left\": shield_val, \"Right\": shield_val},\n            \"weapons\": {\n                \"Front\": front_weapons if front_weapons is not None else [],\n                \"Back\": back_weapons if back_weapons is not None else [],\n                \"Left\": left_weapons if left_weapons is not None else [],\n                \"Right\": right_weapons if right_weapons is not None else []\n            }\n        }\n\n    def test_simple_win(self):\n        \"\"\"Criterion 9: Ship 1 wins when Ship 2 is destroyed.\"\"\"\n        ship1 = self.create_ship(10, 5, front_weapons=[{\"damage\": 10, \"recharge\": 0}])\n        ship2 = self.create_ship(2, 5, front_weapons=[{\"damage\": 1, \"recharge\": 0}])\n        # Turn 1: S1 deals 10 to S2. S2 shield 5->0, hull 2->2-(10-5)=-3. S2 dies.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_draw_simultaneous_destruction(self):\n        \"\"\"Criterion 5, 8, 9: Both ships destroyed in same turn results in a Draw.\"\"\"\n        ship1 = self.create_ship(5, 0, front_weapons=[{\"damage\": 10, \"recharge\": 0}])\n        ship2 = self.create_ship(5, 0, front_weapons=[{\"damage\": 10, \"recharge\": 0}])\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Draw\")\n\n    def test_shield_to_hull_transition(self):\n        \"\"\"Criterion 6: Damage depletes shields before hull. Fixed payload for Ship 1 Win.\"\"\"\n        ship1 = self.create_ship(10, 2, front_weapons=[{\"damage\": 5, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 2, front_weapons=[{\"damage\": 0, \"recharge\": 0}])\n        # T1: S1 deals 5. S2 shield 2->0, hull 10->7. S2 deals 0.\n        # T2: S1 deals 5. S2 shield 0->0, hull 7->2.\n        # T3: S1 deals 5. S2 shield 0->0, hull 2->-3.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_weapon_recharge(self):\n        \"\"\"Criterion 4, 7: Weapon with recharge 1 skips 1 turn. Fixed payload for Ship 1 Win.\"\"\"\n        ship1 = self.create_ship(20, 0, front_weapons=[{\"damage\": 10, \"recharge\": 1}])\n        ship2 = self.create_ship(20, 0, front_weapons=[{\"damage\": 2, \"recharge\": 0}])\n        # T1: S1 fires (10), S2 fires (2). S1 hull 18, S2 hull 10. S1 r=1.\n        # T2: S1 skip, S2 fires (2). S1 hull 16, S2 hull 10. S1 r=0.\n        # T3: S1 fires (10), S2 fires (2). S1 hull 14, S2 hull 0. S1 r=1.\n        # T4: S1 skip, S2 fires (2). S1 hull 12, S2 hull 0. S1 r=0.\n        # T5: S1 fires (10), S2 hull -10. S2 is dead.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_asymmetric_recharge_boundary(self):\n        \"\"\"Tests asymmetric recharge (S2 has recharge, S1 does not).\"\"\"\n        ship1 = self.create_ship(20, 0, front_weapons=[{\"damage\": 10, \"recharge\": 0}])\n        ship2 = self.create_ship(20, 0, front_weapons=[{\"damage\": 10, \"recharge\": 1}])\n        # T1: S1(10) -> S2(10). S2(10) -> S1(10). S2 r=1.\n        # T2: S1(10) -> S2(0). S2 skip. S2 dies.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_stalemate_waiting(self):\n        \"\"\"If neither ship can deal damage, return Draw.\"\"\"\n        ship1 = self.create_ship(10, 0, front_weapons=[{\"damage\": 0, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 0, front_weapons=[{\"damage\": 0, \"recharge\": 0}])\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Draw\")\n\n    def test_shield_overflow(self):\n        \"\"\"Large damage exceeding shield.\"\"\"\n        ship1 = self.create_ship(10, 0, front_weapons=[{\"damage\": 100, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 5, front_weapons=[{\"damage\": 0, \"recharge\": 0}])\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_multiple_weapons_on_arc(self):\n        \"\"\"Verify all available weapons on the arc fire simultaneously.\"\"\"\n        ship1 = self.create_ship(10, 0, front_weapons=[{\"damage\": 5, \"recharge\": 0}, {\"damage\": 5, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 0, front_weapons=[{\"damage\": 1, \"recharge\": 0}])\n        # T1: S1 deals 10. S2 dies.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_initial_zero_hull(self):\n        \"\"\"Check destruction before firing.\"\"\"\n        ship1 = self.create_ship(0, 5, front_weapons=[{\"damage\": 10, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 5, front_weapons=[{\"damage\": 1, \"recharge\": 0}])\n        # S1 is already at 0 hull. S2 wins immediately.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 2 Wins\")\n\n    def test_inactive_arcs(self):\n        \"\"\"Ensure damage is only applied to the Front arc.\"\"\"\n        ship1 = self.create_ship(10, 5, front_weapons=[{\"damage\": 0, \"recharge\": 0}], back_weapons=[{\"damage\": 10, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 5, front_weapons=[{\"damage\": 1, \"recharge\": 0}])\n        # S1 weapons on 'Back' should not fire. S2 wins.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 2 Wins\")\n\n    def test_long_battle(self):\n        \"\"\"Test battle lasting > 1000 turns.\"\"\"\n        ship1 = self.create_ship(1100, 0, front_weapons=[{\"damage\": 1, \"recharge\": 0}])\n        ship2 = self.create_ship(1100, 0, front_weapons=[{\"damage\": 1, \"recharge\": 1}])\n        # S1 deals 1/turn. S2 deals 1 every 2nd turn. S1 wins.\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_malformed_json(self):\n        \"\"\"Criterion 10: Malformed JSON should exit non-zero.\"\"\"\n        code, stdout, stderr = run_cli(\"!!!\")\n        self.assertNotEqual(code, 0)\n\n    def test_wrong_root_type(self):\n        \"\"\"Criterion 10: Non-object root should exit non-zero.\"\"\"\n        code, stdout, stderr = run_cli(\"123\")\n        self.assertNotEqual(code, 0)\n\n    def test_missing_fields(self):\n        \"\"\"Criterion 10: Missing ship fields should exit non-zero.\"\"\"\n        payload = {\"ship1\": {\"hull\": 10}}\n        code, stdout, stderr = run_cli(payload)\n        self.assertNotEqual(code, 0)\n\nif __name__ == '__main__':\n    unittest.main()",
+      "path": "tests/test_simulation.py"
+    },
+    {
+      "content": "import subprocess\nimport json\nimport unittest\n\ndef run_cli(input_data):\n    if isinstance(input_data, dict):\n        input_str = json.dumps(input_data)\n    else:\n        input_str = input_data\n\n    process = subprocess.Popen(\n        ['python3', 'solution.py'],\n        stdin=subprocess.PIPE,\n        stdout=subprocess.PIPE,\n        stderr=subprocess.PIPE,\n        text=True\n    )\n    try:\n        stdout, stderr = process.communicate(input=input_str, timeout=10)\n    except subprocess.TimeoutExpired:\n        process.kill()\n        process.communicate()\n        return -1, \"\", \"Timeout\"\n    return process.returncode, stdout.strip(), stderr.strip()\n\nclass TestShieldOverflow(unittest.TestCase):\n    def create_ship(self, hull, shield_val, front_weapons=None, back_weapons=None, left_weapons=None, right_weapons=None):\n        return {\n            \"hull\": hull,\n            \"shields\": {\"Front\": shield_val, \"Back\": shield_val, \"Left\": shield_val, \"Right\": shield_val},\n            \"weapons\": {\n                \"Front\": front_weapons if front_weapons is not None else [],\n                \"Back\": back_weapons if back_weapons is not None else [],\n                \"Left\": left_weapons if left_weapons is not None else [],\n                \"Right\": right_weapons if right_weapons is not None else []\n            }\n        }\n\n    def test_shield_excess_hits_hull(self):\n        ship1 = self.create_ship(100, 0, front_weapons=[{\"damage\": 100, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 5, front_weapons=[{\"damage\": 0, \"recharge\": 0}])\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n",
+      "path": "tests/test_shield_overflow.py"
+    },
+    {
+      "content": "import subprocess\nimport json\nimport unittest\n\ndef run_cli(input_data):\n    if isinstance(input_data, dict):\n        input_str = json.dumps(input_data)\n    else:\n        input_str = input_data\n\n    process = subprocess.Popen(\n        ['python3', 'solution.py'],\n        stdin=subprocess.PIPE,\n        stdout=subprocess.PIPE,\n        stderr=subprocess.PIPE,\n        text=True\n    )\n    try:\n        stdout, stderr = process.communicate(input=input_str, timeout=10)\n    except subprocess.TimeoutExpired:\n        process.kill()\n        process.communicate()\n        return -1, \"\", \"Timeout\"\n    return process.returncode, stdout.strip(), stderr.strip()\n\nclass TestInitialDestruction(unittest.TestCase):\n    def create_ship(self, hull, shield_val, front_weapons=None, back_weapons=None, left_weapons=None, right_weapons=None):\n        return {\n            \"hull\": hull,\n            \"shields\": {\"Front\": shield_val, \"Back\": shield_val, \"Left\": shield_val, \"Right\": shield_val},\n            \"weapons\": {\n                \"Front\": front_weapons if front_weapons is not None else [],\n                \"Back\": back_weapons if back_weapons is not None else [],\n                \"Left\": left_weapons if left_weapons is not None else [],\n                \"Right\": right_weapons if right_weapons is not None else []\n            }\n        }\n\n    def test_destroyed_ship_does_not_fire(self):\n        # Ship1 is dead (hull 0) but has strong weapons that would win\n        # Ship2 is alive and must win\n        ship1 = self.create_ship(0, 5, front_weapons=[{\"damage\": 100, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 5, front_weapons=[{\"damage\": 1, \"recharge\": 0}])\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 2 Wins\")\n",
+      "path": "tests/test_initial_destruction.py"
+    },
+    {
+      "content": "import subprocess\nimport json\nimport unittest\n\ndef run_cli(input_data):\n    if isinstance(input_data, dict):\n        input_str = json.dumps(input_data)\n    else:\n        input_str = input_data\n\n    process = subprocess.Popen(\n        ['python3', 'solution.py'],\n        stdin=subprocess.PIPE,\n        stdout=subprocess.PIPE,\n        stderr=subprocess.PIPE,\n        text=True\n    )\n    try:\n        stdout, stderr = process.communicate(input=input_str, timeout=10)\n    except subprocess.TimeoutExpired:\n        process.kill()\n        process.communicate()\n        return -1, \"\", \"Timeout\"\n    return process.returncode, stdout.strip(), stderr.strip()\n\nclass TestMultipleWeapons(unittest.TestCase):\n    def create_ship(self, hull, shield_val, front_weapons=None, back_weapons=None, left_weapons=None, right_weapons=None):\n        return {\n            \"hull\": hull,\n            \"shields\": {\"Front\": shield_val, \"Back\": shield_val, \"Left\": shield_val, \"Right\": shield_val},\n            \"weapons\": {\n                \"Front\": front_weapons if front_weapons is not None else [],\n                \"Back\": back_weapons if back_weapons is not None else [],\n                \"Left\": left_weapons if left_weapons is not None else [],\n                \"Right\": right_weapons if right_weapons is not None else []\n            }\n        }\n\n    def test_all_weapons_fire_simultaneously(self):\n        ship1 = self.create_ship(20, 5, front_weapons=[{\"damage\": 5, \"recharge\": 0}, {\"damage\": 5, \"recharge\": 0}])\n        ship2 = self.create_ship(10, 5, front_weapons=[{\"damage\": 4, \"recharge\": 0}])\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 1 Wins\")\n\n    def test_weapon_count_changes_winner(self):\n        a = self.create_ship(20, 5, [{'damage': 4, 'recharge': 0}])\n        b = self.create_ship(14, 5, [{'damage': 4, 'recharge': 0}, {'damage': 4, 'recharge': 0}])\n        self.assertEqual(run_cli({'ship1': a, 'ship2': b})[:2], (0, 'Ship 2 Wins'))\n",
+      "path": "tests/test_multiple_weapons.py"
+    },
+    {
+      "content": "import subprocess\nimport json\nimport unittest\n\ndef run_cli(input_data):\n    if isinstance(input_data, dict):\n        input_str = json.dumps(input_data)\n    else:\n        input_str = input_data\n\n    process = subprocess.Popen(\n        ['python3', 'solution.py'],\n        stdin=subprocess.PIPE,\n        stdout=subprocess.PIPE,\n        stderr=subprocess.PIPE,\n        text=True\n    )\n    try:\n        stdout, stderr = process.communicate(input=input_str, timeout=10)\n    except subprocess.TimeoutExpired:\n        process.kill()\n        process.communicate()\n        return -1, \"\", \"Timeout\"\n    return process.returncode, stdout.strip(), stderr.strip()\n\nclass TestPendingRecharge(unittest.TestCase):\n    def create_ship(self, hull, shield_val, front_weapons=None, back_weapons=None, left_weapons=None, right_weapons=None):\n        return {\n            \"hull\": hull,\n            \"shields\": {\"Front\": shield_val, \"Back\": shield_val, \"Left\": shield_val, \"Right\": shield_val},\n            \"weapons\": {\n                \"Front\": front_weapons if front_weapons is not None else [],\n                \"Back\": back_weapons if back_weapons is not None else [],\n                \"Left\": left_weapons if left_weapons is not None else [],\n                \"Right\": right_weapons if right_weapons is not None else []\n            }\n        }\n\n    def test_battle_continues_when_one_ship_recharging(self):\n        ship1 = self.create_ship(10, 5, front_weapons=[{\"damage\": 3, \"recharge\": 1}, {\"damage\": 3, \"recharge\": 1}])\n        ship2 = self.create_ship(10, 5, front_weapons=[{\"damage\": 4, \"recharge\": 0}])\n        payload = {\"ship1\": ship1, \"ship2\": ship2}\n        code, stdout, stderr = run_cli(payload)\n        self.assertEqual(code, 0)\n        self.assertEqual(stdout, \"Ship 2 Wins\")\n\n    def test_ship2_recharge_changes_winner(self):\n        a = self.create_ship(2, 0, [{'damage': 0, 'recharge': 0}])\n        b = self.create_ship(1, 0, [{'damage': 1, 'recharge': 1}])\n        self.assertEqual(run_cli({'ship1': a, 'ship2': b})[:2], (0, 'Ship 2 Wins'))\n",
+      "path": "tests/test_pending_recharge.py"
+    }
+  ],
+  "implementation_files": [
+    "solution.py"
+  ]
+}

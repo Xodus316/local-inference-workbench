@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Turn-based two-ship starship combat CLI.
+
+Reads a JSON payload from stdin describing two ships, simulates simultaneous
+turn-based combat (Front-to-Front), and prints the result:
+
+    Ship 1 Wins
+    Ship 2 Wins
+    Draw
+
+Usage:
+    echo '{"ship1": {...}, "ship2": {...}}' | python3 solution.py
+"""
+
+import json
+import sys
+
+ARCS = ("Front", "Back", "Left", "Right")
+
+
+class InputError(Exception):
+    """Raised when the input payload is invalid."""
+
+
+def _is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def load_weapon(raw, arc):
+    if not isinstance(raw, dict):
+        raise InputError(f"Error: Weapon in arc {arc} must be an object")
+    if "damage" not in raw:
+        raise InputError("Error: Missing required field: damage")
+    if "recharge" not in raw:
+        raise InputError("Error: Missing required field: recharge")
+    damage = raw["damage"]
+    recharge = raw["recharge"]
+    if not _is_number(damage):
+        raise InputError("Error: damage must be a number")
+    if damage < 0:
+        raise InputError("Error: damage must be non-negative")
+    if isinstance(recharge, bool) or not isinstance(recharge, int):
+        raise InputError("Error: recharge must be an integer")
+    if recharge < 0:
+        raise InputError("Error: recharge must be non-negative")
+    return {"damage": damage, "recharge": recharge, "cooldown": 0}
+
+
+def load_ship(raw, name):
+    if not isinstance(raw, dict):
+        raise InputError(f"Error: {name} must be an object")
+    for field in ("hull", "shields", "weapons"):
+        if field not in raw:
+            raise InputError(f"Error: Missing required field: {field}")
+    hull = raw["hull"]
+    if not _is_number(hull):
+        raise InputError("Error: hull must be a number")
+
+    shields_raw = raw["shields"]
+    if not isinstance(shields_raw, dict):
+        raise InputError("Error: shields must be an object")
+    shields = {}
+    for arc in ARCS:
+        value = shields_raw.get(arc, 0)
+        if not _is_number(value):
+            raise InputError(f"Error: shields.{arc} must be a number")
+        if value < 0:
+            raise InputError(f"Error: shields.{arc} must be non-negative")
+        shields[arc] = value
+
+    weapons_raw = raw["weapons"]
+    if not isinstance(weapons_raw, dict):
+        raise InputError("Error: weapons must be an object")
+    front_weapons = []
+    for arc, arc_weapons in weapons_raw.items():
+        if not isinstance(arc_weapons, list):
+            raise InputError(f"Error: weapons.{arc} must be a list")
+        loaded = [load_weapon(raw_weapon, arc) for raw_weapon in arc_weapons]
+        if arc == "Front":
+            front_weapons = loaded
+
+    return {
+        "hull": hull,
+        "shields": shields,
+        "front_weapons": front_weapons,
+        "has_front_damage": any(w["damage"] > 0 for w in front_weapons),
+    }
+
+
+def apply_damage(ship, damage):
+    if damage <= 0:
+        return
+    shield = ship["shields"]["Front"]
+    if shield > 0:
+        absorbed = min(shield, damage)
+        ship["shields"]["Front"] = shield - absorbed
+        damage -= absorbed
+    if damage > 0:
+        ship["hull"] -= damage
+
+
+def simulate(ship1, ship2):
+    while True:
+        hull1 = ship1["hull"]
+        hull2 = ship2["hull"]
+        if hull1 <= 0 and hull2 <= 0:
+            return "Draw"
+        if hull1 <= 0:
+            return "Ship 2 Wins"
+        if hull2 <= 0:
+            return "Ship 1 Wins"
+        # Genuine no-progress case: neither ship has any weapon that can
+        # damage the opponent, so the battle can never end.
+        if not ship1["has_front_damage"] and not ship2["has_front_damage"]:
+            return "Draw"
+
+        firing1 = [w for w in ship1["front_weapons"] if w["cooldown"] <= 0]
+        firing2 = [w for w in ship2["front_weapons"] if w["cooldown"] <= 0]
+        damage1 = sum(w["damage"] for w in firing1)
+        damage2 = sum(w["damage"] for w in firing2)
+
+        apply_damage(ship2, damage1)
+        apply_damage(ship1, damage2)
+
+        for w in firing1 + firing2:
+            w["cooldown"] = w["recharge"] + 1
+        for ship in (ship1, ship2):
+            for w in ship["front_weapons"]:
+                if w["cooldown"] > 0:
+                    w["cooldown"] -= 1
+
+
+def main():
+    try:
+        raw_text = sys.stdin.read()
+        try:
+            payload = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            raise InputError(f"Error: Invalid JSON: {exc.msg}")
+        if not isinstance(payload, dict):
+            raise InputError("Error: Expected a JSON object with ship1 and ship2")
+        for key in ("ship1", "ship2"):
+            if key not in payload:
+                raise InputError(f"Error: Missing required field: {key}")
+        ship1 = load_ship(payload["ship1"], "ship1")
+        ship2 = load_ship(payload["ship2"], "ship2")
+        result = simulate(ship1, ship2)
+        sys.stdout.write(result + "\n")
+        return 0
+    except InputError as exc:
+        sys.stdout.write(str(exc) + "\n")
+        return 1
+    except Exception as exc:
+        sys.stdout.write(f"Error: Unexpected failure: {exc}\n")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

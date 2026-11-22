@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""Turn-based starship combat CLI.
+
+Reads JSON from stdin describing two ships and simulates simultaneous
+Front-to-Front combat. Prints the battle result to stdout:
+
+    Ship 1 Wins
+    Ship 2 Wins
+    Draw
+
+Input shape:
+{
+  "ship1": {
+    "hull":    <number>,
+    "shields": {"Front": n, "Back": n, "Left": n, "Right": n},
+    "weapons": {"Front": [{"damage": n, "recharge": <int>}, ...],
+                "Back":  [...], "Left": [...], "Right": [...]}
+  },
+  "ship2": { ... }
+}
+
+Rules:
+  * Both ships fire every weapon on their Front arc that is off cooldown,
+    simultaneously, once per turn.
+  * Damage is applied to the opponent's Front shield first, then hull.
+  * A weapon that fires on turn T can next fire on turn T + recharge + 1
+    (recharge 0 -> every turn, recharge 1 -> every other turn, ...).
+  * A battle ends when one or both ships' hull reaches 0 or less. If both
+    die in the same turn, the result is a Draw.
+  * If neither ship has any damage-dealing weapon on the Front arc, the
+    ships can never hurt each other and the result is an immediate Draw.
+"""
+
+import json
+import sys
+
+ARCS = ("Front", "Back", "Left", "Right")
+
+
+class ValidationError(Exception):
+    """Raised when the JSON input is missing or malformed."""
+
+
+class Weapon:
+    __slots__ = ("damage", "recharge", "cooldown")
+
+    def __init__(self, damage, recharge):
+        self.damage = damage
+        self.recharge = recharge
+        self.cooldown = 0  # 0 means ready to fire
+
+
+class Ship:
+    __slots__ = ("hull", "shields", "weapons")
+
+    def __init__(self, hull, shields, weapons):
+        self.hull = hull
+        self.shields = shields       # {arc: number}
+        self.weapons = weapons       # {arc: [Weapon, ...]}
+
+
+def _is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _load_weapon(entry, index, label, arc):
+    context = f"{label} weapon #{index + 1} (arc '{arc}')"
+    if not isinstance(entry, dict):
+        raise ValidationError(f"Invalid {context}: expected an object")
+    if "damage" not in entry:
+        raise ValidationError("Missing required field: damage")
+    if "recharge" not in entry:
+        raise ValidationError("Missing required field: recharge")
+    damage = entry["damage"]
+    recharge = entry["recharge"]
+    if not _is_number(damage):
+        raise ValidationError(f"Invalid damage in {context}: expected a number")
+    if isinstance(recharge, bool) or not isinstance(recharge, int):
+        raise ValidationError(f"Invalid recharge in {context}: expected an integer")
+    if recharge < 0:
+        raise ValidationError(f"Invalid recharge in {context}: must be >= 0")
+    return Weapon(damage, recharge)
+
+
+def _load_ship(raw, label):
+    if not isinstance(raw, dict):
+        raise ValidationError(f"Invalid {label}: expected an object")
+    for field in ("hull", "shields", "weapons"):
+        if field not in raw:
+            raise ValidationError(f"Missing required field: {field}")
+    hull = raw["hull"]
+    if not _is_number(hull):
+        raise ValidationError(f"Invalid hull in {label}: expected a number")
+
+    shields_raw = raw["shields"]
+    if not isinstance(shields_raw, dict):
+        raise ValidationError(f"Invalid shields in {label}: expected an object")
+    shields = {}
+    for arc in ARCS:
+        value = shields_raw.get(arc, 0)
+        if not _is_number(value):
+            raise ValidationError(f"Invalid shield value for arc '{arc}' in {label}: expected a number")
+        shields[arc] = value
+
+    weapons_raw = raw["weapons"]
+    if not isinstance(weapons_raw, dict):
+        raise ValidationError(f"Invalid weapons in {label}: expected an object")
+    weapons = {arc: [] for arc in ARCS}
+    for arc, entries in weapons_raw.items():
+        if arc not in ARCS:
+            continue  # Arc names outside the known four cannot fire
+        if not isinstance(entries, list):
+            raise ValidationError(f"Invalid weapons in {label} for arc '{arc}': expected a list")
+        for index, entry in enumerate(entries):
+            weapons[arc].append(_load_weapon(entry, index, label, arc))
+
+    return Ship(hull, shields, weapons)
+
+
+def _apply_damage(ship, amount):
+    """Reduce Front shield, then hull, by the given amount."""
+    if amount <= 0:
+        return
+    shield = ship.shields["Front"]
+    if shield > 0:
+        absorbed = min(shield, amount)
+        ship.shields["Front"] = shield - absorbed
+        amount -= absorbed
+    if amount > 0:
+        ship.hull -= amount
+
+
+def simulate(ship1, ship2):
+    """Run the battle and return "Ship 1 Wins", "Ship 2 Wins", or "Draw"."""
+    # Ships already at or below 0 hull settle the battle immediately.
+    if ship1.hull <= 0 and ship2.hull <= 0:
+        return "Draw"
+    if ship1.hull <= 0:
+        return "Ship 2 Wins"
+    if ship2.hull <= 0:
+        return "Ship 1 Wins"
+
+    # Neither Front arc carries any damage-dealing weapon: genuine stalemate.
+    if not any(w.damage > 0 for w in ship1.weapons["Front"]) and \
+       not any(w.damage > 0 for w in ship2.weapons["Front"]):
+        return "Draw"
+
+    while True:
+        # Both ships compute attacks from the pre-turn state (simultaneous).
+        damage_to_ship2 = sum(w.damage for w in ship1.weapons["Front"] if w.cooldown <= 0)
+        damage_to_ship1 = sum(w.damage for w in ship2.weapons["Front"] if w.cooldown <= 0)
+
+        # Weapons that fire this turn go on recharge.
+        for w in ship1.weapons["Front"]:
+            if w.cooldown <= 0:
+                w.cooldown = w.recharge + 1
+        for w in ship2.weapons["Front"]:
+            if w.cooldown <= 0:
+                w.cooldown = w.recharge + 1
+
+        # Damage is applied simultaneously to both opponents.
+        _apply_damage(ship2, damage_to_ship2)
+        _apply_damage(ship1, damage_to_ship1)
+
+        # Cooldowns tick down at the end of the turn.
+        for ship in (ship1, ship2):
+            for arc in ARCS:
+                for w in ship.weapons[arc]:
+                    if w.cooldown > 0:
+                        w.cooldown -= 1
+
+        ship1_dead = ship1.hull <= 0
+        ship2_dead = ship2.hull <= 0
+        if ship1_dead and ship2_dead:
+            return "Draw"
+        if ship2_dead:
+            return "Ship 1 Wins"
+        if ship1_dead:
+            return "Ship 2 Wins"
+
+
+def main():
+    try:
+        raw = sys.stdin.read()
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValidationError(f"Invalid JSON: {exc}")
+        if not isinstance(payload, dict):
+            raise ValidationError("Invalid JSON payload: expected an object")
+        for key in ("ship1", "ship2"):
+            if key not in payload:
+                raise ValidationError(f"Missing required field: {key}")
+        ship1 = _load_ship(payload["ship1"], "ship1")
+        ship2 = _load_ship(payload["ship2"], "ship2")
+        result = simulate(ship1, ship2)
+    except ValidationError as exc:
+        sys.stdout.write(f"Error: {exc}\n")
+        sys.exit(1)
+    except Exception as exc:  # unexpected input shape: fail gracefully
+        sys.stdout.write(f"Error: {exc}\n")
+        sys.exit(1)
+    sys.stdout.write(result + "\n")
+
+
+if __name__ == "__main__":
+    main()

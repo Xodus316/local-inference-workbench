@@ -1,0 +1,238 @@
+{
+  "format_version": 1,
+  "date": "2026-11-21",
+  "task": "../task.txt",
+  "inference_gpu": "NVIDIA GeForce RTX 3090, 24 GiB",
+  "frozen_build_inputs_sha256": "1ef9b62f2951c8e85db537c8a852ad6394a88e58b4e9da33d90bdeaf8f127a34",
+  "held_out_suite": {
+    "path": "suite.json",
+    "sha256": "49a6282bf0c83adfa74a80294a100239b94bc153562ff9aff798ae8b935f041d",
+    "test_count": 20,
+    "image_id": "sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8"
+  },
+  "inkling_runtime": {
+    "engine": "Unsloth llama.cpp",
+    "package": "app-b12588-mix-c0c3de8-windows-x64-cuda12-portable.zip",
+    "build_info": "b12588-883286076",
+    "source_commit": "883286076efe5b85fddb31d9cc7035a6b698ba9b",
+    "runtime_sha256": "5c9e4afe8e487130000d8ff6bcc286638eb02f66fdc7dc265d2be094500bb9c4",
+    "package_sha256": "3e7ebce596952a550a49e6f27560f6c26a5b6ba341bbea632fbcfeb43ae7d901",
+    "template_sha256": "a04653367fbabaf38e91c426b8572ec18b1342dee6675caa8ce9564b6877da94"
+  },
+  "inkling_settings": {
+    "context_tokens": 98304,
+    "output_token_cap": null,
+    "thinking": "native",
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "top_k": 0,
+    "min_p": 0.0,
+    "repeat_penalty": 1.0,
+    "presence_penalty": 0.0,
+    "frequency_penalty": 0.0,
+    "repetition_guard": true,
+    "kv_cache": "q8_0",
+    "parallel_slots": 1,
+    "flash_attention_requested": true,
+    "speculative_decoding": false,
+    "batch_size": 512,
+    "microbatch_size": 64,
+    "stream_byte_limit": 32000000
+  },
+  "records": [
+    {
+      "model": "Inkling 2 Mini",
+      "quant": "UD-IQ4_XS",
+      "context_tokens": 98304,
+      "record_type": "new",
+      "first_pass": {
+        "passed": 20,
+        "total": 20
+      },
+      "build_status": "tests_passed",
+      "repair_calls": 0,
+      "wall_seconds": 470.6,
+      "implementation_seconds": 462.005,
+      "decode_tokens_per_second": 48.4,
+      "decode_seconds": 441.73687,
+      "prompt_tokens": 10409,
+      "completion_tokens": 21380,
+      "startup": "warm after a transport probe",
+      "peak_board_mib": 19216,
+      "cuda_model_buffer_mib": 14524.2,
+      "gpu_layers": 25,
+      "weights": {
+        "repository": "unsloth/Inkling-2-Mini-GGUF",
+        "revision": "45fd08764f2b0bf16b03a5483a80e5c7aaec8772",
+        "filename": "Inkling-2-Mini-UD-IQ4_XS.gguf",
+        "bytes": 15733755232,
+        "sha256": "a861d21e7c6d7bc69d8cdcdfb9eb195fd37ef1cd2ab31499db61cd7d30d9b3a1"
+      },
+      "submission": {
+        "path": "submissions/ud-iq4-xs.py.txt",
+        "filename": "solution.py",
+        "sha256": "e54d49a3306042e4016fcc84f2adaf2acba68cd03422e5bec44e259dee7ac57e"
+      }
+    },
+    {
+      "model": "Inkling 2 Mini",
+      "quant": "UD-Q4_K_M",
+      "context_tokens": 98304,
+      "record_type": "new",
+      "first_pass": {
+        "passed": 20,
+        "total": 20
+      },
+      "build_status": "tests_passed",
+      "repair_calls": 0,
+      "wall_seconds": 505.9,
+      "implementation_seconds": 497.655,
+      "decode_tokens_per_second": 45.26,
+      "decode_seconds": 456.9482,
+      "prompt_tokens": 10409,
+      "completion_tokens": 20683,
+      "startup": "cold managed model load",
+      "peak_board_mib": 19978,
+      "cuda_model_buffer_mib": 15360.37,
+      "gpu_layers": 25,
+      "weights": {
+        "repository": "unsloth/Inkling-2-Mini-GGUF",
+        "revision": "45fd08764f2b0bf16b03a5483a80e5c7aaec8772",
+        "filename": "Inkling-2-Mini-UD-Q4_K_M.gguf",
+        "bytes": 16610543328,
+        "sha256": "f90c5a4df44d335ac9f9eea2a15c31d6c5a377b1b3cd9ff7fc2cf123f3cdf7e1"
+      },
+      "submission": {
+        "path": "submissions/ud-q4-k-m.py.txt",
+        "filename": "solution.py",
+        "sha256": "948eab4f31d5cc20d2dade2cd4257dfdfbe8a2e5b8639ba8b88dca288640640b"
+      }
+    },
+    {
+      "model": "Qwen 3.8 27B MTP",
+      "quant": "Q4_K_M",
+      "context_tokens": 98304,
+      "record_type": "archived",
+      "engine": "Ollama",
+      "first_pass": {
+        "passed": 20,
+        "total": 20
+      },
+      "build_status": "tests_passed",
+      "repair_calls": 0,
+      "wall_seconds": 417.9084844109311,
+      "implementation_seconds": 409.919,
+      "decode_tokens_per_second": 52.703856992204344,
+      "prompt_tokens": 7709,
+      "completion_tokens": 20869
+    },
+    {
+      "model": "Qwen 3.8 Flash-Next",
+      "quant": "IQ3_XXS",
+      "context_tokens": 65536,
+      "record_type": "archived",
+      "engine": "Strata",
+      "first_pass": {
+        "passed": 20,
+        "total": 20
+      },
+      "build_status": "tests_passed",
+      "repair_calls": 0,
+      "wall_seconds": 765.2499767712798,
+      "implementation_seconds": 756.967,
+      "decode_tokens_per_second": 59.3,
+      "prompt_tokens": 7874,
+      "completion_tokens": 43158
+    },
+    {
+      "model": "Qwen 3.8 Flash-Next",
+      "quant": "UD-IQ4_XS",
+      "context_tokens": 65536,
+      "record_type": "archived",
+      "engine": "Strata",
+      "first_pass": {
+        "passed": 20,
+        "total": 20
+      },
+      "build_status": "tests_passed",
+      "repair_calls": 0,
+      "wall_seconds": 2849.7069889142585,
+      "implementation_seconds": 2841.965,
+      "decode_tokens_per_second": 18.6,
+      "prompt_tokens": 7874,
+      "completion_tokens": 51113
+    },
+    {
+      "model": "Qwen3-Coder-Next",
+      "quant": "UD-IQ2_XXS",
+      "context_tokens": 65536,
+      "record_type": "archived",
+      "engine": "Ollama",
+      "first_pass": {
+        "passed": 16,
+        "total": 20
+      },
+      "build_status": "tests_passed",
+      "repair_calls": 1,
+      "wall_seconds": 492.23079922307807,
+      "implementation_seconds": 46.135,
+      "decode_tokens_per_second": 88.41489760142278,
+      "prompt_tokens": 7674,
+      "completion_tokens": 1546
+    },
+    {
+      "model": "Qwen3-Coder-Next",
+      "quant": "UD-IQ1_M",
+      "context_tokens": 65536,
+      "record_type": "archived",
+      "engine": "Ollama",
+      "first_pass": {
+        "passed": 3,
+        "total": 20
+      },
+      "build_status": "tests_passed",
+      "repair_calls": 1,
+      "wall_seconds": 705.7042245807097,
+      "implementation_seconds": 31.943,
+      "decode_tokens_per_second": 112.07060786196634,
+      "prompt_tokens": 7674,
+      "completion_tokens": 1393
+    },
+    {
+      "model": "DeepSeek-R1-Distill-Qwen 32B",
+      "quant": "Q4_K_M",
+      "context_tokens": 32768,
+      "record_type": "archived",
+      "engine": "Ollama",
+      "first_pass": {
+        "passed": 18,
+        "total": 20
+      },
+      "build_status": "failed",
+      "repair_calls": null,
+      "wall_seconds": null,
+      "implementation_seconds": 131.307,
+      "decode_tokens_per_second": 12.197651894833752,
+      "prompt_tokens": 7664,
+      "completion_tokens": 1408
+    },
+    {
+      "model": "DeepSeek-R1-Distill-Qwen 32B",
+      "quant": "IQ4_XS",
+      "context_tokens": 32768,
+      "record_type": "archived",
+      "engine": "Ollama",
+      "first_pass": {
+        "passed": 16,
+        "total": 20
+      },
+      "build_status": "failed",
+      "repair_calls": null,
+      "wall_seconds": null,
+      "implementation_seconds": 330.294,
+      "decode_tokens_per_second": 30.88072155170191,
+      "prompt_tokens": 7664,
+      "completion_tokens": 9796
+    }
+  ]
+}
