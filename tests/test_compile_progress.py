@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from orchestrator.compile_progress import KEY, POLICY, additional_repairs, progress_proof
+from orchestrator.compile_progress import KEY, POLICY, LEGACY_POLICY, additional_repairs, progress_proof
 from orchestrator.project_build import ProjectArtifact
 from orchestrator.store import STAGES
 from orchestrator.whole_project import WholeProjectBuildRun
@@ -83,6 +83,77 @@ def compile_fixture(flow, artifact, paths):
 
 
 class CompileProgressTests(unittest.TestCase):
+    def unmasked_fixture(self):
+        flow, artifact, paths, executor, dispatched = flow_fixture(count=2)
+        original_test = executor.test
+        def test(*args, **kwargs):
+            result = original_test(*args, **kwargs)
+            row = result['commands'][0]
+            summary = json.loads(row['stderr'].split(' ', 1)[1])
+            attempt = len(executor.calls) - 1
+            if attempt == 2:
+                summary.update(status='failed', exit_code=1,
+                    checks={'gradle-compile': {'status': 'failed'}}, failures=[{
+                        'stage': 'gradle-compile', 'status': 'failed', 'exit_code': 1,
+                        'diagnostic_excerpt': paths[0] + ':9: error: incompatible types'}])
+                result['status'], row['exit_code'] = 'failed', 1
+            row['stderr'] = 'OFFLINE_PROJECT_RESULT ' + json.dumps(summary)
+            return result
+        executor.test = test
+        return flow, artifact, paths, executor, dispatched
+
+    def test_new_error_in_an_earlier_repaired_file_is_eligible_only_with_v2(self):
+        for policy in (LEGACY_POLICY, POLICY):
+            flow, artifact, paths, _, dispatched = self.unmasked_fixture()
+            flow.bundle[KEY] = deepcopy(policy)
+            result = compile_fixture(flow, artifact, paths)
+            self.assertEqual(result is not None, policy == POLICY)
+            self.assertEqual(len(dispatched), 3 if policy == POLICY else 2)
+            if result:
+                proof = dispatched[-1][2]['compile_progress_recovery']
+                self.assertEqual(proof['policy'], POLICY['policy'])
+                self.assertEqual(proof['previous_failed_paths'], [paths[1]])
+                self.assertEqual(proof['newly_exposed_paths'], [paths[0]])
+                self.assertFalse(proof['acceptance_credit'])
+
+    def test_unmasked_reserve_survives_identical_resume_reverification_without_a_refund(self):
+        flow, artifact, paths, _, dispatched = self.unmasked_fixture()
+        flow.bundle[KEY] = deepcopy(LEGACY_POLICY)
+        self.assertIsNone(compile_fixture(flow, artifact, paths))
+        records = deepcopy(flow.output['verification']['compile_checkpoints'])
+        current = ProjectArtifact.model_validate(flow.output['artifact'])
+        records.append(deepcopy(records[-1]))
+        proof = progress_proof(records, current.files, CHECKPOINT, 'fixture-v1', IMAGE, recovery_policy=POLICY)
+        self.assertIsNotNone(proof)
+        self.assertEqual(len(proof['receipt_digests']), 4)
+        self.assertEqual(flow.counters['whole_compile_initial_1'], 2)
+
+    def test_repeated_message_line_shift_and_latest_edited_file_do_not_earn_v2_reserve(self):
+        flow, artifact, paths, _, _ = self.unmasked_fixture()
+        flow.bundle[KEY] = deepcopy(LEGACY_POLICY)
+        compile_fixture(flow, artifact, paths)
+        current = ProjectArtifact.model_validate(flow.output['artifact'])
+        for kind in ('line-shift', 'edited', 'image', 'regressed-pass', 'unstable-recheck'):
+            records = deepcopy(flow.output['verification']['compile_checkpoints'])
+            if kind == 'line-shift':
+                row = records[-1]['execution']['commands'][0]
+                summary = records[-1]['stage_results']
+                summary['failures'][0]['diagnostic_excerpt'] = paths[0] + ':99: error: cannot find symbol'
+                row['stderr'] = 'OFFLINE_PROJECT_RESULT ' + json.dumps(summary)
+            elif kind == 'edited':
+                records[-2]['execution']['commands'][0]['source_sha256'][paths[0]] = '0' * 64
+            elif kind == 'image':
+                records[-1]['execution']['sandbox']['image_id'] = 'sha256:' + '0' * 64
+            elif kind == 'regressed-pass':
+                records[0]['stage_results']['checks']['frontend-build'] = {'status': 'passed'}
+            else:
+                records.append(deepcopy(records[-1]))
+                summary = records[-1]['stage_results']
+                summary['failures'][0]['diagnostic_excerpt'] = paths[0] + ':9: error: different issue'
+                records[-1]['execution']['commands'][0]['stderr'] = 'OFFLINE_PROJECT_RESULT ' + json.dumps(summary)
+            with self.subTest(kind=kind):
+                self.assertIsNone(progress_proof(records, current.files, CHECKPOINT, 'fixture-v1', IMAGE, recovery_policy=POLICY))
+
     def test_three_exposed_frontiers_advance_after_one_separately_accounted_repair(self):
         flow, artifact, paths, executor, dispatched = flow_fixture()
         result = compile_fixture(flow, artifact, paths)

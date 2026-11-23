@@ -72,6 +72,9 @@ def compiler_diagnostic_selection(files, feedback, *, byte_limit, file_limit=16)
             diagnostic = failure.get("diagnostic_excerpt") or failure.get("message", "")
             if not isinstance(diagnostic, str):
                 continue
+            details = feedback.get('compiler_diagnostics') or {}
+            if check == 'frontend-typecheck' and details.get('diagnostic_only') is True:
+                diagnostic += '\n' + details.get('stdout', {}).get('text', '') + '\n' + details.get('stderr', {}).get('text', '')
             if check.startswith("frontend-"):
                 # Node/Vite dependency stack frames identify compiler internals,
                 # not application error locations. They must not invalidate

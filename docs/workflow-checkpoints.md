@@ -35,4 +35,26 @@ New missing-API evidence can justify using the existing compiler reserve when th
 
 The new bundle carries `whole_project_initial_compile_recovery`. It retains prior compiler records, repair history and all spent compiler/recovery counters. It is explicitly a continuation, so it cannot carry the fresh-run declaration. Compilation reruns, all later smoke and independent tests are still authored, and every acceptance gate remains required. The original run and its terminal outcome remain unchanged.
 
+A settled compiler continuation may itself supply a later continuation. Its inherited source and plan are validated first, then only newly completed scoped compiler edits are applied. Histories and counters accumulate without resetting the allowance. Compiler component slots come from their bound checkpoint stage and name; whole-project components share implementation group zero. A separately approved V1-to-V2 frontier upgrade preserves the exact two-repair reserve; it does not change task, model settings, verifier, tests or budgets. Ordinary resume still requires the original code identity.
+
 Compiler drafts are now retained in terminal build output as unverified evidence. Older runs with a null draft can be reconstructed only when their completed receipts establish the full source and its last compiler identity. This is distinct from resuming an ordinary paused run.
+
+## Complete frontend diagnostics
+
+Some compiler summaries retain only the first portion of each error line. A long TypeScript route error may lose the actual incompatible property. Explicitly approved frontend diagnostic replay captures the complete pinned typecheck messages and package versions:
+
+```python
+runtime.prepare_whole_project(
+    request,
+    frontend_diagnostics={
+        "policy": "pinned-frontend-diagnostics-v1",
+        "node_modules": "/opt/frontend/node_modules",
+    },
+)
+```
+
+The replay uses the same immutable image, `vue-tsc --noEmit`, and the verifier's configuration choice (`tsconfig.app.json` when present, otherwise `tsconfig.json`). It adds plain output and `--noErrorTruncation`. Only the failed frontend component and trusted probe/query are mounted, read-only, in an owned CPU-only container with no network. No reference or tests are mounted. Source hashes, probe bytes, image, exact completion, cleanup and output completeness must validate. Missing, altered, truncated or contradictory evidence stops recovery without passing credit.
+
+Complete source locations augment deterministic path selection. For TS2322 literal mismatches, the repairer also receives source anchors and the compiler's literal alternatives, with an explicit warning that non-literal union members may exist. Values come from the actual pinned toolchain rather than a framework-specific guess. Repair instructions preserve strictness and checked source scope; the original compiler checkpoint and all acceptance gates still run after the patch.
+
+The [November 23 frontend recovery investigation](frontend-recovery-2026-11-23.md) distinguishes the observed failed run, CPU controls and the unstarted continuation.

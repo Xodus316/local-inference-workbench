@@ -1822,6 +1822,13 @@ class ProjectBuildRun(BuildRun):
                         f'{repair_stage}_{stage_slot}_{attempt + 1}', check='compile')):
                 source_request = self.diagnose_execution(component, None, execution, checkpoint=checkpoint)
             progress = None
+            frontend_details = None
+            if status == 'failed' and getattr(self, 'scoped_repairs', False) and local_attempt < limit + progress_limit:
+                from .frontend_diagnostics import inspect_failure as inspect_frontend
+                frontend_details = inspect_frontend(self, stage + '_diagnostics', component,
+                    {'failed_execution': failure_feedback(execution, include_stage_results=True)})
+                if frontend_details is not None:
+                    record['compiler_diagnostics'] = frontend_details
             dependency_evidence = None
             if status == 'failed' and getattr(self, 'scoped_repairs', False) and local_attempt < limit + progress_limit:
                 from .compiler_api import inspect_failure
@@ -1833,7 +1840,8 @@ class ProjectBuildRun(BuildRun):
                 from .compile_progress import progress_proof
                 history = [r for r in self.output["verification"]["compile_checkpoints"]
                            if r.get("compile_scope") == scope]
-                progress = progress_proof(history, component.files, checkpoint, policy, image)
+                progress = progress_proof(history, component.files, checkpoint, policy, image,
+                    recovery_policy=self.bundle.get('whole_project_compile_progress_policy'))
                 record["progress_recovery"] = progress
                 if progress is None and dependency_evidence is not None:
                     from .compiler_api import dependency_recovery_proof
@@ -1856,6 +1864,8 @@ class ProjectBuildRun(BuildRun):
                         "failed_execution": failure_feedback(execution, include_stage_results=True)}
             if dependency_evidence is not None:
                 feedback['compiler_dependency_evidence'] = dependency_evidence
+            if frontend_details is not None:
+                feedback['compiler_diagnostics'] = frontend_details
             if source_request is not None:
                 record['source_recovery_request'] = source_request
                 feedback['stage_recovery_request'] = source_request

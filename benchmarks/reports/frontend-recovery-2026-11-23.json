@@ -1,0 +1,143 @@
+{
+  "policy": "frontend-recovery-investigation-v1",
+  "date": "2026-11-23",
+  "observed_live_outcome": "review_required",
+  "source_run_id": "8c4618fa-67b1-4c2e-bbbd-11715e9c6831",
+  "stopped_stage": "build_compile_checkpoint_2_2",
+  "final_frontend_repair_dispatched_in_observed_run": false,
+  "cause": "Earlier syntax-repaired files disqualified newly exposed semantic diagnostics under the all-history file-frontier rule.",
+  "replacement_policy": "unmasked-compiler-frontier-v2",
+  "compile_base_allowance": 2,
+  "compile_reserve_allowance": 2,
+  "original_gates_unchanged": true,
+  "cpu_control": {
+    "status": "passed",
+    "cpu_only": true,
+    "model_calls": 0,
+    "gpu_launch": false,
+    "scripted_worker_control": true,
+    "control_source_reused_in_next_trial": false,
+    "original_evidence_unchanged": true,
+    "original_source_digest": "4f44eaf0e0acce950fe1f2927198c0e552018d70c5ce1766d7c806a5af4d34aa",
+    "imported_files": 71,
+    "imported_history": 5,
+    "spent_counters": {
+      "recovery_request": 7,
+      "whole_compile_initial_1": 3,
+      "whole_compile_initial_2": 3
+    },
+    "dispatched_stage": "build_compile_repair_2_3",
+    "selected_paths": [
+      "frontend/src/components/ConfirmDialog.vue",
+      "frontend/src/router/index.ts",
+      "frontend/src/views/AffiliatesView.vue",
+      "frontend/src/views/CategoriesView.vue",
+      "frontend/src/views/ProductsView.vue",
+      "frontend/src/views/TrackedUrlsView.vue"
+    ],
+    "new_checks": [
+      {
+        "stage": "build_compile_checkpoint_2_2",
+        "status": "failed",
+        "checks": {
+          "frontend-build": {
+            "status": "passed"
+          },
+          "frontend-parse": {
+            "status": "passed"
+          },
+          "frontend-typecheck": {
+            "status": "failed"
+          }
+        },
+        "cleanup_confirmed": true
+      },
+      {
+        "stage": "build_compile_checkpoint_2_3",
+        "status": "passed",
+        "checks": {
+          "frontend-build": {
+            "status": "passed"
+          },
+          "frontend-parse": {
+            "status": "passed"
+          },
+          "frontend-typecheck": {
+            "status": "passed"
+          }
+        },
+        "cleanup_confirmed": true
+      }
+    ]
+  },
+  "diagnostics": {
+    "policy": "pinned-frontend-diagnostics-v1",
+    "complete": true,
+    "stdout_bytes": 2898,
+    "stdout_sha256": "37e8e802cb10034eb8783f517c12772123c75308979c9b0cf4f7179451ed877c",
+    "versions": {
+      "typescript": "5.9.3",
+      "vue-tsc": "2.2.12",
+      "vue": "3.5.29",
+      "vue-router": "4.6.4",
+      "vuetify": "3.12.2"
+    },
+    "acceptance_credit": false
+  },
+  "progress_proof": {
+    "policy": "unmasked-compiler-frontier-v2",
+    "previous_failed_paths": [
+      "frontend/tsconfig.json"
+    ],
+    "newly_exposed_paths": [
+      "frontend/src/components/ConfirmDialog.vue",
+      "frontend/src/router/index.ts",
+      "frontend/src/views/AffiliatesView.vue",
+      "frontend/src/views/CategoriesView.vue",
+      "frontend/src/views/ProductsView.vue",
+      "frontend/src/views/TrackedUrlsView.vue"
+    ],
+    "unchanged_since_previous_checkpoint_sha256": {
+      "frontend/src/components/ConfirmDialog.vue": "1b5b730360031804231d2fab0dccac9bd81ec71a76b336cb87b346af27944af7",
+      "frontend/src/router/index.ts": "d0098a3690463110548dbf909085c0d16f88735e8a932e2cd2d5411064f6aa5a",
+      "frontend/src/views/AffiliatesView.vue": "163344c0e3a5f8e100e539b81488bb6f0577a70146506551f3d5fddba70f9b8d",
+      "frontend/src/views/CategoriesView.vue": "b54ebd00e6e927d23bb32d32f16b53f4c7988571ad7767b9403acd490e9dc74a",
+      "frontend/src/views/ProductsView.vue": "c8f82469ee2b177194cdb9dec412170271b134e6cbb2dc16c2ffdbbaf7182a8e",
+      "frontend/src/views/TrackedUrlsView.vue": "1ae0da120b3931ba72992850729ba6c6ce6a4b3d2e4a26a4652160811c0ad0ee"
+    },
+    "diagnostic_frontier_digest": "25258a8960006bcfe881c4d1e1a7d6883bf53fc869432b2e8eb5d728c6e85f05",
+    "passing_checks_preserved": [
+      "frontend-build",
+      "frontend-parse"
+    ],
+    "previous_frontier_no_longer_reported": true,
+    "acceptance_credit": false,
+    "receipt_digests": [
+      "74dc1fbec89c07dd67e33bb613a8d565abf8bf815b3cfc8497751722c5188a9d",
+      "f8f0b9dc3b438103c3ac0b10b050ab64d0b40fa56c9dc2ff1051af02f6788cbd",
+      "83aa89bec138a8186e0c529e2a5759d7e565649b4de4b976f555e63580e7b947"
+    ]
+  },
+  "validation": {
+    "core_total": 570,
+    "core_passed": 562,
+    "optional_skipped": 8,
+    "native_adapter_passed": 25,
+    "initial_suite_failure": "The document-upload integration subprocess failed once in the full suite and once in isolation; its direct parser check and unchanged-runtime control passed. The subsequent isolated check and full 570-test confirmation passed without an attachment-code change.",
+    "gpu_or_model_execution": false,
+    "live_repair_success_claimed": false
+  },
+  "local_evidence_sha256": {
+    "control-build_compile_checkpoint_2_2.json": "a437edb70b212e971509aad5949ef8d694b5687a602046b487b57bfa1b86c4a7",
+    "control-build_compile_checkpoint_2_2_diagnostics.json": "7722df6b5284e671209f53c90a630abccb1e4ce337717e10a0c47e5ca5ab9e0c",
+    "control-build_compile_checkpoint_2_3.json": "d7501dc3725016a6d1a7c1023c77c4a58fcbe17b5143b58e097380c8806fa6b6",
+    "control-dispatch.json": "5c8c09770cafe0f07b3c4171104400f4ac9bc020cb4a80045fb9abf9dc3627e7",
+    "cpu-replay-summary.json": "8bf6dca5d9e2426cd7f3d7019f38823c8a959091367813ff65975d6ba440c735",
+    "full-diagnostics-receipt.json": "31a6e322c9f1e1988c0945d331e40cb5876bbfdd23423eacebf0bfb543b5a510",
+    "progress-proof.json": "f7299a907724a8c8227e97a72a02b27466765e208e2713b912ee880d2e5a2d2e"
+  },
+  "test_log_sha256": {
+    "regression-tests-confirmation.log": "95891bc270f09e46a57d95d673119bc8b8644b880a37d58d5a244993c7f2043f",
+    "regression-tests.log": "a6ea0912b83f6edaf6e21cf247955a6aefc30173ca4a00dd6955757c51010192"
+  }
+}

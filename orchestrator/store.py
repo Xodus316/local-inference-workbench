@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -93,6 +94,8 @@ for slot in range(1, 5):
 # The native selection policy requires every selection stage to end in _select.
 STAGES.update(stage + '_api' for stage in tuple(STAGES)
               if 'compile_checkpoint_' in stage)
+STAGES.update(stage + '_diagnostics' for stage in tuple(STAGES)
+              if re.fullmatch(r'build(?:_repair|_self)?_compile_checkpoint_(?:[0-9]+_)*[0-9]+', stage))
 STAGES.update(stage + '_api_after' for stage in tuple(STAGES)
               if 'compile_repair_' in stage and not stage.endswith(('_select', '_edit_retry')))
 STAGES.update(stage.removesuffix("_select") + "_retry_select" for stage in tuple(STAGES)

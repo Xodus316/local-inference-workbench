@@ -10,13 +10,17 @@ KEY = 'whole_project_initial_compile_recovery'
 POLICY = 'settled-initial-compile-continuation-v1'
 _MIGRATION = {'fresh_project', 'backend', 'config_digest', 'whole_project_engine_digest',
               'whole_project_workers', 'whole_project_prompt_tokenizers', 'same_model_role_isolation',
-              'whole_project_java_api_probe', KEY}
+              'whole_project_java_api_probe', 'whole_project_frontend_diagnostics', KEY}
 
 
 def contract_digest(bundle):
     # Runtime/provider implementation identities may change only in the new,
     # separately approved bundle. Task, model settings, verifier and budgets may not.
-    return digest({k: v for k, v in bundle.items() if k not in _MIGRATION})
+    value = {k: v for k, v in bundle.items() if k not in _MIGRATION}
+    from .compile_progress import KEY as PROGRESS_KEY, POLICY as PROGRESS_POLICY, LEGACY_POLICY
+    if value.get(PROGRESS_KEY) == PROGRESS_POLICY:
+        value[PROGRESS_KEY] = deepcopy(LEGACY_POLICY)  # Same hard allowance, separately bound eligibility upgrade.
+    return digest(value)
 
 
 def pack(row, requests, raw, target):
@@ -36,7 +40,15 @@ def pack(row, requests, raw, target):
     if 'build_plan' in raw and raw['build_plan'].get('value') != plan.model_dump():
         raise ValueError('Retained compiler plan differs from its completed planner receipt')
     artifact_type, _ = whole_project_types(source)
-    files, receipts = {}, {}
+    if KEY in source:
+        parent_plan, parent_artifact = validate(source[KEY], source)
+        if parent_plan.model_dump() != plan.model_dump():
+            raise ValueError('A compiler continuation cannot replace its inherited plan')
+        files = {file.path: file.content for file in parent_artifact.files}
+        lineage_history = deepcopy(source[KEY]['repair_history'])
+    else:
+        files, lineage_history = {}, []
+    receipts = {}
     for call in row['calls']:
         stage = call['stage']
         if call.get('status') != 'terminal' or stage not in raw or stage not in requests:
@@ -70,6 +82,9 @@ def pack(row, requests, raw, target):
         changes = {**raw[stage]['files'], **raw.get(stage + '_edit_retry', {}).get('files', {})}
         after = {**before, **{path: digest(text) for path, text in changes.items()}}
         attempt.update(before_source_digest=digest(before), after_source_digest=digest(after))
+    history = [*lineage_history, *history]
+    if len(history) > 16:
+        raise ValueError('Compiler continuation repair history exceeds its bounded lineage')
     from .whole_project_checkpoint import binding_digest
     value = {'policy': POLICY, 'source_run_id': row['id'], 'source_approval_digest': row['digest'],
              'source_contract_digest': contract_digest(source), 'target_binding_digest': binding_digest(target),
@@ -126,14 +141,18 @@ def validate(value, bundle):
         raise ValueError('Compiler continuation requires bounded settled compiler records')
     latest = {}
     for record in records:
-        slot = record.get('group_index', -1) + 1
+        match = re.fullmatch(r'build_compile_checkpoint_([1-4])_([0-4])', record.get('stage', ''))
+        # Whole-project compiler components share implementation group zero;
+        # checkpoint slots are independently numbered in their stage names.
+        slot = int(match[1]) if match else 0
         checkpoints = bundle['project_environment']['compile_checkpoints']
         if not 1 <= slot <= len(checkpoints):
             raise ValueError('Retained compiler checkpoint is outside the approved environment')
         checkpoint = checkpoints[slot - 1]
         execution, summary = record['execution'], record['stage_results']
         rows = execution.get('commands') or []
-        if (len(rows) != 1 or record['stage'] != f'build_compile_checkpoint_{slot}_{record["attempt"]}'
+        if (len(rows) != 1 or record.get('group_index') != 0 or record.get('checkpoint') != checkpoint['name']
+                or record['stage'] != f'build_compile_checkpoint_{slot}_{record["attempt"]}'
                 or compile_checkpoint_status(execution, summary, checkpoint,
                     bundle['project_environment']['verification']['policy'], source_hashes=rows[0].get('source_sha256'),
                     image_id=bundle['sandbox']['image_id']) not in {'failed', 'passed'}):

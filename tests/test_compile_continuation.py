@@ -50,6 +50,64 @@ def source_fixture():
 
 
 class CompileContinuationTests(unittest.TestCase):
+    def test_chained_continuation_keeps_the_entire_draft_history_and_spent_allowances(self):
+        _, row, requests, raw, paths, _ = source_fixture()
+        first = pack(row, requests, raw, row['bundle'])
+        child = deepcopy(row)
+        child['id'] = '00000000-0000-0000-0000-000000000019'
+        child['bundle'][KEY] = first
+        child['digest'] = digest(child['bundle'])
+        child['approval']['digest'] = child['digest']
+        child['calls'], child['result']['stages'] = [], {}
+        # A second settled run may stop before issuing a correction. Its only
+        # source is the inherited stopped-worker receipts, not an implement call.
+        second = pack(child, {}, {}, row['bundle'])
+        for key in ('artifact', 'repair_history', 'counters', 'compile_repair_attempts'):
+            self.assertEqual(second[key], first[key])
+        self.assertEqual(second['source_run_id'], child['id'])
+        self.assertEqual(len(second['repair_history']), 2)
+        child['result']['output']['plan']['goal'] += ' changed'
+        with self.assertRaisesRegex(ValueError, 'inherited plan'):
+            pack(child, {}, {}, row['bundle'])
+
+    def test_component_slot_is_independent_of_shared_implementation_group_zero(self):
+        _, row, requests, raw, _, _ = source_fixture()
+        b = row['bundle']
+        cp = b['project_environment']['compile_checkpoints'][0]
+        b['project_environment']['compile_checkpoints'] = [dict(cp, name='unused', source_root='unused'), cp]
+        for c in row['result']['output']['verification']['compile_checkpoints']:
+            c['stage'] = c['stage'].replace('checkpoint_1_', 'checkpoint_2_')
+            self.assertEqual(c['group_index'], 0)
+        counters = row['result']['output']['verification']['whole_project']['budget_counters']
+        counters['whole_compile_initial_2'] = counters.pop('whole_compile_initial_1')
+        row['digest'] = digest(b)
+        row['approval']['digest'] = row['digest']
+        result = pack(row, requests, raw, b)
+        self.assertEqual(result['counters']['whole_compile_initial_2'], 2)
+        changed = deepcopy(result)
+        changed['compile_checks'][-1]['checkpoint'] = 'unused'
+        with self.assertRaisesRegex(ValueError, 'changed execution'):
+            validate(changed, b)
+
+    def test_frontier_policy_upgrade_preserves_contract_allowance_and_legacy_checkpoint(self):
+        from orchestrator.compile_progress import KEY as PROGRESS_KEY, LEGACY_POLICY, POLICY
+        from orchestrator.compile_continuation import contract_digest
+        from orchestrator.frontend_diagnostics import KEY as FRONTEND_KEY, POLICY as FRONTEND_POLICY
+        _, row, requests, raw, _, _ = source_fixture()
+        row['bundle'][PROGRESS_KEY] = deepcopy(LEGACY_POLICY)
+        row['digest'] = digest(row['bundle'])
+        row['approval']['digest'] = row['digest']
+        target = {**row['bundle'], PROGRESS_KEY: deepcopy(POLICY),
+                  FRONTEND_KEY: {'policy': FRONTEND_POLICY, 'node_modules': '/opt/frontend/node_modules'}}
+        self.assertEqual(contract_digest(target), contract_digest(row['bundle']))
+        value = pack(row, requests, raw, target)
+        self.assertEqual(value['compile_repair_attempts'], 2)
+        validate(value, target)
+        with self.assertRaisesRegex(ValueError, 'newly approved binding'):
+            validate(value, row['bundle'])
+        with self.assertRaisesRegex(ValueError, 'unchanged contracts'):
+            pack(row, requests, raw, {**target, PROGRESS_KEY: {**POLICY, 'max_additional_repairs': 3}})
+
     def test_reconstructed_draft_reuses_source_and_continues_at_attempt_three(self):
         flow, row, requests, raw, paths, dispatched = source_fixture()
         value = pack(row, requests, raw, row['bundle'])

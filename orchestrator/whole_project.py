@@ -301,6 +301,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         self.scoped_repairs = repair_policy == REPAIR_POLICY
         from .compiler_api import KEY, validate_policy
         validate_policy(self.bundle.get(KEY))
+        from .frontend_diagnostics import KEY as FRONTEND_DIAGNOSTICS, validate_policy as validate_frontend
+        validate_frontend(self.bundle.get(FRONTEND_DIAGNOSTICS))
         from .compile_progress import additional_repairs
         additional_repairs(self.bundle)
         if not self.scoped_repairs:
@@ -560,6 +562,9 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 {path: inventory[path].content for path in javac_paths}, getattr(self, "dependency_reference", None))
             if java_findings:
                 evidence_kind["java_date_format_findings"] = java_findings
+            from .frontend_diagnostics import literal_findings
+            if findings := literal_findings({path: inventory[path].content for path in derived['paths']}, evidence):
+                evidence_kind['typescript_literal_findings'] = findings
             selection = model_type.model_validate({"files": derived["paths"], "diagnosis": {
                 "diagnosis": (["The Gradle compiler failed on Kotlin DSL and the current scripts contain Groovy syntax."]
                               if gradle_findings else
@@ -1418,6 +1423,14 @@ class WholeProjectBuildRun(ProjectBuildRun):
             )
         if java_repair:
             instruction += " " + JAVA_FORMAT_REPAIR_GUIDANCE
+        if feedback.get('compiler_diagnostics') or compiler_selection.get('typescript_literal_findings'):
+            instruction += (
+                " Use compiler_diagnostics for complete pinned TypeScript messages and recorded package versions. "
+                "The original compiler gate remains authoritative; this replay grants no passing credit. "
+                "For typescript_literal_findings, replace the rejected value with a compiler-supported choice "
+                "that preserves required behavior. Fix route/prop types rather than asserting away the mismatch. "
+                "Do not disable typechecking, weaken strictness, suppress errors or exclude previously checked source."
+            )
         if feedback.get('compiler_dependency_evidence'):
             instruction += (
                 " compiler_dependency_evidence was inspected without application execution in the pinned image. "
