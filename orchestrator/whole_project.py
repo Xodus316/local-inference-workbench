@@ -299,6 +299,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if repair_policy not in (None, REPAIR_POLICY):
             raise ValueError("Unknown whole-project repair policy")
         self.scoped_repairs = repair_policy == REPAIR_POLICY
+        from .compiler_api import KEY, validate_policy
+        validate_policy(self.bundle.get(KEY))
         from .compile_progress import additional_repairs
         additional_repairs(self.bundle)
         if not self.scoped_repairs:
@@ -777,8 +779,14 @@ class WholeProjectBuildRun(ProjectBuildRun):
                         runtime._save_call_failure(run_id, stage, error)
                         if runtime.store.has_unknown(run_id):
                             raise RuntimeError("OpenCode completion is unknown") from error
+                    checkpoint = getattr(runtime, '_checkpoint_operation', None)
+                    if callable(checkpoint) and runtime.store.artifact(run_id, stage, 'raw').is_file():
+                        checkpoint(run_id, stage, 'native')
                     raise
                 runtime.store.finish_call(run_id, stage, result)
+                checkpoint = getattr(runtime, '_checkpoint_operation', None)
+                if callable(checkpoint):
+                    checkpoint(run_id, stage, 'native')
                 runtime._guard(run_id)
             finally:
                 runtime.inference_lock.release()
@@ -1410,6 +1418,13 @@ class WholeProjectBuildRun(ProjectBuildRun):
             )
         if java_repair:
             instruction += " " + JAVA_FORMAT_REPAIR_GUIDANCE
+        if feedback.get('compiler_dependency_evidence'):
+            instruction += (
+                " compiler_dependency_evidence was inspected without application execution in the pinned image. "
+                "Use its actual public signatures and jar versions to repair the reported API usage. "
+                "Do not relocate an absent type to a guessed package or invent a replacement annotation or method. "
+                "Preserve the required behavior; evidence of a class existing does not prove semantic correctness."
+            )
 
         def checked_edits(result, projected):
             files = result.get("files")
@@ -1430,6 +1445,14 @@ class WholeProjectBuildRun(ProjectBuildRun):
             remaining["remaining_gradle_kotlin_dsl"] = findings
         if java_repair and (findings := java_date_format_findings(selected_draft, self.dependency_reference)):
             remaining["remaining_java_date_format"] = findings
+        if feedback.get('compiler_dependency_evidence'):
+            from .compiler_api import inspect_failure, missing_import_findings
+            proposed = self.artifact_type(summary=artifact.summary, files=[
+                {'path': file.path, 'content': files.get(file.path, file.content)} for file in artifact.files])
+            inspected = inspect_failure(self, stage + '_api_after', proposed, feedback)
+            if inspected is not None and (findings := missing_import_findings(proposed.files, inspected)):
+                remaining['remaining_dependency_imports'] = findings
+                remaining['compiler_dependency_evidence'] = inspected
         if (not files or remaining) and _stopped_opencode_result(result):
             retry_stage = stage + "_edit_retry"
             self.stages[stage]["edit_retry"] = retry_stage
@@ -1733,8 +1756,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
             })
             save_checkpoint(self, artifact, suite, "tests")
             return self.verify_and_repair(artifact, suite, grouping)
-        seeded = "whole_project_seed" in self.bundle
-        if seeded:
+        from .compile_continuation import KEY as COMPILE_CONTINUATION, restore as restore_compiler
+        seeded = "whole_project_seed" in self.bundle or COMPILE_CONTINUATION in self.bundle
+        if COMPILE_CONTINUATION in self.bundle:
+            plan, artifact = restore_compiler(self)
+        elif seeded:
             plan, artifact, provenance = validate_whole_project_seed(
                 self.bundle["whole_project_seed"], self.artifact_type, required_paths,
             )

@@ -1,5 +1,7 @@
 # Pause a workflow and resume after a restart
 
+The runtime also saves [automatic checkpoints after completed workflow steps](workflow-checkpoints.md), which support recovery after a process interruption. Pause remains the control for a planned shutdown.
+
 Choose **Pause after current operation** in Workflows. The run changes to **pausing** while its current model session, test or other journaled operation finishes. Keep the computer on until the run says **paused**. The runtime first saves the operation's receipt and workflow evidence, checks that no operation is unresolved, and runs the provider's pause cleanup hook. The HyperQwen example drains its transport and verifies that its owned GPU container is stopped before acknowledging the pause.
 
 You can then close the service and shut down. After restarting, launch the same service or custom launcher with the **same configuration and data directory**, select the saved paused run, and choose **Resume saved run**. Resume verifies the approval, configuration and backend identities. The workflow rebuilds its state from its durable journal and reuses completed model and sandbox receipts instead of dispatching them again. Repair counters and frozen source/test identities follow the same replay rules. A finite runtime allowance keeps only the time remaining at pause; time spent shut down does not consume it, and resume does not grant a new full allowance.

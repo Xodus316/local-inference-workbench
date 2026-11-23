@@ -41,6 +41,9 @@ class Runtime(CodeBuild, Stages):
         self.active_run_id = None
         self.stopping = False
         self.deadline = 0
+        from .step_checkpoints import engine_identity
+        self.checkpoint_engine = engine_identity()
+        self._active_build_run = None
         self.graph = build(self)
         self.worker = threading.Thread(target=self._work, daemon=True)
         self.worker.start()
@@ -183,6 +186,10 @@ class Runtime(CodeBuild, Stages):
                 raise ValueError("Backend identity changed; prepare another scope")
             if resume and (not row["approved"] or self.store.has_unknown(run_id)):
                 raise ValueError("The interrupted run has an unresolved call or approval")
+            if resume:
+                if self.store.unsettled_operations(run_id):
+                    raise ValueError('The workflow is not settled: an unresolved sandbox operation remains')
+                self.store.validate_checkpoint_engine(run_id, self.checkpoint_engine)
             if self.queue.full():
                 raise ValueError("Workflow queue is full")
             if row['status'] == 'paused':
@@ -200,6 +207,28 @@ class Runtime(CodeBuild, Stages):
             raise TimeoutError("Workflow deadline expired")
         if self.store.pause_request(run_id) and not self.store.unsettled_operations(run_id):
             raise WorkflowPaused()
+
+    def run_step(self, stage, state, action):
+        """Restore a completed graph node only with identical code, inputs and receipts."""
+        run_id = state['run_id']
+        self._guard(run_id)
+        binding = digest({'engine': self.checkpoint_engine, 'input': state})
+        checkpoint = self.store.load_step_checkpoint(run_id, 'graph', stage, binding)
+        if checkpoint is not None:
+            return checkpoint['state']['update']
+        update = action(state)
+        receipts = self.store.receipt_frontier(run_id)
+        self.store.save_step_checkpoint(run_id, 'graph', stage, binding, self.checkpoint_engine,
+                                        {'input': state, 'update': update}, receipts)
+        return update
+
+    def _checkpoint_operation(self, run_id, stage, kind):
+        receipts = self.store.receipt_frontier(run_id, stage)
+        run = self._active_build_run
+        snapshot = ({'output': run.output, 'stages': run.stages,
+                     'counters': dict(getattr(run, 'counters', {}))} if run is not None else {})
+        self.store.save_step_checkpoint(run_id, kind, stage, digest(receipts), self.checkpoint_engine,
+                                        snapshot, receipts)
 
     def _call(self, state, stage, role, payload, schema=None):
         run_id = state["run_id"]
@@ -240,6 +269,7 @@ class Runtime(CodeBuild, Stages):
                     self._save_call_failure(run_id, stage, error)
                     raise
             self.store.finish_call(run_id, stage, raw)
+            self._checkpoint_operation(run_id, stage, 'native')
             self._guard(run_id)
             return raw
         finally:
@@ -252,6 +282,7 @@ class Runtime(CodeBuild, Stages):
         diagnostics = getattr(error, "diagnostics", {})
         if isinstance(diagnostics, dict) and diagnostics.get("native_completion") == "not_started":
             self.store.finish_call(run_id, stage, {"dispatch_status": "not_dispatched", "error_code": type(error).__name__})
+            self._checkpoint_operation(run_id, stage, 'native')
         self.store.record_call_failure(run_id, stage, diagnostics)
 
     def propose(self, state, stage, role):

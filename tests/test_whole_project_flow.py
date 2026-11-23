@@ -245,6 +245,8 @@ class WholeProjectFlowTests(unittest.TestCase):
                        "generation": {"planner": self.config.generation_for("planner").model_dump()}}
         flow.model_inputs = lambda data: {"prompt": "The original brief", **data}
         run_id = self.runtime.store.create(flow.bundle)
+        self.runtime.store.approve(run_id, self.runtime.store.get(run_id)['digest'], 100)
+        self.runtime.store.update(run_id, 'running', approved=True)
         flow.state = {"run_id": run_id}
         self.runtime.events[run_id] = Event()
         self.runtime.deadline = float("inf")

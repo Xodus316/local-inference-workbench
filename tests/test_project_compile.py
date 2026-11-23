@@ -146,8 +146,8 @@ class CompileCheckpointTests(unittest.TestCase):
                     self.assertTrue(intent.exists())
                     self.assertFalse(receipt.exists())
                     runtime.store.update(row["id"], "interrupted")
-                    runtime.approve(row["id"], row["digest"], resume=True)
-                    runtime.queue.join()
+                    with self.assertRaisesRegex(ValueError, 'unresolved sandbox'):
+                        runtime.approve(row["id"], row["digest"], resume=True)
                     row = runtime.store.get(row["id"])
             finally:
                 runtime.close()
@@ -229,12 +229,12 @@ class CompileCheckpointTests(unittest.TestCase):
 
     def test_unknown_compile_completion_is_not_replayed_after_resume(self):
         row, _, executor, events = self.build(receipt_problem="interrupted")
-        self.assertEqual(row["status"], "failed", row.get("result"))
+        self.assertEqual(row["status"], "interrupted", row.get("result"))
         self.assertEqual(events.count("compile backend"), 1)
         self.assertNotIn("build_compile_repair_1_1_select", events)
         self.assertNotIn("implement_group_3", events)
         self.assertEqual(executor.tests, [])
-        self.assertIn("unresolved", row["result"]["output"]["error"]["message"])
+        self.assertNotIn('build_compile_repair_1_1', [call['stage'] for call in row['calls']])
 
     def test_fresh_approval_reuses_last_group_at_unexecuted_compile_boundary(self):
         events = []

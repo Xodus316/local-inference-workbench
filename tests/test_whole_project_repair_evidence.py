@@ -38,6 +38,15 @@ def feedback(identifier="first"):
 
 
 class RepairEvidenceTests(unittest.TestCase):
+    def test_summary_changes_cannot_hide_completed_source_repairs(self):
+        before, after = artifact(), artifact('new Decimal128(increment)')
+        record = repair_record('build_compile_repair_1_1', before, after, feedback())
+        relabeled = after.model_copy(update={'summary': 'Compile checkpoint backend'})
+        attempts = repair_feedback(relabeled, feedback(), [record])['repair_evidence']['prior_attempts']
+        self.assertEqual([attempt['stage'] for attempt in attempts], ['build_compile_repair_1_1'])
+        different_source = artifact('a different operand').model_copy(update={'summary': relabeled.summary})
+        self.assertEqual(repair_feedback(different_source, feedback(), [record])['repair_evidence']['prior_attempts'], [])
+
     def test_operand_only_repair_keeps_mapping_risk_and_failed_attempt_for_any_source_stage(self):
         before, after = artifact(), artifact("new Decimal128(increment)")
         record = repair_record("whole_self_repair", before, after, feedback())

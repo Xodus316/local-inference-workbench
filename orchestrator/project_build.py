@@ -1806,6 +1806,10 @@ class ProjectBuildRun(BuildRun):
                 if repair_phase == "self":
                     record["repair_phase"] = repair_phase
             self.output["verification"]["compile_checkpoints"].append(record)
+            if getattr(self, 'scoped_repairs', False):
+                # A failed initial compile previously discarded the current draft
+                # from terminal output. Preserve it as unverified evidence.
+                self.output['artifact'] = artifact.model_dump()
             self.stages[stage] = {"status": status, "component_digest": binding["component_digest"],
                                   "checkpoint": name, "group_index": index}
             if status == "passed":
@@ -1818,12 +1822,24 @@ class ProjectBuildRun(BuildRun):
                         f'{repair_stage}_{stage_slot}_{attempt + 1}', check='compile')):
                 source_request = self.diagnose_execution(component, None, execution, checkpoint=checkpoint)
             progress = None
+            dependency_evidence = None
+            if status == 'failed' and getattr(self, 'scoped_repairs', False) and local_attempt < limit + progress_limit:
+                from .compiler_api import inspect_failure
+                dependency_evidence = inspect_failure(self, stage + '_api', component,
+                    {'failed_execution': failure_feedback(execution, include_stage_results=True)})
+                if dependency_evidence is not None:
+                    record['compiler_dependency_evidence'] = dependency_evidence
             if status == "failed" and local_attempt >= limit and local_attempt < limit + progress_limit:
                 from .compile_progress import progress_proof
                 history = [r for r in self.output["verification"]["compile_checkpoints"]
                            if r.get("compile_scope") == scope]
                 progress = progress_proof(history, component.files, checkpoint, policy, image)
                 record["progress_recovery"] = progress
+                if progress is None and dependency_evidence is not None:
+                    from .compiler_api import dependency_recovery_proof
+                    progress = dependency_recovery_proof(history, dependency_evidence)
+                    if progress is not None:
+                        record['dependency_recovery'] = progress
             if (status != "failed" and source_request is None) or local_attempt >= limit and progress is None:
                 message = ("Compiler errors remain after the checkpoint repair budget"
                            if status == "failed" else "Compile checkpoint did not produce a conclusive compiler receipt")
@@ -1838,6 +1854,8 @@ class ProjectBuildRun(BuildRun):
             self.output["compile_repair_attempts"] += 1
             feedback = {"compile_checkpoint": name,
                         "failed_execution": failure_feedback(execution, include_stage_results=True)}
+            if dependency_evidence is not None:
+                feedback['compiler_dependency_evidence'] = dependency_evidence
             if source_request is not None:
                 record['source_recovery_request'] = source_request
                 feedback['stage_recovery_request'] = source_request

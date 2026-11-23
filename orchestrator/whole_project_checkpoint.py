@@ -23,6 +23,7 @@ _BINDINGS = (
     "project_review_policy", "whole_project_gate_policy", "fresh_project",
     "whole_project_compile_progress_policy",
     "whole_project_stage_recovery_policy",
+    "whole_project_java_api_probe",
 )
 
 
@@ -36,7 +37,8 @@ def binding_digest(bundle):
                       if key not in {"run_timeout_seconds", "project_dependency_reference", "whole_project_regression_suite",
                                      "whole_project_test_author_policy", "whole_project_test_author_migration",
                                      "same_model_role_isolation", "project_review_policy", "whole_project_gate_policy", "fresh_project",
-                                     "whole_project_compile_progress_policy", "whole_project_stage_recovery_policy"}
+                                     "whole_project_compile_progress_policy", "whole_project_stage_recovery_policy",
+                                     "whole_project_java_api_probe"}
                       or key in bundle}, "workers": workers,
                    "reference_digest": (bundle.get("project_reference") or {}).get("digest")})
 

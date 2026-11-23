@@ -172,6 +172,9 @@
     el('pause-note').textContent = row.status === 'pausing'
       ? 'Pause requested. Finishing the current operation and saving its result; keep the computer on until Paused.'
       : row.status === 'paused' ? 'Paused. Progress is saved. Reopen the same data directory after restart and choose Resume saved run.' : '';
+    const checkpoint = row.checkpoints?.at(-1);
+    el('checkpoint-note').textContent = checkpoint
+      ? `Last saved ${checkpoint.kind === 'graph' ? 'workflow step' : 'operation'}: ${stageName(checkpoint.stage)} (${new Date(checkpoint.created * 1000).toLocaleString()}).` : '';
     if (previous?.id !== row.id) el("input-view").open = row.status === "prepared";
     el("calls").replaceChildren();
     for (const call of row.calls || []) {

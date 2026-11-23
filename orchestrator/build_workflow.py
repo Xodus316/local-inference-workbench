@@ -199,6 +199,9 @@ class CodeBuild:
         self.store.save_artifact(run_id, stage, "request", binding)
         result = execute()
         self.store.save_artifact(run_id, stage, "raw", result)
+        checkpoint = getattr(self, '_checkpoint_operation', None)
+        if callable(checkpoint):
+            checkpoint(run_id, stage, 'sandbox')
         self._guard(run_id)
         return result
 
@@ -225,6 +228,7 @@ class CodeBuild:
             run = WholeProjectBuildRun(self, state)
         else:
             run = ProjectBuildRun(self, state) if project_enabled(bundle) else BuildRun(self, state)
+        self._active_build_run = run
         try:
             status = run.execute()
         except WorkflowPaused:
@@ -243,6 +247,8 @@ class CodeBuild:
                 exc.add_note("Workflow evidence could not be persisted: " + type(snapshot_error).__name__)
                 raise exc from snapshot_error
             raise
+        finally:
+            self._active_build_run = None
         return {"status": status, "output": run.output, "stages": run.stages}
 
 

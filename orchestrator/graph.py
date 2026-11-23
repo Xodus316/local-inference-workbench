@@ -22,22 +22,25 @@ def build(runtime, *, parallel_analysis=None, complete_pair_on_error=False):
     readers concurrently and retain a successful sibling when the other fails.
     """
     graph = StateGraph(State)
-    graph.add_node("code_build", lambda s: {"code_build": runtime.run_code_build(s)})
+    def add_node(name, action):
+        checkpoint = getattr(runtime, 'run_step', None)
+        graph.add_node(name, (lambda state: checkpoint(name, state, action)) if callable(checkpoint) else action)
+    add_node("code_build", lambda s: {"code_build": runtime.run_code_build(s)})
     def primary(state):
         return {"primary": runtime.assess(state, "primary", "fast_primary")}
 
     def secondary(state):
         return {"secondary": runtime.assess(state, "secondary", "fast_secondary")}
 
-    graph.add_node("primary", primary)
-    graph.add_node("secondary", secondary)
-    graph.add_node("research", lambda s: {"research": runtime.research(s)})
-    graph.add_node("decision", lambda s: {"decision": runtime.decide(s)})
-    graph.add_node("synthesis", lambda s: {"final": runtime.assess(s, "synthesis", "fast_primary", compare=True)})
-    graph.add_node("deep", lambda s: {"final": runtime.assess(s, "deep", "deep_reasoner", compare="secondary" in s)})
-    graph.add_node("plan", lambda s: {"final": runtime.plan(s)})
-    graph.add_node("patch", lambda s: {"patch": runtime.propose(s, "patch", "editor")})
-    graph.add_node("review", lambda s: {"review": runtime.propose(s, "review", "reviewer")})
+    add_node("primary", primary)
+    add_node("secondary", secondary)
+    add_node("research", lambda s: {"research": runtime.research(s)})
+    add_node("decision", lambda s: {"decision": runtime.decide(s)})
+    add_node("synthesis", lambda s: {"final": runtime.assess(s, "synthesis", "fast_primary", compare=True)})
+    add_node("deep", lambda s: {"final": runtime.assess(s, "deep", "deep_reasoner", compare="secondary" in s)})
+    add_node("plan", lambda s: {"final": runtime.plan(s)})
+    add_node("patch", lambda s: {"patch": runtime.propose(s, "patch", "editor")})
+    add_node("review", lambda s: {"review": runtime.propose(s, "review", "reviewer")})
 
     def after_primary(s):
         mode = runtime.bundle(s)["mode"]
@@ -67,9 +70,9 @@ def build(runtime, *, parallel_analysis=None, complete_pair_on_error=False):
         return {"deep": "deep", "build": "code_build"}.get(mode, "primary")
 
     if parallel_analysis is not None:
-        graph.add_node("paired_primary", primary)
-        graph.add_node("paired_secondary", secondary)
-        graph.add_node("pair_complete", lambda _: {})
+        add_node("paired_primary", primary)
+        add_node("paired_secondary", secondary)
+        add_node("pair_complete", lambda _: {})
         graph.add_edge(["paired_primary", "paired_secondary"], "pair_complete")
         graph.add_conditional_edges("pair_complete", after_secondary)
     graph.add_conditional_edges(START, start)

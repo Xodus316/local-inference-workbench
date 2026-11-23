@@ -31,7 +31,7 @@ def source_identity():
 
 def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES,
                            test_bytes=WHOLE_PROJECT_TEST_BYTES, dependency_reference=None,
-                           supplemental_suite=None):
+                           supplemental_suite=None, java_api_probe=None):
     """Pure preparation with explicit workers, image, reference and bounded gates.
 
     A supplemental suite is evaluator tooling, never a generated plan or source
@@ -63,6 +63,9 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
     )
     value[COMPILE_PROGRESS_KEY] = deepcopy(COMPILE_PROGRESS_POLICY)
     value[RECOVERY_KEY] = deepcopy(RECOVERY_POLICY)
+    if java_api_probe is not None:
+        from .compiler_api import KEY, validate_policy
+        value[KEY] = deepcopy(validate_policy(java_api_probe))
     tokenizers = getattr(runtime, 'whole_project_prompt_tokenizers', {})
     if tokenizers:
         if not set(tokenizers) <= set(workers):

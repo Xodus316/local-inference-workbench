@@ -12,6 +12,7 @@ import time
 import uuid
 from pathlib import Path
 from .backend_diagnostics import safe_backend_diagnostics
+from .step_checkpoints import CheckpointStore
 
 
 MAX_ARTIFACT_BYTES = 33_000_000
@@ -90,6 +91,10 @@ for slot in range(1, 5):
             stage = f"build_self_compile_repair_{repair}_{slot}_{attempt}"
             STAGES.update({stage, stage + "_select", stage + "_edit_retry"})
 # The native selection policy requires every selection stage to end in _select.
+STAGES.update(stage + '_api' for stage in tuple(STAGES)
+              if 'compile_checkpoint_' in stage)
+STAGES.update(stage + '_api_after' for stage in tuple(STAGES)
+              if 'compile_repair_' in stage and not stage.endswith(('_select', '_edit_retry')))
 STAGES.update(stage.removesuffix("_select") + "_retry_select" for stage in tuple(STAGES)
               if stage.endswith("_select") and stage.startswith(("repair_", "whole_self_repair",
                   "build_compile_repair_", "build_repair_compile_repair_", "build_self_compile_repair_")))
@@ -115,7 +120,7 @@ for profile in range(8):
             '', '_reference_ordinary', '_reference_profile', '_candidate'))
 
 
-class Store:
+class Store(CheckpointStore):
     def __init__(self, directory: Path, max_bytes=512000000):
         _private_directory(directory)
         self.directory = directory.resolve()
@@ -161,6 +166,10 @@ class Store:
                     run_id TEXT PRIMARY KEY, approval_digest TEXT NOT NULL,
                     requested_at REAL NOT NULL, paused_at REAL, remaining_seconds REAL,
                     cleanup TEXT, resumed_at REAL);
+                CREATE TABLE IF NOT EXISTS step_checkpoints (
+                    run_id TEXT NOT NULL, kind TEXT NOT NULL, stage TEXT NOT NULL,
+                    binding TEXT NOT NULL, content_sha256 TEXT NOT NULL, created REAL NOT NULL,
+                    PRIMARY KEY(run_id,kind,stage,binding));
             """)
             columns = self.db.execute("PRAGMA table_info(approvals)").fetchall()
             if any(column[1] == "deadline" and column[3] for column in columns):
@@ -232,6 +241,7 @@ class Store:
                 "SELECT * FROM approvals WHERE run_id=?", (run_id,)
             ).fetchone()
             result["approval"] = dict(approval) if approval else None
+            result['checkpoints'] = self.checkpoint_index(run_id)
             pause = self.db.execute('SELECT * FROM workflow_pauses WHERE run_id=?', (run_id,)).fetchone()
             if pause:
                 result['pause'] = dict(pause)
@@ -479,15 +489,20 @@ class Store:
 
     def delete(self, run_id):
         import shutil
-
+        uuid.UUID(run_id)
+        checkpoint_directory = (self.directory / 'checkpoints' / run_id).resolve()
+        if not checkpoint_directory.is_relative_to(self.directory.resolve()):
+            raise ValueError('Checkpoint directory escapes the owned data directory')
         with self.lock, self.db:
             self.clear_pause_request(run_id)
             self.db.execute('DELETE FROM workflow_pauses WHERE run_id=?', (run_id,))
+            self.db.execute('DELETE FROM step_checkpoints WHERE run_id=?', (run_id,))
             self.db.execute("DELETE FROM calls WHERE run_id=?", (run_id,))
             self.db.execute("DELETE FROM approvals WHERE run_id=?", (run_id,))
             self.db.execute("DELETE FROM runs WHERE id=?", (run_id,))
             shutil.rmtree(self.directory / "artifacts" / run_id, ignore_errors=True)
             shutil.rmtree(self.directory / "build-workspaces" / run_id, ignore_errors=True)
+            shutil.rmtree(checkpoint_directory, ignore_errors=True)
 
     def close(self):
         self.db.close()

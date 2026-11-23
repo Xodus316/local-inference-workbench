@@ -53,13 +53,19 @@ def source_facts(artifact):
     return facts
 
 
+def source_digest(artifact):
+    return digest({file.path: digest(file.content) for file in artifact.files})
+
+
 def repair_feedback(artifact, feedback, history):
     current = digest(artifact.model_dump())
+    current_source = source_digest(artifact)
     observation = failure_observation(feedback)
     attempts, remaining = [], 16384
     # Include a contiguous chain, including intervening compiler corrections.
     for attempt in reversed(history):
-        if attempt["after_digest"] != current:
+        if (attempt.get('after_source_digest') != current_source if 'after_source_digest' in attempt
+                else attempt['after_digest'] != current):
             continue
         changes, diff_remaining = [], 2048
         for change in attempt["changed_files"][:16]:
@@ -76,6 +82,7 @@ def repair_feedback(artifact, feedback, history):
         attempts.append(projected)
         remaining -= size
         current = attempt["before_digest"]
+        current_source = attempt.get('before_source_digest')
         if len(attempts) == 4:
             break
     return {**feedback, "repair_evidence": {"policy": POLICY,
@@ -99,4 +106,5 @@ def repair_record(stage, before, after, feedback):
                         "diff_truncated": shown != patch})
     return {"stage": stage, "before_digest": digest(before.model_dump()),
             "after_digest": digest(after.model_dump()), "changed_files": changes,
+            'before_source_digest': source_digest(before), 'after_source_digest': source_digest(after),
             "failure_before": failure_observation(feedback)}
