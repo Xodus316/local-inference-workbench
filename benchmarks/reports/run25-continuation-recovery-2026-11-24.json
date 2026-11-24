@@ -1,0 +1,148 @@
+{
+  "date": "2026-11-24",
+  "trial": {
+    "label": "Run25 continuation1",
+    "status": "failed",
+    "workflow_id": "ac56530e-cffd-4488-8ac0-37718a385822",
+    "approval_digest": "c036fbbf408c446175176a60c9697408620d007cea75a6752fc0b9f918d34b76",
+    "source_runtime_commit": "a64ad79c804f7a9637aac2d39b34b08a15f1deb8",
+    "elapsed_seconds": 1119.28,
+    "frozen_files_verified": 1981,
+    "checkpoints": 12,
+    "native": {
+      "qwen": {
+        "completed": 4,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owners": {
+      "qwen": {
+        "container_id": "bdb2d1e1fbc68b6aadc4ec5decda3e5cd8e78707499a7097f74e8e2896f3e5f6",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "no_operator_intervention": true,
+    "terminal_sha256": "de7e9cc7c7c85dccdb23b1efb4f3414194ac35d05e8c3e70c108609e8dacd080",
+    "closed_execution_audit_sha256": "187e9f44bed35fe19eeaa776f8272288cc24da95a6ab84e39a162cf41d0c84fa",
+    "error": {
+      "message": "Unsupported role/stage/tool-policy combination",
+      "stage": "build_tests_defect_1"
+    }
+  },
+  "root_cause": {
+    "stage": "build_tests_defect_1",
+    "dispatch_status": "not_dispatched",
+    "ordinary_test_author_defect_stage_missing_from_admission": true,
+    "terminal_consultation_lacked_generation_context": true
+  },
+  "recovery": {
+    "confirmed_pre_dispatch_uses_shared_consultation_and_original_schema_correction": true,
+    "unknown_completion_cannot_dispatch": true,
+    "consultation_recursion_prohibited": true,
+    "ordinary_defect_family_admitted": true,
+    "retained_unfrozen_suite_policy": "settled-unfrozen-suite-continuation-v2",
+    "spent_counters": {
+      "build_tests_defect": 1,
+      "build_tests_syntax": 1,
+      "recovery_diagnosis": 2,
+      "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+      "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+      "recovery_output_correction": 1,
+      "recovery_request": 17,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "next_ordinary_defect_stage": "build_tests_defect_2",
+    "acceptance_credit": false,
+    "operator_application_or_test_edits": false
+  },
+  "validation": {
+    "core": {
+      "total": 630,
+      "passed": 622,
+      "optional_skips": 8
+    },
+    "native_adapter": {
+      "total": 38,
+      "passed": 38
+    },
+    "saved_response_control": {
+      "status": "passed",
+      "source_run_id": "ac56530e-cffd-4488-8ac0-37718a385822",
+      "policy": "settled-unfrozen-suite-continuation-v2",
+      "application_files": 79,
+      "retained_independent_test_files": 14,
+      "independent_suite_digest": "23f95191a37d2d27c1d1a8ad715fe4311572bfec8f94ca0f1e9309cb3cbf260d",
+      "preserved_counters": {
+        "build_tests_defect": 1,
+        "build_tests_syntax": 1,
+        "recovery_diagnosis": 2,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_output_correction": 1,
+        "recovery_request": 17,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "next_defect_stage": "build_tests_defect_2",
+      "no_author_or_syntax_redispatch": true,
+      "source_terminal_unchanged": true,
+      "frozen_files_verified": 1981,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "application_execution": false,
+      "acceptance_claim": false
+    },
+    "real_pinned_cli_synthetic_control": {
+      "status": "passed",
+      "control_kind": "real-pinned-opencode-pre-dispatch-fallback-with-synthetic-loopback-model",
+      "evidence_directory": "diagnostics/pd25/4aef61a9",
+      "stages_and_roles": [
+        [
+          "build_tests_future",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_output",
+          "test_author"
+        ]
+      ],
+      "native_protocol_requests": 2,
+      "confirmed_pre_dispatch_evidence": [
+        {
+          "stage": "build_tests_future",
+          "type": "ValueError",
+          "message": "Unsupported role/stage/tool-policy combination",
+          "not_dispatched": true,
+          "proof": null,
+          "cleanup": null
+        }
+      ],
+      "consultations": 1,
+      "output_corrections": 1,
+      "same_schema_revalidated": true,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "actual_model_quality_or_end_to_end_claim": false,
+      "scratch_disposed": true,
+      "application_or_plan_imported_into_fresh_trial": false
+    },
+    "evidence_sha256": {
+      "core-tests-continuation2.log": "1b98ce8debf49485ab2a2901818383fb1b33485730379392d5473f7bfef3e0a6",
+      "adapter-tests-continuation2.log": "e0c57dbc11381cc163b9be5879368d8a4f68680175ac4583c1ab4f493d77ed96",
+      "suite-continuation-control-summary.json": "65f11e272fdd7f9b95e70a0e037b6214ea7013141411555facd4a18f07d1b11c",
+      "predispatch-cli-control-summary.json": "59b9927dbad4793f3312480920bc71eb18b6a8d1b055277dca9c480800d125da"
+    }
+  },
+  "continuation2_status_at_publication": "prepared_scaffold_not_started"
+}

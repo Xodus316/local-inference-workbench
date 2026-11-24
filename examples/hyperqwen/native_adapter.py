@@ -89,7 +89,7 @@ def generation_policy(stage, role, tool_policy=None):
     else:
         valid = tool_policy is None and (
             role in {'implementer', 'repairer'}
-            or role == 'test_author' and re.fullmatch(r'build_tests(?:_retry|_(?:syntax|fixture|coverage|strengthen)_[1-9]\d*)?', stage))
+            or role == 'test_author' and re.fullmatch(r'build_tests(?:_retry|_(?:syntax|fixture|coverage|strengthen|defect)_[1-9]\d*)?', stage))
     if not valid:
         raise ValueError('Unsupported role/stage/tool-policy combination')
     return {'policy': POLICY, 'role': role, 'tool_policy': tool_policy,

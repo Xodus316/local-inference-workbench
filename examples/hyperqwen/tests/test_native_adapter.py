@@ -38,6 +38,12 @@ def executable(root):
 
 
 class FreshNativeAdapterTests(unittest.TestCase):
+    def test_ordinary_independent_defect_repairs_have_the_same_native_policy_as_other_test_repairs(self):
+        value=adapter.generation_policy('build_tests_defect_1','test_author')
+        self.assertEqual(value['role'],'test_author')
+        self.assertEqual(value['max_completion_tokens'],65536)
+        with self.assertRaises(ValueError):adapter.generation_policy('build_tests_defect_1','planner')
+
     def test_failed_loop_settlement_cannot_claim_known_cleanup_even_with_done_rows(self):
         from orchestrator.worker_progress import OpenCodeProgressError
         with tempfile.TemporaryDirectory() as folder:

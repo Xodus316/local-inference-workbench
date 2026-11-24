@@ -102,6 +102,9 @@ def consult(recovery, stage, error, context=None):
             if Path(frame.filename).parent == Path(__file__).parent]
         from .worker_progress import OpenCodeProgressError
         if isinstance(error,OpenCodeProgressError):data['worker_progress']=dict(error.proof)
+        if getattr(error,'not_dispatched',False) is True:
+            data['dispatch_proof']={'not_dispatched':True,'original_output_available':False,
+                'recovery_scope':'Produce the original schema-bound output through the approved recovery capability; no model, budget or gate changes.'}
     if context is not None:
         data.update(expected_schema=excerpt(context['model_type'].model_json_schema()),
                     rejected_output=excerpt(context['value']),

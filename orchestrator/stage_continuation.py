@@ -1,5 +1,6 @@
 """Continue a settled semantic-output failure without replaying application generation."""
 from copy import deepcopy
+import json
 import re
 
 from .store import digest
@@ -7,12 +8,44 @@ from .whole_project_checkpoint import binding_digest,validate_checkpoint
 
 KEY = 'whole_project_stage_continuation'
 POLICY = 'settled-stage-output-continuation-v1'
+SUITE_POLICY = 'settled-unfrozen-suite-continuation-v2'
 _MIGRATION = {'fresh_project','backend','config_digest','whole_project_engine_digest',
     'whole_project_workers','whole_project_prompt_tokenizers','same_model_role_isolation',KEY}
 
 
 def contract_digest(bundle):
     return digest({k:v for k,v in bundle.items() if k not in _MIGRATION})
+
+
+def retained_suite(row,requests,raw):
+    """Replay only completed whole-suite and scoped file responses; no model/sandbox dispatch."""
+    from .build_models import BuildTestSyntaxRepair
+    from .build_coverage import TestSyntaxError,correct_test_references
+    from .project_build import project_test_types
+    from .wire import wire_schema
+    suite_type,_=project_test_types(row['bundle'])
+    parent=row['bundle'][KEY]
+    current=deepcopy(parent.get('independent_suite') or parent['generation']['value'])
+    for call in row['calls']:
+        stage=call['stage'];request=requests[stage];response=raw[stage]
+        if request.get('role')!='test_author' or 'value' not in response:continue
+        payload=request.get('payload',{});schema=payload.get('schema')
+        if schema==wire_schema(suite_type):
+            from .build_discovery import normalize_authored_test_paths
+            current,_=normalize_authored_test_paths(response['value'])
+        elif schema==wire_schema(BuildTestSyntaxRepair):
+            data=json.loads(payload['messages'][1]['content']);selected={f['path']:f['content'] for f in data['files']}
+            prior={f['path']:f['content'] for f in current['files']}
+            replacements=BuildTestSyntaxRepair.model_validate(response['value']).files
+            if (any(prior.get(path)!=content for path,content in selected.items())
+                    or {f.path for f in replacements}!=selected.keys() or len(replacements)!=len(selected)):
+                raise ValueError('Retained test file transition differs from its journaled scope')
+            changed={f.path:f.model_dump() for f in replacements}
+            current={**current,'files':[changed.get(f['path'],f) for f in current['files']]}
+        else:continue
+        try:current=correct_test_references(suite_type.model_validate(current),qualify_classes=True)[0].model_dump()
+        except TestSyntaxError:pass  # A later completed syntax response must fix it.
+    return suite_type.model_validate(current).model_dump()
 
 
 def pack(row, requests, raw, target, *, closed_execution_audit):
@@ -23,7 +56,7 @@ def pack(row, requests, raw, target, *, closed_execution_audit):
             or row['digest'] != digest(source) or row['approval']['digest'] != row['digest']
             or contract_digest(source) != contract_digest(target)
             or not re.fullmatch('[a-f0-9]{64}',closed_execution_audit)
-            or any(c['status'] != 'terminal' for c in row['calls'])):
+            or any(c['status'] not in {'terminal','not_dispatched'} for c in row['calls'])):
         raise ValueError('Stage continuation requires settled approval, unchanged contracts and a closed execution audit')
     for field in ('model','context','thinking','model_manifest_sha256','backend_identity','sampling'):
         if source['backend'].get(field) != target['backend'].get(field):
@@ -38,7 +71,10 @@ def pack(row, requests, raw, target, *, closed_execution_audit):
         files={f.path:f.content for f in parent_artifact.files}
     for call in row['calls']:
         stage=call['stage'];request=requests[stage];response=raw[stage]
-        if response.get('worker_error'):
+        if call['status']=='not_dispatched':
+            if response.get('dispatch_status')!='not_dispatched' or 'value' in response:
+                raise ValueError('Unexecuted stage lacks its explicit non-dispatch receipt')
+        elif response.get('worker_error'):
             if (row['status']!='cancelled' or call is not row['calls'][-1]
                     or response != {'worker_error':'OpenCode cancelled','backend_cleanup_confirmed':True}):
                 raise ValueError('Only the final settled operator-cancelled generation may lack output')
@@ -62,19 +98,36 @@ def pack(row, requests, raw, target, *, closed_execution_audit):
     if (last.get('status')!='passed' or evidence['self_reference_validation'].get('status')!='passed'
             or evidence['self_suite_digest']!=digest(smoke)):
         raise ValueError('Continuation requires a reference-qualified smoke suite and passing candidate')
-    stage='build_tests';request=requests[stage];response=raw[stage]
-    if (request.get('role')!='test_author' or request.get('operation')!='generate'
-            or request.get('visible_files') or 'value' not in response
-            or not row['result']['stages'].get(stage,{}).get('validation_error')):
-        raise ValueError('Continuation requires a completed rejected independent response under its original contract')
-    payload=request['payload']
+    if KEY in source:
+        stage=(output.get('error') or {}).get('stage');call=next((c for c in row['calls'] if c['stage']==stage),{})
+        if (call.get('status')!='not_dispatched' or not re.fullmatch(r'build_tests_defect_[1-9]\d*',stage or '')
+                or requests[stage].get('role')!='test_author'):
+            raise ValueError('Chained suite continuation requires a known non-dispatched test repair')
+        generation=deepcopy(source[KEY]['generation'])
+        suite=retained_suite(row,requests,raw)
+        data=json.loads(requests[stage]['payload']['messages'][1]['content'])
+        from .project_test_lint import defects
+        from .project_build import project_test_types
+        typed=project_test_types(source)[0].model_validate(suite);inventory={f.path:f.content for f in typed.files}
+        if (defects(typed)!=data.get('diagnostics')
+                or any(inventory.get(f['path'])!=f['content'] for f in data['files'])):
+            raise ValueError('Reconstructed suite does not reproduce the pending repair evidence')
+    else:
+        stage='build_tests';request=requests[stage];response=raw[stage]
+        if (request.get('role')!='test_author' or request.get('operation')!='generate'
+                or request.get('visible_files') or 'value' not in response
+                or not row['result']['stages'].get(stage,{}).get('validation_error')):
+            raise ValueError('Continuation requires a completed rejected independent response under its original contract')
+        generation={'stage':stage,'role':'test_author','payload':deepcopy(request['payload']),'value':deepcopy(response['value'])}
     value={'policy':POLICY,'source_run_id':row['id'],'source_approval_digest':row['digest'],
         'source_contract_digest':contract_digest(source),'target_binding_digest':binding_digest(target),
         'plan':plan.model_dump(),'artifact':artifact.model_dump(),'self_suite':deepcopy(smoke),
         'counters':deepcopy(evidence['budget_counters']),'repair_attempts':output['repair_attempts'],
         'compile_repair_attempts':output['compile_repair_attempts'],
-        'generation':{'stage':stage,'role':'test_author','payload':deepcopy(payload),'value':deepcopy(response['value'])},
+        'generation':generation,
         'source_receipts':receipts,'closed_execution_audit':closed_execution_audit}
+    if KEY in source:
+        value.update(policy=SUITE_POLICY,independent_suite=suite,independent_suite_digest=digest(suite))
     validate(value,target)
     return value
 
@@ -86,7 +139,8 @@ def validate(value,bundle):
     required={'policy','source_run_id','source_approval_digest','source_contract_digest','target_binding_digest',
         'plan','artifact','self_suite','counters','repair_attempts','compile_repair_attempts','generation',
         'source_receipts','closed_execution_audit'}
-    if (not isinstance(value,dict) or value.keys()!=required or value['policy']!=POLICY
+    if isinstance(value,dict) and value.get('policy')==SUITE_POLICY:required|={'independent_suite','independent_suite_digest'}
+    if (not isinstance(value,dict) or value.keys()!=required or value['policy'] not in {POLICY,SUITE_POLICY}
             or {'fresh_project','whole_project_seed','whole_project_checkpoint','whole_project_initial_compile_recovery'}.intersection(bundle)
             or value['target_binding_digest']!=binding_digest(bundle)
             or value['source_contract_digest']!=contract_digest(bundle)):
@@ -111,6 +165,11 @@ def validate(value,bundle):
         raise ValueError('Retained generation differs from its original author/schema contract')
     for key in ('source_approval_digest','source_contract_digest','closed_execution_audit'):
         if not re.fullmatch('[a-f0-9]{64}',value[key]):raise ValueError('Invalid continuation evidence digest')
+    if value['policy']==SUITE_POLICY:
+        suite=suite_type.model_validate(value['independent_suite'])
+        if (digest(suite.model_dump())!=value['independent_suite_digest']
+                or set(suite.implementation_files)!=set(plan.implementation_files)):
+            raise ValueError('Retained unfrozen suite inventory or digest changed')
     return plan,artifact
 
 
@@ -121,5 +180,6 @@ def restore(flow):
     flow.evidence.update(budget_counters=dict(flow.counters),stage_continuation={
         'source_run_id':value['source_run_id'],'source_approval_digest':value['source_approval_digest'],
         'closed_execution_audit':value['closed_execution_audit'],'acceptance_credit':False})
-    flow._continued_generation=deepcopy(value['generation'])
+    if value['policy']==SUITE_POLICY:flow._continued_independent_suite=deepcopy(value['independent_suite'])
+    else:flow._continued_generation=deepcopy(value['generation'])
     return plan,artifact

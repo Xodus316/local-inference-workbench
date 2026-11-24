@@ -989,9 +989,10 @@ class WholeProjectBuildRun(ProjectBuildRun):
         options = {"tool_policy": tool_policy} if tool_policy is not None else {}
         try:
             result = self._opencode(stage, role, "generate", visible, payload=payload, **options)
-        except OpenCodeProgressError as error:
+        except Exception as error:
             from .stage_recovery import dynamic_enabled
-            if (agent_recovery or not getattr(error,'backend_cleanup_confirmed',False)
+            settled_progress = isinstance(error,OpenCodeProgressError) and getattr(error,'backend_cleanup_confirmed',False)
+            if (agent_recovery or not (settled_progress or getattr(error,'not_dispatched',False) is True)
                     or not getattr(self,'recovery',None) or not dynamic_enabled(self.bundle)):
                 raise
             value = {}
@@ -1406,6 +1407,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
 
     def _author_independent_suite(self, paths):
         stage = "build_tests"
+        saved_suite=getattr(self,'_continued_independent_suite',None)
+        if saved_suite is not None:
+            self.stage=stage
+            self.stages[stage]={'retained_unfrozen_suite_digest':digest(saved_suite),'acceptance_credit':False}
+            return self._parse_independent_suite(saved_suite,paths,stage)
         continued = getattr(self,'_continued_generation',None)
         if continued is not None:
             import json

@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import Mock
 
 from orchestrator.project_build import ProjectTestSuite
-from orchestrator.stage_continuation import KEY,pack,restore,validate
+from orchestrator.stage_continuation import KEY,SUITE_POLICY,pack,restore,validate
 from orchestrator.stage_recovery import KEY as RECOVERY,DYNAMIC_POLICY,StageRecovery
 from orchestrator.store import digest
 from orchestrator.whole_project import WholeProjectBuildRun
@@ -42,6 +42,41 @@ def fixture():
 
 
 class StageContinuationTests(unittest.TestCase):
+    def test_chained_continuation_retains_corrected_tests_and_spent_non_dispatch_attempt(self):
+        from orchestrator.build_models import BuildTestSyntaxRepair
+        from orchestrator.project_test_lint import defects
+        row,requests,raw,b=fixture();parent=pack(row,requests,raw,b,closed_execution_audit='a'*64)
+        child=deepcopy(row);child['bundle'][KEY]=parent;child['digest']=digest(child['bundle'])
+        child['approval']['digest']=child['digest'];child['id']=str(uuid4());child['status']='failed'
+        weak=suite_value();weak['files'][0]['content']=weak['files'][0]['content'].replace(
+            'self.assertEqual(2, 1 + 1)','self.assertTrue(True)')
+        findings=defects(ProjectTestSuite.model_validate(weak));self.assertTrue(findings)
+        request={'operation':'generate','role':'test_author','visible_files':{},'payload':{
+            'schema':wire_schema(BuildTestSyntaxRepair),'messages':[{'role':'system','content':'Correct named defects'},
+                {'role':'user','content':json.dumps({'files':weak['files'],'diagnostics':findings})}]}}
+        requests={'whole_recovery_1_output':{'operation':'generate','role':'test_author','payload':{
+            'schema':wire_schema(ProjectTestSuite)}},'build_tests_defect_1':request}
+        raw={'whole_recovery_1_output':{**deepcopy(raw['build_tests']),'value':weak},
+            'build_tests_defect_1':{'dispatch_status':'not_dispatched','worker_error':'Unsupported role/stage/tool-policy combination'}}
+        child['calls']=[{'stage':'whole_recovery_1_output','status':'terminal'},
+                        {'stage':'build_tests_defect_1','status':'not_dispatched'}]
+        child['result']['output']['error']={'stage':'build_tests_defect_1'}
+        child['result']['output']['verification']['whole_project']['budget_counters']['build_tests_defect']=1
+        v=pack(child,requests,raw,b,closed_execution_audit='b'*64);self.assertEqual(v['policy'],SUITE_POLICY)
+        target={**b,KEY:v};flow=object.__new__(WholeProjectBuildRun);flow.bundle=target
+        flow.counters=Counter();flow.output={};flow.evidence={}
+        restore(flow);flow.output['plan']=PLAN;flow.suite_type=ProjectTestSuite;flow.scoped_repairs=True;flow.stages={}
+        flow._generate=Mock(side_effect=AssertionError('Completed author output must not be regenerated'))
+        suite=flow._author_independent_suite(['app.py'])
+        self.assertEqual(suite.files[0].content,weak['files'][0]['content']);flow._generate.assert_not_called()
+        self.assertEqual(flow.counters['build_tests_defect'],1)
+        flow.limits={'max_test_defect_repairs':2}
+        self.assertEqual(flow.bounded('build_tests_defect','max_test_defect_repairs'),'build_tests_defect_2')
+        self.assertEqual(flow.counters['build_tests_defect'],2)
+        altered=json.loads(request['payload']['messages'][1]['content']);altered['files'][0]['content']='changed'
+        request['payload']['messages'][1]['content']=json.dumps(altered)
+        with self.assertRaises(ValueError):pack(child,requests,raw,b,closed_execution_audit='b'*64)
+
     def test_saved_source_and_spent_budgets_restore_but_rejected_tests_get_no_acceptance(self):
         row,requests,raw,b=fixture();v=pack(row,requests,raw,b,closed_execution_audit='a'*64);b[KEY]=v
         flow=object.__new__(WholeProjectBuildRun);flow.bundle=b;flow.counters=Counter();flow.evidence={};flow.output={}

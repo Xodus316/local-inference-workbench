@@ -43,6 +43,30 @@ def fixture(stage='whole_self_tests_retry',role='implementer',raw=None,corrected
 
 
 class AgentRecoveryTests(unittest.TestCase):
+    def test_confirmed_pre_dispatch_failure_can_consult_for_original_output_without_retrying_the_bad_stage(self):
+        for proved in (True,False):
+            flow,_=fixture();flow.bundle['generation']={r:{'context':98304} for r in ['implementer','repairer']}
+            flow.model_inputs=lambda data:data
+            error=ValueError('Unsupported future adapter stage')
+            if proved:error.not_dispatched=True
+            def dispatch(stage,role,operation,visible,**kw):
+                flow.stages[stage]={}
+                if stage=='whole_self_tests_retry':raise error
+                if stage.endswith('_consult'):
+                    return {'value':{'diagnosis':'No original inference was dispatched; return the approved output through recovery',
+                        'evidence_quote':str(error),'action':'correct_stage_output',
+                        'requested_changes':['Produce the original schema-bound output']}}
+                return {'value':{'count':3}}
+            flow._opencode=Mock(side_effect=dispatch)
+            flow._generate=lambda *a,**kw:WholeProjectBuildRun._generate(flow,*a,**kw)
+            if proved:
+                self.assertEqual(flow._generate(flow.stage,'implementer',Output,'Return count',{},{}),{'count':3})
+                self.assertEqual(flow._opencode.call_count,3)
+                self.assertEqual(flow.counters['recovery_output_correction'],1)
+            else:
+                with self.assertRaises(ValueError):flow._generate(flow.stage,'implementer',Output,'Return count',{}, {})
+                self.assertEqual(flow._opencode.call_count,1)
+
     def test_settled_worker_loop_consults_and_corrects_under_original_owner_without_redispatch(self):
         from orchestrator.worker_progress import OpenCodeProgressError
         for cleanup,unknown in [(True,False),(False,False),(True,True)]:
