@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 from pydantic import Field
 
-from orchestrator.agent_recovery import INLINE_RECOVERY_POLICY,RecoveryAdvice,excerpt
+from orchestrator.agent_recovery import INLINE_RECOVERY_POLICY,RecoveryAdvice,AgentOutputValidationError,excerpt
 from orchestrator.schemas import Record
 from orchestrator.stage_recovery import (KEY,POLICY,DYNAMIC_POLICY,StageRecovery,dynamic_enabled,
     enabled,validate_costs)
@@ -100,6 +100,26 @@ class AgentRecoveryTests(unittest.TestCase):
         self.assertEqual(flow.recovery.requests[-1]['status'],'output_correction_rejected')
         self.assertEqual(flow.counters['recovery_output_correction'],1)
 
+    def test_consultant_receives_bounded_original_contract_and_rejected_output(self):
+        flow,raw=fixture()
+        flow._generation_context['data']['previous_suite']={'files':[{'content':'retained source'}],
+            'coverage':['Retained.test_identity']}
+        flow.output['private_reference']='PRIVATE_REFERENCE_SOURCE_AND_LOGS'
+        flow.validate_generated(raw,Output.model_validate)
+        data=flow._generate.call_args_list[0].args[4]
+        contract=data['original_stage_contract']
+        self.assertEqual((contract['stage'],contract['role']),(flow.stage,'implementer'))
+        self.assertIn('Return a count',contract['instruction']['json_excerpt'])
+        self.assertIn('Retained.test_identity',contract['inputs']['json_excerpt'])
+        self.assertEqual(data['rejected_output']['digest'],digest(raw))
+        self.assertNotIn('PRIVATE_REFERENCE',str(data))
+        flow,raw=fixture()
+        flow._generation_context['data']={'large':'x'*50000}
+        flow.validate_generated(raw,Output.model_validate)
+        projection=flow._generate.call_args_list[0].args[4]['original_stage_contract']['inputs']
+        self.assertFalse(projection['complete'])
+        self.assertLessEqual(len(projection['json_excerpt'].encode('utf8')),24000)
+
     def test_unknown_execution_and_unsettled_sandbox_block_new_agent_dispatch(self):
         for change in ['unknown_native','sandbox','message']:
             flow,_=fixture()
@@ -132,6 +152,45 @@ class AgentRecoveryTests(unittest.TestCase):
             self.assertEqual(flow._generate.call_args.args[:2],('whole_recovery_1_retry_consult',role))
             self.assertEqual(result['agent_consultation']['index'],1)
             self.assertEqual(flow.counters['recovery_diagnosis'],1)
+
+    def test_malformed_advice_uses_same_single_retry_and_cannot_chain_with_output_limit_retry(self):
+        from orchestrator.project_opencode_whole import OpenCodeSettledResponseError
+        malformed={'diagnosis':'Retained output is invalid','evidence_quote':'failure',
+            'action':'correct_stage_output','required_capability':'x'*601}
+        try:RecoveryAdvice.model_validate(malformed)
+        except ValueError as error:bad=AgentOutputValidationError(malformed,error)
+        limit=OpenCodeSettledResponseError('structured-output-limit',{'completed_requests':1,
+            'scratch_cleanup_confirmed':True,'native_receipts_digest':'a'*64,'session_id':'settled'})
+        good={'diagnosis':'The host needs an adapter','evidence_quote':'failure','action':'request_capability',
+            'required_capability':'A bounded host adapter'}
+        for first,second in [(bad,good),(bad,bad),(bad,limit),(limit,bad)]:
+            flow,_=fixture();flow._generate.side_effect=[first,second]
+            result=flow.recovery.terminal(flow.stage,'failure')
+            self.assertEqual(flow._generate.call_count,2)
+            self.assertEqual(flow._generate.call_args.args[0],'whole_recovery_1_retry_consult')
+            self.assertEqual(flow.counters['recovery_diagnosis'],1)
+            if second is good:
+                self.assertIn('agent_consultation',result)
+                feedback=flow._generate.call_args.args[4]['previous_decision_rejection']
+                self.assertIn('600',feedback['failure'])
+                self.assertEqual(feedback['rejected_output']['digest'],digest(malformed))
+            else:self.assertEqual(flow.recovery.requests[-2]['action'],'agent_consultation_failed')
+
+    def test_real_generation_retains_settled_invalid_agent_output_for_bounded_feedback(self):
+        flow,_=fixture()
+        flow.bundle['generation']={'repairer':{'context':98304}}
+        flow.model_inputs=lambda data:data
+        flow.recovery._consulting=True
+        value={'diagnosis':'d','evidence_quote':'failure','action':'stop','required_capability':'x'*601}
+        def dispatch(stage,*a,**kw):
+            flow.stages[stage]={}
+            return {'value':value}
+        flow._opencode=Mock(side_effect=dispatch)
+        with self.assertRaises(AgentOutputValidationError) as raised:
+            WholeProjectBuildRun._generate(flow,'whole_recovery_1_consult','repairer',RecoveryAdvice,
+                'Diagnose',{}, {},tool_policy=INLINE_RECOVERY_POLICY)
+        self.assertEqual(raised.exception.value,value)
+        self.assertEqual(flow._opencode.call_count,1)
 
     def test_advice_cannot_invent_evidence_or_unsupported_actions(self):
         for advice in [

@@ -184,18 +184,22 @@ def _repair_smoke_reference(workflow, candidate, suite, diagnostics):
         "against the trusted reference again." + SMOKE_REQUEST_GUIDANCE
     )
     counter = "whole_self_reference_repair"
+    def validate_patch(raw):
+        value = compose_smoke_source_patch(suite, patch_type, raw)
+        revised = validate_self_suite(workflow, value, candidate)
+        validate_smoke_reference_correction(suite, revised, diagnostics)
+        defects = workflow.test_defects(revised)
+        if defects:
+            raise ValueError("Smoke reference correction contains an invalid test: " + defects[0]["message"])
+        return revised
+
     while workflow.counters[counter] < MAX_REPAIRS:
         workflow.counters[counter] += 1
         workflow.evidence["budget_counters"] = dict(workflow.counters)
         stage = f"whole_self_reference_repair_{workflow.counters[counter]}"
         raw = workflow._generate(stage, "implementer", patch_type, instruction, data, {}, tool_policy=INLINE_SMOKE_POLICY)
         try:
-            value = compose_smoke_source_patch(suite, patch_type, raw)
-            revised = validate_self_suite(workflow, value, candidate)
-            validate_smoke_reference_correction(suite, revised, diagnostics)
-            defects = workflow.test_defects(revised)
-            if defects:
-                raise ValueError("Smoke reference correction contains an invalid test: " + defects[0]["message"])
+            revised = workflow.validate_generated(raw, validate_patch)
         except ValueError as error:
             rejection = public_error(error)
             workflow.stages[stage]["replacement_rejected"] = rejection

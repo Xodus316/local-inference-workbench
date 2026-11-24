@@ -14,6 +14,14 @@ INLINE_RECOVERY_POLICY = 'inline-agent-recovery-v1'
 AGENT_STAGE = re.compile(r'whole_recovery_(?:[1-9]|1[0-6])_(?:consult|retry_consult|output)')
 
 
+class AgentOutputValidationError(ValueError):
+    """A settled agent response failed its original structured-output schema."""
+    def __init__(self, value, error):
+        from .build_workflow import public_error
+        self.value = deepcopy(value)
+        super().__init__(public_error(error))
+
+
 class RecoveryAdvice(Record):
     diagnosis: str = Field(min_length=1, max_length=1600)
     evidence_quote: str = Field(min_length=1, max_length=1200)
@@ -94,7 +102,14 @@ def consult(recovery, stage, error, context=None):
             if Path(frame.filename).parent == Path(__file__).parent]
     if context is not None:
         data.update(expected_schema=excerpt(context['model_type'].model_json_schema()),
-                    rejected_output=excerpt(context['value']))
+                    rejected_output=excerpt(context['value']),
+                    original_stage_contract={
+                        'stage':context['stage'], 'role':context['role'],
+                        'instruction':excerpt(context['instruction'],8000),
+                        'inputs':excerpt(context['data'],24000),
+                        'correction_scope':'Correct the rejected generated output under this original contract. '
+                            'A validator rejection does not authorize changing retained inputs, coverage mappings '
+                            'or other immutable artifacts. The same validator must accept the correction.'})
     saved_stage = flow.stage
     recovery._consulting = True
     try:

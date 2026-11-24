@@ -35,7 +35,7 @@ from .whole_project_sandbox import (SelfTestFixtureError, SelfTestSyntaxError, c
                                     smoke_source_patch_type, smoke_test_type, validate_self_fixture_correction,
                                     validate_self_suite)
 from .project_dependency_reference import validate_dependency_reference
-from .agent_recovery import INLINE_RECOVERY_POLICY
+from .agent_recovery import INLINE_RECOVERY_POLICY, AgentOutputValidationError, excerpt
 from .whole_project_repair import (POLICY as REPAIR_POLICY, focused_feedback, public_repair_plan,
                                    verification_observation, verification_regressions)
 from .whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
@@ -672,10 +672,23 @@ class WholeProjectBuildRun(ProjectBuildRun):
         return paths, {**evidence, "diagnosis": selection.diagnosis.model_dump()}
 
     def _repair_decision(self, stage, model_type, instruction, data, *, role='repairer', tool_policy=INLINE_SELECTION_POLICY):
-        """One clean, smaller-context restart for any shared repair decision."""
+        """One clean retry total for a settled output limit or malformed agent advice."""
         try:
             raw = self._generate(stage, role, model_type, instruction, data, {}, tool_policy=tool_policy)
             return raw, stage, False
+        except AgentOutputValidationError as error:
+            if tool_policy != INLINE_RECOVERY_POLICY or not stage.endswith('_consult') or stage.endswith('_retry_consult'):
+                raise
+            retry_stage = stage.removesuffix('_consult') + '_retry_consult'
+            self.stages.setdefault(stage,{})['decision_rejection'] = {
+                'reason':public_error(error), 'rejected_output_digest':digest(error.value), 'retry_stage':retry_stage}
+            retry_data = {**data, 'previous_decision_rejection':{
+                'failure':public_error(error), 'rejected_output':excerpt(error.value),
+                'instruction':'Correct only this advice under the same response schema. Supply requested_changes '
+                    'for correct_stage_output and leave required_capability empty when no new capability is needed. '
+                    'Respect every field length limit. No further retry is available.'}}
+            raw = self._generate(retry_stage,role,model_type,instruction,retry_data,{},tool_policy=tool_policy)
+            return raw,retry_stage,True
         except OpenCodeSettledResponseError as error:
             proof = error.proof
             if (error.reason != "structured-output-limit" or stage.endswith(("_retry_select","_retry_consult"))
@@ -899,7 +912,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     and proof.get("history_projection_digest") != digest(data.get("reference_attempt_history"))):
                 raise ValueError("Reference method history differs from its validated diagnosis")
         coverage_patch = isinstance(model_type, type) and issubclass(model_type, IndependentCoveragePatch)
-        if coverage_patch and (
+        if coverage_patch and not agent_recovery and (
                 not self.scoped_repairs or stage != "build_tests_retry" or role != "test_author" or visible
                 or data.get("coverage_patch_policy") != COVERAGE_PATCH_POLICY
                 or model_type.model_json_schema() != coverage_patch_type(data["coverage_validation"]).model_json_schema()):
@@ -989,7 +1002,10 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if not isinstance(value, dict):
             raise ValueError("OpenCode did not return a structured result")
         if agent_recovery:
-            model_type.model_validate(value)
+            try:
+                model_type.model_validate(value)
+            except ValidationError as error:
+                raise AgentOutputValidationError(value,error) from error
             return value
         from .stage_recovery import dynamic_enabled
         if getattr(self,'recovery',None) is not None and dynamic_enabled(self.bundle):

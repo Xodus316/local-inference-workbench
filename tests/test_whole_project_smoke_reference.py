@@ -13,6 +13,8 @@ from orchestrator.project_test_lint import defects
 from orchestrator.store import digest
 from orchestrator.wire import wire_schema
 from orchestrator.whole_project_smoke import INLINE_SMOKE_POLICY
+from orchestrator.whole_project import WholeProjectBuildRun
+from orchestrator.stage_recovery import KEY, DYNAMIC_POLICY, StageRecovery
 from orchestrator.whole_project_smoke_reference import (reference_smoke_diagnostics,
     validate_smoke_reference, validate_smoke_reference_correction)
 
@@ -56,12 +58,65 @@ def receipt(failed=("test_product",)):
 
 
 class SmokeReferenceTests(unittest.TestCase):
+    def test_rejected_reference_source_uses_shared_recovery_and_repeats_all_semantic_checks(self):
+        fixed = suite(SOURCE.replace("status = request()", "status = request(token='fixture')"))
+        invalid_sources = ["...", fixed.files[0].content.replace("class Smoke(", "class Renamed("),
+            fixed.files[0].content.replace("status = request(token='fixture')", "self.skipTest('skip')"),
+            fixed.files[0].content.replace("self.assertEqual(count, 2)", "self.assertEqual(count, 1)")]
+        for rejected in invalid_sources:
+            for corrected in (fixed.files[0].content, "..."):
+                with self.subTest(rejected=rejected[:30], correction_valid=corrected != "..."):
+                    workflow, candidate = self.workflow([receipt(), receipt(())])
+                    workflow.bundle[KEY] = deepcopy(DYNAMIC_POLICY)
+                    workflow.bundle['whole_project_repair_policy'] = 'verified-scoped-repair-v1'
+                    workflow.runtime.store.has_unknown_calls.return_value = False
+                    workflow.runtime.store.unsettled_operations.return_value = []
+                    workflow.recovery = StageRecovery(workflow)
+                    workflow.validate_generated = lambda v, check: WholeProjectBuildRun.validate_generated(workflow,v,check)
+                    # Use the actual shared consultation/restart adapter.
+                    workflow._repair_decision = lambda *a, **kw: WholeProjectBuildRun._repair_decision(workflow,*a,**kw)
+                    workflow.counters['whole_self_reference_repair'] = 1
+                    def generate(stage, role, model_type, instruction, data, visible, **options):
+                        workflow.stage = stage
+                        workflow.stages[stage] = {}
+                        if stage.endswith('_consult'):
+                            self.assertEqual(data['available_capabilities'],['correct_stage_output'])
+                            contract=data['original_stage_contract']
+                            self.assertIn('Smoke.test_product',contract['inputs']['json_excerpt'])
+                            self.assertIn('unaffected test methods unchanged',contract['instruction']['json_excerpt'])
+                            self.assertNotIn('REFERENCE SOURCE',str(data))
+                            return {'diagnosis':'The generated source violates the retained suite contract',
+                                'evidence_quote':data['failure'], 'action':'correct_stage_output',
+                                'requested_changes':['Return complete source, keeping original test identities and unaffected methods']}
+                        if stage.endswith('_output'):
+                            self.assertEqual(role,'implementer')
+                            return {'files':[{'path':'tests/test_smoke.py','content':corrected}]}
+                        value={'files':[{'path':'tests/test_smoke.py','content':rejected}]}
+                        workflow._generation_context={'stage':stage,'role':role,'model_type':model_type,
+                            'instruction':instruction,'data':deepcopy(data),'value':value,'value_digest':digest(value)}
+                        return value
+                    workflow._generate=Mock(side_effect=generate)
+                    result=validate_smoke_reference(workflow,candidate,suite())
+                    self.assertEqual(workflow.counters['whole_self_reference_repair'],2)
+                    self.assertEqual(workflow.counters['recovery_output_correction'],1)
+                    self.assertEqual(workflow._generate.call_count,3)
+                    if corrected == '...':
+                        self.assertIsNone(result)
+                        self.assertEqual(workflow.control.call_count,1)
+                        self.assertEqual(workflow.recovery.requests[-1]['status'],'output_correction_rejected')
+                    else:
+                        self.assertEqual(result,fixed)
+                        self.assertEqual(workflow.control.call_count,2)
+                        self.assertEqual(workflow.recovery.requests[-1]['status'],'output_revalidated')
+                        self.assertFalse(workflow.recovery.requests[-1]['acceptance_credit'])
+
     def workflow(self, receipts, responses=()):
         workflow = SimpleNamespace(scoped_repairs=True, reference={"digest": "reference-digest", "files": []},
             bundle={"sandbox": {"image_id": IMAGE}}, counters=Counter(), evidence={}, stages={},
             output={"plan": {"acceptance_criteria": ["Products work", "Concurrent updates persist"]}},
             environment={"verification": {"policy": "fixture-quality-v1", "required_checks": ["trusted-api", "python-unittest"]}},
             artifact_type=ProjectArtifact, project_type=ProjectProject, validate_suite=Mock(),
+            validate_generated=lambda value, validator: validator(value),
             fixture_problems=Mock(return_value=[]), test_defects=defects,
             state={"run_id": "run"}, runtime=SimpleNamespace(store=Mock()))
         remaining = iter(receipts)

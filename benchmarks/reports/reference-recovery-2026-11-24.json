@@ -1,0 +1,141 @@
+{
+  "date": "2026-11-24",
+  "run24": {
+    "status": "review_required",
+    "workflow_id": "64551937-fd71-4f46-bdd9-6585717e0b81",
+    "elapsed_seconds": 3795.384,
+    "frozen_files_verified": 121,
+    "checkpoint_count": 24,
+    "planned_application_files": 73,
+    "native_completed_requests": 115,
+    "compactions": 2,
+    "no_operator_intervention": true,
+    "backend_compile_repair_attempts": 1,
+    "frontend_compile_repair_attempts": 2,
+    "candidate_acceptance_or_delivery": false,
+    "terminal_audit_sha256": "22d6365f0eab6da29680e6526cc4d7f76e1b07db3738214b6ffa5e3918bc7271",
+    "original_terminal_sha256": "54dcc1b2656f33cc4bdd051e79ca2a120324f990f530be5812891181014c1818"
+  },
+  "recovery_changes": [
+    "Route complete reference source-patch semantic validation through shared agent output correction",
+    "Bounded original stage instructions and approved input excerpts in consultation",
+    "Allow authorized independent coverage correction under captured test-author/schema authority",
+    "One consultation retry total for malformed settled advice or a settled output limit, never one of each"
+  ],
+  "unchanged_contracts": [
+    "public specification",
+    "model assignments and settings",
+    "test identities and meaningful assertions",
+    "private reference isolation",
+    "two ordinary reference repair attempts",
+    "shared recovery budgets",
+    "original and downstream compiler/reference/test/review gates"
+  ],
+  "validation": {
+    "core": {
+      "tests": 617,
+      "passed": 609,
+      "optional_skips": 8,
+      "log_sha256": "fe2e698fb14b90e2ea2b7c762e1504772aa90d75c4ac71c667f9a4b7d2163a9f"
+    },
+    "adapters": {
+      "passed": 34,
+      "log_sha256": "7bcd1f36471b76622f869a5fa5e21579e733ce595927017d6b36287e2e6e8925"
+    },
+    "earlier_windows_socket_failure": "Local service module passed retry; complete final suite passed"
+  },
+  "first_actual_qwen_control": {
+    "status": "failed",
+    "control_kind": "saved-placeholder-with-actual-qwen-recovery-and-original-cpu-reference",
+    "evidence_directory": "diagnostics/r24/509c420b",
+    "stages_and_roles": [
+      [
+        "whole_self_reference_repair_2",
+        "implementer"
+      ],
+      [
+        "whole_recovery_1_consult",
+        "repairer"
+      ]
+    ],
+    "native_requests": 1,
+    "reference_status": "not_run",
+    "budget_counters": {
+      "whole_self_reference_repair": 2,
+      "recovery_diagnosis": 1,
+      "recovery_issue_7a3b50e9f4b0607dafe3557dfa8cb724": 1,
+      "recovery_request": 1
+    },
+    "original_run24_unchanged": true,
+    "frozen_files_verified": 121,
+    "cleanup": {
+      "container_id": "03be9d39c55a5f1109e1db42ee3de9d1f2baeddbe6d31d0a04ee1d4b96e561ea",
+      "epoch": 1,
+      "recorded_utc": "2026-11-24T18:34:03.031952+00:00",
+      "stopped": true,
+      "transport_drained": true,
+      "container_status": "exited",
+      "container_pid": 0,
+      "bridge_closed": true
+    },
+    "imported_into_next_trial": false,
+    "end_to_end_claim": false
+  },
+  "second_actual_qwen_control": {
+    "status": "failed",
+    "control_kind": "saved-placeholder-with-actual-qwen-recovery-and-original-cpu-reference",
+    "evidence_directory": "diagnostics/r24/967c8c03",
+    "stages_and_roles": [
+      [
+        "whole_self_reference_repair_2",
+        "implementer"
+      ],
+      [
+        "whole_recovery_1_consult",
+        "repairer"
+      ],
+      [
+        "whole_recovery_1_retry_consult",
+        "repairer"
+      ],
+      [
+        "whole_recovery_1_output",
+        "implementer"
+      ]
+    ],
+    "native_requests": 3,
+    "reference_status": "failed",
+    "budget_counters": {
+      "whole_self_reference_repair": 2,
+      "recovery_diagnosis": 1,
+      "recovery_issue_7a3b50e9f4b0607dafe3557dfa8cb724": 1,
+      "recovery_request": 1,
+      "recovery_output_correction": 1
+    },
+    "original_run24_unchanged": true,
+    "frozen_files_verified": 121,
+    "cleanup": {
+      "container_id": "4111a86f06d41591c210f61bf1bc1f7d6d7f5adfc00b4ff28bcd91a4e9631dbe",
+      "epoch": 1,
+      "recorded_utc": "2026-11-24T18:46:27.393677+00:00",
+      "stopped": true,
+      "transport_drained": true,
+      "container_status": "exited",
+      "container_pid": 0,
+      "bridge_closed": true
+    },
+    "imported_into_next_trial": false,
+    "end_to_end_claim": false,
+    "recovery_path_succeeded": true,
+    "original_named_failure_resolved": true,
+    "full_reference_qualification_passed": false,
+    "new_reference_failure": "AssertionError: 500 != 404 : unmapped route should be 404"
+  },
+  "next_trial": {
+    "number": 25,
+    "fresh_plan_and_application": true,
+    "control_outputs_imported": false,
+    "gpu_launch_authorized": true
+  },
+  "control_source_sha256": "64a266459bae5f35659deed0f8dacba777079291753240f49107c2a4bf68f0b3"
+}

@@ -1,6 +1,7 @@
 """Coverage deltas cannot rewrite a manifest or bypass executable reference validation."""
 
 from copy import deepcopy
+from collections import Counter
 import json
 from types import SimpleNamespace
 import unittest
@@ -18,6 +19,32 @@ from test_whole_project_test_author import CRITERIA, correction, correction_patc
 
 
 class CoveragePatchTests(unittest.TestCase):
+    def test_agent_correction_retains_bound_coverage_schema_and_author_authority(self):
+        from orchestrator.agent_recovery import INLINE_RECOVERY_POLICY
+        from orchestrator.stage_recovery import KEY, DYNAMIC_POLICY, StageRecovery
+        workflow = flow(draft())
+        workflow.brief = {'prompt':'Public contract'}
+        workflow.runtime = SimpleNamespace(whole_project_prompt_tokenizers={})
+        workflow.bundle.update({KEY:deepcopy(DYNAMIC_POLICY),
+            'whole_project_repair_policy':'verified-scoped-repair-v1',
+            'generation':{'test_author':{'context':98304}}})
+        workflow.counters, workflow.evidence = Counter(), {}
+        workflow.recovery = StageRecovery(workflow)
+        inputs = coverage_patch_inputs(ProjectTestSuite.model_validate(draft()),CRITERIA,
+            byte_limit=16000,file_limit=15)
+        response_type = coverage_patch_type(inputs['coverage_validation'])
+        workflow._opencode = Mock(return_value={'value':correction_patch(draft())})
+        workflow._agent_output_authority = {'stage':'whole_recovery_1_output','role':'test_author',
+            'schema_digest':digest(response_type.model_json_schema())}
+        revised = workflow._generate('whole_recovery_1_output','test_author',response_type,
+            'Correct the rejected patch',inputs,{},tool_policy=INLINE_RECOVERY_POLICY)
+        self.assertEqual(compose_coverage_patch(ProjectTestSuite.model_validate(draft()),revised,CRITERIA).model_dump(),
+            correction(draft()))
+        workflow._opencode.assert_called_once()
+        with self.assertRaisesRegex(ValueError,'original schema'):
+            workflow._generate('whole_recovery_1_output','implementer',response_type,
+                'Correct',inputs,{},tool_policy=INLINE_RECOVERY_POLICY)
+
     def test_manifest_drift_cannot_be_emitted_or_accepted(self):
         value = draft()
         value["assumptions"] = ["CORS, and jsdom setup."]
