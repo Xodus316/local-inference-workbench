@@ -1440,6 +1440,10 @@ class WholeProjectBuildRun(ProjectBuildRun):
                   "declared owner, argument and return types, not only a similar member name. An enum constant "
                   "from a different interface family is not interchangeable. A generic-return helper is not "
                   "automatically a Throwable. Preserve imports still referenced by unchanged source. "
+                  "When public_constructors_complete is true, use only declared public constructor arities for "
+                  "plain new-calls. An empty list means no public constructor; changing argument counts does not "
+                  "invent an overload. Consider supported public factories/instances or a valid extension, "
+                  "preserving required behavior such as exact timestamp precision. "
                 "Preserve the required behavior; evidence of a class existing does not prove semantic correctness."
             )
 
@@ -1470,11 +1474,24 @@ class WholeProjectBuildRun(ProjectBuildRun):
             if inspected is not None and (findings := missing_import_findings(proposed.files, inspected)):
                 remaining['remaining_dependency_imports'] = findings
                 remaining['compiler_dependency_evidence'] = inspected
-            if inspected is not None and inspected.get('policy') == 'pinned-java-api-probe-v2':
-                from .java_source_evidence import patch_findings
-                if findings := patch_findings(artifact.files,proposed.files,inspected):
-                    remaining['remaining_java_api_source'] = findings
-                    remaining['compiler_dependency_evidence'] = inspected
+            from .java_source_evidence import patch_findings
+            prior = feedback['compiler_dependency_evidence']
+            facts = [prior]
+            if (inspected is not None and inspected.get('image_id') == prior.get('image_id')
+                    and inspected.get('classpath_roots') == prior.get('classpath_roots')):
+                facts.append(inspected)
+            findings = {}
+            for evidence in facts:
+                if evidence.get('policy') != 'pinned-java-api-probe-v2':
+                    continue
+                for finding in patch_findings([f for f in artifact.files if f.path in editable],
+                        [f for f in proposed.files if f.path in editable],evidence):
+                    key = (finding['path'],finding['line'],finding['kind'],finding.get('owner'),
+                           finding.get('constant'),finding.get('import'),finding.get('argument_count'))
+                    findings[key] = finding
+            if findings:
+                remaining['remaining_java_api_source'] = list(findings.values())[:64]
+                remaining['compiler_dependency_evidence'] = inspected or prior
         if (not files or remaining) and _stopped_opencode_result(result):
             retry_stage = stage + "_edit_retry"
             self.stages[stage]["edit_retry"] = retry_stage

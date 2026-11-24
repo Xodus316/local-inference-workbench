@@ -20,6 +20,21 @@ def words(name):
     return {word.casefold() for word in re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', name)}
 
 
+def public_constructors(text,name,access='public'):
+    result=[]
+    for line in text.splitlines():
+        if not re.match(r'\s+'+re.escape(access)+r'\b',line) or name+'(' not in line:continue
+        parameters=line.split(name+'(',1)[1].rsplit(')',1)[0]
+        depth,count=0,0 if not parameters.strip() else 1
+        for char in parameters:
+            if char=='<':depth+=1
+            elif char=='>':depth-=1
+            elif char==',' and depth==0:count+=1
+        result.append({'signature':line.strip(),'parameter_count':count,
+                       'varargs':parameters.rstrip().endswith('...')})
+    return result
+
+
 def focused_inspection(request,index,javap,started,jars):
     """Inspect actual owners/members first, including the pinned JDK's public API."""
     jmods=Path(javap).resolve().parents[1]/'jmods'
@@ -39,7 +54,7 @@ def focused_inspection(request,index,javap,started,jars):
         if name not in available:return ''
         if len(cache)>=64 or time.monotonic()-started>55:
             raise TimeoutError('Focused Java signature inspection exceeded its bound')
-        args=[javap,'-public']
+        args=[javap,'-protected']
         if name in index:args+=['-classpath',sorted(index[name])[0]]
         result=subprocess.run([*args,name],capture_output=True,timeout=5)
         text=result.stdout.decode('utf8','replace') if result.returncode==0 else ''
@@ -83,9 +98,12 @@ def focused_inspection(request,index,javap,started,jars):
         if not text or remaining<512:continue
         lines=text.splitlines()
         headers=[line for line in lines if line.startswith('public ')]
+        constructors=public_constructors(text,name)
+        protected_constructors=public_constructors(text,name,'protected')
         fields=[line for line in lines if re.match(r'\s+public (?:static )?(?:final )?[^()]+;',line)]
         matching=[line for line in lines if any(re.search(r'\b'+re.escape(member)+r'\s*\(',line) for member in members)]
-        projected=list(dict.fromkeys([*headers,*matching,*fields]))
+        projected=list(dict.fromkeys([*headers,*[item['signature'] for item in constructors],
+            *[item['signature'] for item in protected_constructors],*matching,*fields]))
         # Include complete small APIs. For large APIs preserve the relevant
         # methods even when they occur beyond javap's first 4 KiB.
         if len(text.encode())<=4096:content=text
@@ -98,8 +116,11 @@ def focused_inspection(request,index,javap,started,jars):
         documents.append({'name':name,'content':shown,'truncated':shown!=text,
             'jar':origins[0] if origins else platform[name],'cached_versions':origins or [platform[name]],
             'jdk':name in platform,'declared_fields':declared[:256],
-            'enum_fields_complete':enum and len(declared)<=256,
-            'member_projection':{'policy':'diagnostic-members-v1','requested':sorted(members),
+            'enum_fields_complete':enum and len(declared)<=256 and (name in platform or len(origins)==1),
+            'public_constructors':constructors,
+            'public_constructors_complete':name in platform or len(origins)==1,
+            'protected_constructors':protected_constructors,
+            'member_projection':{'policy':'diagnostic-members-v2','requested':sorted(members),
                 'matching_signatures_complete':all(line in shown for line in matching),
                 'inherited_members_inspected':False}})
     return {'policy':POLICY_V2,'complete_index':True,'complete_jdk_index':True,
@@ -109,7 +130,8 @@ def focused_inspection(request,index,javap,started,jars):
         'documents':documents,'source_anchors':request.get('source_anchors',[]),
         'guidance':'Exact diagnostic owner/method signatures precede other imports. Platform signatures and enum '
             'implementations come from this pinned JDK. Match argument and return types; constants on different '
-            'enum owners are not interchangeable. A projected API omits unrelated members and never proves '
+            'enum owners are not interchangeable. Protected signatures describe extension access, not public '
+            'constructors available to a plain new-call. A projected API omits unrelated members and never proves '
             'inherited members absent. Jar-cache versions do not alone prove which version Gradle resolved.'}
 
 

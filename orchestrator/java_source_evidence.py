@@ -5,8 +5,35 @@ _NON_CODE=re.compile(r'/\*.*?\*/|//[^\r\n]*|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*
 _IMPORT=re.compile(r'(?m)^\s*import\s+([\w.$]+)\s*;')
 
 
-def code(text):
-    return _NON_CODE.sub(lambda m:re.sub(r'[^\r\n]',' ',m[0]),text)
+def code(text,*,preserve_literals=False):
+    def erase(match):
+        result=re.sub(r'[^\r\n]',' ',match[0])
+        if preserve_literals and match[0][0] in {'"',"'"}:result='L'+result[1:]
+        return result
+    return _NON_CODE.sub(erase,text)
+
+
+def constructor_calls(text):
+    """Count plain new-call arguments, declining ambiguous expressions/subclasses."""
+    source=code(text,preserve_literals=True)
+    pattern=r'\bnew\s+([\w.$]+)(?:\s*<[^;{}()]*>)?\s*\('
+    for match in re.finditer(pattern,source):
+        start=match.end();parens,brackets,braces=1,0,0;commas=0
+        for end in range(start,len(source)):
+            char=source[end]
+            if char=='(':parens+=1
+            elif char==')':
+                parens-=1
+                if parens==0:break
+            elif char=='[':brackets+=1
+            elif char==']':brackets-=1
+            elif char=='{':braces+=1
+            elif char=='}':braces-=1
+            elif char==',' and parens==1 and brackets==0 and braces==0:commas+=1
+        else:continue
+        arguments=source[start:end]
+        if '<' in arguments or '>' in arguments or source[end+1:].lstrip().startswith('{'):continue
+        yield match[1],0 if not arguments.strip() else commas+1,source.count('\n',0,match.start())+1
 
 
 def focus(files,selection):
@@ -40,6 +67,9 @@ def patch_findings(before,after,evidence):
     old={file.path:file.content for file in before}
     enums={doc['name']:set(doc['declared_fields']) for doc in evidence.get('documents',[])
            if doc.get('enum_fields_complete') is True and isinstance(doc.get('declared_fields'),list)}
+    constructors={doc['name']:doc['public_constructors'] for doc in evidence.get('documents',[])
+        if doc.get('public_constructors_complete') is True and isinstance(doc.get('public_constructors'),list)
+        and '$' not in doc['name']}
     findings=[]
     for file in after:
         if not file.path.endswith('.java') or file.path not in old:continue
@@ -48,6 +78,18 @@ def patch_findings(before,after,evidence):
         old_imports={name.rsplit('.',1)[-1]:name for name in _IMPORT.findall(prior)}
         package=re.search(r'\bpackage\s+([\w.]+)\s*;',current)
         local=set(re.findall(r'\b(?:class|interface|enum|record)\s+(\w+)',current))
+        for reported,count,number in constructor_calls(file.content):
+            owner=imports.get(reported,reported)
+            if (owner not in constructors or reported in local
+                    or package and owner.rsplit('.',1)[0]==package[1]):continue
+            candidates=constructors[owner]
+            if not any(count==item['parameter_count'] or item.get('varargs') is True
+                       and count>=item['parameter_count']-1 for item in candidates):
+                findings.append({'path':file.path,'line':number,'kind':'unsupported-public-constructor-arity',
+                    'owner':owner,'argument_count':count,'declared_public_constructors':candidates,
+                    'guidance':'This plain new-call has no matching public constructor in the pinned API. '
+                        'Use a supported public factory/instance or a valid extension while preserving behavior; '
+                        'do not guess another overload. Anonymous subclasses and ambiguous calls are not inferred.'})
         for number,line in enumerate(current.splitlines(),1):
             if re.match(r'\s*(?:import|package)\b',line):continue
             for simple,name in imports.items():
