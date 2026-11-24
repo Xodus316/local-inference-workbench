@@ -103,6 +103,21 @@ class InlineWorkerPolicyTests(unittest.TestCase):
                 self.assertEqual(configured["provider"][_PROVIDER]["models"]["fixture"]["limit"]["output"], 65536)
                 self.assertEqual(env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"], "65536")
 
+    def test_empty_structured_worktrees_disable_exploration_for_every_role_but_keep_compaction(self):
+        for role in ('planner','implementer','test_author','repairer','reviewer'):
+            with self.subTest(role=role), TemporaryDirectory() as directory:
+                worker=object.__new__(OpenCodeProjectWorker)
+                worker.role,worker.context,worker.model_alias,worker.thinking=role,98304,'fixture','xhigh'
+                config={'agent':{_AGENT:{}},'provider':{_PROVIDER:{'models':{'fixture':{'options':{}}}}},
+                    'permission':{'read':'allow','edit':'allow'}}
+                worker._environment=Mock(return_value={'OPENCODE_CONFIG_CONTENT':json.dumps(config)})
+                worker._project_environment(Path(directory),{'output_tokens':65536},(),'task',{'type':'object'},
+                    empty_worktree=True)
+                actual=json.loads((Path(directory)/'workbench-opencode.json').read_text())
+                self.assertEqual(actual['permission'],{'*':'deny'})
+                self.assertEqual(actual['compaction'],{'auto':True})
+                self.assertEqual(actual['agent'][_AGENT]['steps'],9)
+
     def test_live_guard_forbids_tool_calls_compaction_and_second_step(self):
         for forbidden in ({"type": "tool_use"}, {"type": "compaction"}, {"type": "step_start"}):
             guard = selection_event_guard(None)

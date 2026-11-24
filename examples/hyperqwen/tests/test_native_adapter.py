@@ -10,7 +10,7 @@ import sys
 import tempfile
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch,Mock
 
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parents[1]
@@ -38,6 +38,60 @@ def executable(root):
 
 
 class FreshNativeAdapterTests(unittest.TestCase):
+    def test_failed_loop_settlement_cannot_claim_known_cleanup_even_with_done_rows(self):
+        from orchestrator.worker_progress import OpenCodeProgressError
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);bridge=adapter.Bridge('http://127.0.0.1:18031','a'*24,
+                model=adapter.MODEL,context=adapter.CONTEXT,directory=root,backend_identity=pin())
+            bridge.endpoint='http://127.0.0.1:1'
+            worker=adapter.Worker(executable(root),bridge,pin(),role='test_author',
+                source_bytes=DEFAULT_SOURCE_BYTES,test_bytes=65536)
+            error=OpenCodeProgressError({'tool':'glob'});error.backend_cleanup_confirmed=True
+            error.progress_settlement_failed=True
+            @contextmanager
+            def profile(*args):yield 'isolated'
+            rows=[{'receipt':{'status':'completed','done_event':True}}]
+            with patch.object(bridge,'role_profile',side_effect=profile),patch.object(bridge,'ready'), \
+                    patch.object(adapter,'native_receipts',side_effect=[[],rows]), \
+                    patch.object(adapter.OpenCodeProjectWorker,'_session',side_effect=error):
+                with self.assertRaises(OpenCodeProgressError):
+                    worker.generate(stage='build_tests',role='test_author',model=adapter.MODEL,
+                        settings={'context':98304,'think':'xhigh'},payload={'messages':[
+                            {'role':'system','content':'Return JSON'},{'role':'user','content':'Public task'}],
+                            'schema':{'type':'object'}},visible_files={},cancel=None,deadline=1,scratch_parent=root)
+            self.assertFalse(hasattr(error,'backend_cleanup_confirmed'))
+            self.assertEqual(error.diagnostics['native_completion'],'unknown')
+
+    def test_quiesced_worker_rejects_new_calls_and_releases_the_next_consultation_turn(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bridge=adapter.Bridge('http://127.0.0.1:18031','a'*24,model=adapter.MODEL,
+                context=adapter.CONTEXT,directory=Path(folder),backend_identity=pin())
+            with bridge.role_profile('build_tests','test_author'):
+                bridge.quiesce_turn()
+                self.assertTrue(bridge._quiescing.is_set())
+                handler=Mock();bridge.dispatch(handler,10)
+                self.assertEqual(handler.reply.call_args.args[0],409)
+                self.assertEqual(bridge.request_count,0)
+            self.assertFalse(bridge._quiescing.is_set())
+            with bridge.role_profile('whole_recovery_1_consult','test_author',adapter.INLINE_RECOVERY_POLICY):
+                self.assertFalse(bridge._quiescing.is_set())
+
+    def test_quiesce_waits_for_the_active_receipt_and_keeps_unknown_transport_blocked(self):
+        import threading
+        with tempfile.TemporaryDirectory() as folder:
+            bridge=adapter.Bridge('http://127.0.0.1:18031','a'*24,model=adapter.MODEL,
+                context=adapter.CONTEXT,directory=Path(folder),backend_identity=pin())
+            bridge._dispatch.acquire();done=threading.Event()
+            worker=threading.Thread(target=lambda:(bridge.quiesce_turn(),done.set()))
+            worker.start()
+            try:
+                self.assertTrue(bridge._quiescing.wait(1))
+                self.assertFalse(done.is_set())
+            finally:bridge._dispatch.release();worker.join(1)
+            self.assertTrue(done.is_set())
+            bridge._unsettled=True
+            with self.assertRaisesRegex(ValueError,'not settled'):bridge.quiesce_turn()
+
     def test_partial_worktree_requires_complete_matching_native_length_evidence(self):
         from orchestrator.project_opencode_whole import WORKTREE_PARTIAL_POLICY
         for role,stage in [('implementer','implement'),('repairer','repair_1')]:

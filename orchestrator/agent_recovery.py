@@ -100,6 +100,8 @@ def consult(recovery, stage, error, context=None):
         data['runtime_frames'] = [{'module':Path(frame.filename).name,'function':frame.name,'line':frame.lineno}
             for frame in traceback.extract_tb(error.__traceback__)[-8:]
             if Path(frame.filename).parent == Path(__file__).parent]
+        from .worker_progress import OpenCodeProgressError
+        if isinstance(error,OpenCodeProgressError):data['worker_progress']=dict(error.proof)
     if context is not None:
         data.update(expected_schema=excerpt(context['model_type'].model_json_schema()),
                     rejected_output=excerpt(context['value']),

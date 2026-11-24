@@ -43,6 +43,33 @@ def fixture(stage='whole_self_tests_retry',role='implementer',raw=None,corrected
 
 
 class AgentRecoveryTests(unittest.TestCase):
+    def test_settled_worker_loop_consults_and_corrects_under_original_owner_without_redispatch(self):
+        from orchestrator.worker_progress import OpenCodeProgressError
+        for cleanup,unknown in [(True,False),(False,False),(True,True)]:
+            flow,_=fixture();flow.bundle['generation']={r:{'context':98304} for r in ['implementer','repairer']}
+            flow.model_inputs=lambda data:data
+            error=OpenCodeProgressError({'tool':'glob','identical_results':8,'source_progress':False})
+            error.backend_cleanup_confirmed=cleanup
+            flow.runtime.store.has_unknown_calls.return_value=unknown
+            def dispatch(stage,role,operation,visible,**kw):
+                flow.stages[stage]={}
+                if stage=='whole_self_tests_retry':raise error
+                if stage.endswith('_consult'):
+                    return {'value':{'diagnosis':'A settled worker repeated exploration instead of returning output',
+                        'evidence_quote':str(error),'action':'correct_stage_output',
+                        'requested_changes':['Return the original response directly from supplied evidence']}}
+                return {'value':{'count':3}}
+            flow._opencode=Mock(side_effect=dispatch)
+            flow._generate=lambda *a,**kw:WholeProjectBuildRun._generate(flow,*a,**kw)
+            if cleanup and not unknown:
+                self.assertEqual(flow._generate(flow.stage,'implementer',Output,'Return a count',{},{}),{'count':3})
+                self.assertEqual(flow._opencode.call_count,3)
+                self.assertEqual(flow._opencode.call_args.args[:2],('whole_recovery_1_output','implementer'))
+                self.assertEqual(flow.counters['recovery_output_correction'],1)
+            else:
+                with self.assertRaises(OpenCodeProgressError):flow._generate(flow.stage,'implementer',Output,'Return a count',{}, {})
+                self.assertEqual(flow._opencode.call_count,1)
+
     def test_actual_workflow_exception_and_review_stop_boundaries_consult_before_return(self):
         flow,_=fixture('future_stage_not_in_any_handler')
         flow._execute=Mock(side_effect=KeyError('unfamiliar exception Z916'))

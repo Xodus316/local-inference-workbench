@@ -13,6 +13,7 @@ class HyperQwenWholeProjectWorker(OpenCodeProjectWorker):
     def identity(self):
         identity = {**super().identity(), "backend": BACKEND, "backend_identity": deepcopy(self._backend_identity),
                     "sampling": dict(NATIVE_SAMPLING)}
+        identity['progress_stop_policy'] = 'quiesce-current-turn-before-cli-stop-v1'
         if self.role == "planner":
             identity["planning_policy"] = "task-only-no-tools-v1"
         return identity
@@ -34,11 +35,17 @@ class HyperQwenWholeProjectWorker(OpenCodeProjectWorker):
         # cannot settle. A clean bridge drain lets the workflow reuse its lease.
         self.bridge.wait_cleanup()
 
-    def _project_environment(self, state, settings, editable, system, schema, *, tool_policy=None):
+    def _begin_progress_failure(self):
+        self.bridge.begin_quiesce_turn()
+
+    def _settle_progress_failure(self, *, cancel, deadline):
+        self.bridge.quiesce_turn(cancel=cancel,deadline=deadline)
+
+    def _project_environment(self, state, settings, editable, system, schema, *, tool_policy=None, empty_worktree=False):
         if any(settings.get(key) not in (None, value) for key, value in NATIVE_SAMPLING.items()):
             raise ValueError("HyperQwen requires the approved sampling profile")
         env = super()._project_environment(state, {**settings, **NATIVE_SAMPLING}, editable, system, schema,
-                                           tool_policy=tool_policy)
+                                           tool_policy=tool_policy, empty_worktree=empty_worktree)
         path = Path(env["OPENCODE_CONFIG"])
         config = json.loads(path.read_text(encoding="utf-8"))
         provider = config["provider"][_PROVIDER]

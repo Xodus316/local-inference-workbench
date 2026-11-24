@@ -36,6 +36,7 @@ from .whole_project_sandbox import (SelfTestFixtureError, SelfTestSyntaxError, c
                                     validate_self_suite)
 from .project_dependency_reference import validate_dependency_reference
 from .agent_recovery import INLINE_RECOVERY_POLICY, AgentOutputValidationError, excerpt
+from .worker_progress import OpenCodeProgressError
 from .whole_project_repair import (POLICY as REPAIR_POLICY, focused_feedback, public_repair_plan,
                                    verification_observation, verification_regressions)
 from .whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
@@ -986,7 +987,21 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 raise ValueError('Complete agent recovery evidence and output reserve exceed the approved context; inference was not dispatched')
             data["current_source"] = trim_selection_source(data["current_source"])
         options = {"tool_policy": tool_policy} if tool_policy is not None else {}
-        result = self._opencode(stage, role, "generate", visible, payload=payload, **options)
+        try:
+            result = self._opencode(stage, role, "generate", visible, payload=payload, **options)
+        except OpenCodeProgressError as error:
+            from .stage_recovery import dynamic_enabled
+            if (agent_recovery or not getattr(error,'backend_cleanup_confirmed',False)
+                    or not getattr(self,'recovery',None) or not dynamic_enabled(self.bundle)):
+                raise
+            value = {}
+            self._generation_context = {'stage':stage,'role':role,'model_type':model_type,
+                'instruction':instruction,'data':deepcopy(data),'value':value,'value_digest':digest(value)}
+            def recovered(raw, failure=error):
+                if raw is value:raise failure
+                model_type.model_validate(raw)
+                return raw
+            return self.validate_generated(value,recovered)
         if "test_author_plan_projection" in inputs:
             self.stages.setdefault(stage, {})["test_author_plan_projection"] = inputs["test_author_plan_projection"]
         if inline:
@@ -1391,6 +1406,17 @@ class WholeProjectBuildRun(ProjectBuildRun):
 
     def _author_independent_suite(self, paths):
         stage = "build_tests"
+        continued = getattr(self,'_continued_generation',None)
+        if continued is not None:
+            import json
+            self.stage = stage
+            payload=continued['payload'];raw=deepcopy(continued['value'])
+            self.stages[stage]={'retained_rejected_generation_digest':digest(continued),'acceptance_credit':False}
+            self._generation_context={'stage':stage,'role':'test_author','model_type':self.suite_type,
+                'instruction':payload['messages'][0]['content'],
+                'data':json.loads(payload['messages'][1]['content']),
+                'value':deepcopy(raw),'value_digest':digest(raw)}
+            return self.validate_generated(raw,lambda value:self._parse_independent_suite(value,paths,stage))
         brief = (self.test_brief + " This is an independent acceptance suite for the specification. "
                  "The approved implementation file inventory is supplied; return it unchanged.")
         data = {"implementation_files": paths}
@@ -1917,8 +1943,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
             save_checkpoint(self, artifact, suite, "tests")
             return self.verify_and_repair(artifact, suite, grouping)
         from .compile_continuation import KEY as COMPILE_CONTINUATION, restore as restore_compiler
-        seeded = "whole_project_seed" in self.bundle or COMPILE_CONTINUATION in self.bundle
-        if COMPILE_CONTINUATION in self.bundle:
+        from .stage_continuation import KEY as STAGE_CONTINUATION, restore as restore_stage
+        seeded = "whole_project_seed" in self.bundle or COMPILE_CONTINUATION in self.bundle or STAGE_CONTINUATION in self.bundle
+        if STAGE_CONTINUATION in self.bundle:
+            plan, artifact = restore_stage(self)
+        elif COMPILE_CONTINUATION in self.bundle:
             plan, artifact = restore_compiler(self)
         elif seeded:
             plan, artifact, provenance = validate_whole_project_seed(
@@ -1943,6 +1972,9 @@ class WholeProjectBuildRun(ProjectBuildRun):
             if artifact is None:
                 return "review_required"
         seed = self.bundle.get("whole_project_seed") or {}
+        if STAGE_CONTINUATION in self.bundle:
+            saved=self.bundle[STAGE_CONTINUATION]
+            seed={'self_suite':saved['self_suite'],'provenance':{'source_run_id':saved['source_run_id']}}
         checkpoint = seed.get("independent_test_repair")
         if checkpoint is not None:
             suite, reference_failure, problems = self._restore_test_repair(checkpoint)

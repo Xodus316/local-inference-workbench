@@ -19,6 +19,7 @@ FRESH_POLICY = 'fresh-whole-project-v1'
 FORBIDDEN = frozenset({
     'whole_project_seed', 'whole_project_checkpoint', 'project_reuse',
     'whole_project_initial_compile_recovery', 'reference_test_repair_candidate',
+    'whole_project_stage_continuation',
     'reference_test_repair_observations', 'external_source_findings',
 })
 

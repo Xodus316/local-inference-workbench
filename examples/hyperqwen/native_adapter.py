@@ -158,6 +158,7 @@ class Bridge(HyperQwenOpenCodeBridge):
             with self._dispatch:
                 self._turn_profile = None
                 self._role_profile = None
+                self._quiescing.clear()
 
     def _forward(self, handler, body, result, started):
         active = self._role_profile
@@ -347,6 +348,7 @@ class Worker(HyperQwenWholeProjectWorker):
                     known = (getattr(error, 'not_dispatched', False) if not rows else
                              all(row['receipt'].get('upstream_dispatched') is False or
                                  row['receipt'].get('done_event') is True for row in rows))
+                    known = known and not getattr(error,'progress_settlement_failed',False)
                     if ((self.role == 'planner' or arguments.get('tool_policy') in {INLINE_SELECTION_POLICY,INLINE_RECOVERY_POLICY})
                             and isinstance(error, OpenCodeOutputLimitError)):
                         known = (1 <= error.steps <= COMPACTED_DECISION_STEPS and decision_rows(rows, finish='length')

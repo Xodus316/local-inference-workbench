@@ -46,7 +46,8 @@ def _worker_path(name):
     return name
 
 
-def _capture(pipe, chunks, overflow, on_event=None, errors=None, project_event=None, limit=_LOG_BYTES):
+def _capture(pipe, chunks, overflow, on_event=None, errors=None, project_event=None, limit=_LOG_BYTES,
+             before_progress_stop=None):
     size = 0
     pending = bytearray()
     session = None
@@ -86,7 +87,18 @@ def _capture(pipe, chunks, overflow, on_event=None, errors=None, project_event=N
                     if on_event is not None:
                         on_event(event)
                 except Exception as error:
+                    from .worker_progress import OpenCodeProgressError
+                    if isinstance(error,OpenCodeProgressError) and callable(before_progress_stop):
+                        try:before_progress_stop()
+                        except Exception as failure:
+                            error.progress_settlement_failed=True
+                            error.add_note('Progress-stop settlement failed: '+type(failure).__name__)
                     errors.append(error)
+                    if isinstance(error,OpenCodeProgressError):
+                        # Keep stdout draining while the accepted native stream settles.
+                        # Closing or blocking this pipe can interrupt that stream.
+                        on_event = None
+                        continue
                     return
             if project_event is not None and len(pending) > limit:
                 overflow.set()
@@ -299,7 +311,8 @@ class OpenCodeWorker:
                                        stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
             readers = [
                 threading.Thread(target=_capture,
-                                 args=(process.stdout, stdout, overflow, on_event, errors, project_event, stdout_limit),
+                                 args=(process.stdout, stdout, overflow, on_event, errors, project_event, stdout_limit,
+                                       getattr(self,'_begin_progress_failure',None)),
                                  daemon=True),
                 threading.Thread(target=_capture, args=(process.stderr, stderr, overflow), daemon=True),
             ]
@@ -314,6 +327,15 @@ class OpenCodeWorker:
                     if overflow.is_set():
                         raise ValueError("OpenCode exceeded its log budget")
                     if errors:
+                        from .worker_progress import OpenCodeProgressError
+                        if isinstance(errors[0],OpenCodeProgressError):
+                            settle=getattr(self,'_settle_progress_failure',None)
+                            if callable(settle):
+                                try:settle(cancel=cancel,deadline=deadline)
+                                except Exception as failure:
+                                    failure.progress_settlement_failed=True
+                                    raise
+                            raise errors[0]
                         raise ValueError("OpenCode live event consumer failed") from errors[0]
             finally:
                 if process.poll() is None:
@@ -324,6 +346,8 @@ class OpenCodeWorker:
             if any(reader.is_alive() for reader in readers) or overflow.is_set():
                 raise ValueError("OpenCode output was incomplete or exceeded its log budget")
             if errors:
+                from .worker_progress import OpenCodeProgressError
+                if isinstance(errors[0],OpenCodeProgressError):raise errors[0]
                 raise ValueError("OpenCode live event consumer failed") from errors[0]
             if process.returncode:
                 detail = b"".join(stderr).decode("utf-8", errors="replace").strip()[-600:]

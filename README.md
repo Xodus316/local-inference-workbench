@@ -65,6 +65,8 @@ The [November 23 frontend recovery investigation](docs/frontend-recovery-2026-11
 
 The [November 24 reference recovery investigation](docs/reference-recovery-2026-11-24.md) records Run 24's terminal result and connects rejected reference patches to shared agent correction, with retained stage evidence and the original validation gates.
 
+The [Run 25 tool progress investigation](docs/worker-progress-recovery-2026-11-24.md) adds agent consultation for settled repeated-tool loops, prevents empty-worktree exploration and preserves completed work for an explicitly approved continuation.
+
 Workflows support [durable pause and resume](docs/workflow-pause.md). **Pause after current operation** saves the current operation's result and acknowledges **paused** before you shut down. Reopen the same data directory after restarting and choose **Resume saved run** to reuse completed receipts and continue under the same approval.
 
 The service listens on loopback. The default state directory is `~/.local-inference-workbench`; use `--data` to choose another directory or `--port` to choose another listener. Model responses, submitted source excerpts and conversation history are stored locally. Use the service under your own operating-system account. Other local programs able to access the listener have access to the workflow API.

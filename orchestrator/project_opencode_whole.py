@@ -22,6 +22,7 @@ from .project_opencode import (
 from .project_opencode_review import _terminal_review
 from .agent_recovery import INLINE_RECOVERY_POLICY, AGENT_STAGE
 from .repository import MAX_FILE, file_at
+from .worker_progress import POLICY as PROGRESS_POLICY, progress_guard
 from .store import MAX_ARTIFACT_BYTES
 from .whole_project_limits import (DEFAULT_SOURCE_BYTES, MAX_SOURCE_FILES, WHOLE_PROJECT_COMPLETION_TOKENS,
                                    WHOLE_PROJECT_TEST_BYTES, validate_source_bytes)
@@ -226,6 +227,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                     "source_bytes": self.source_bytes, "max_output_tokens": self.completion_token_ceiling or self.context,
                     "structured_compaction_steps": COMPACTED_DECISION_STEPS}
         identity['worktree_partial_policy'] = WORKTREE_PARTIAL_POLICY
+        identity['progress_guard'] = dict(PROGRESS_POLICY)
+        identity['empty_structured_worktree'] = 'inline-task-only-v1'
         if self.completion_token_ceiling is not None:
             identity["completion_token_ceiling"] = self.completion_token_ceiling
         if self.test_bytes != DEFAULT_TEST_BYTES:
@@ -244,7 +247,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                 raise ValueError("The OpenCode model remained loaded after cancellation")
             time.sleep(min(.2, remaining))
 
-    def _project_environment(self, state, settings, editable, system, schema, *, tool_policy=None):
+    def _project_environment(self, state, settings, editable, system, schema, *, tool_policy=None, empty_worktree=False):
         env = self._environment(state, settings, sorted(editable), None)
         config = json.loads(env.pop("OPENCODE_CONFIG_CONTENT"))
         config["compaction"] = {"auto": True}
@@ -281,7 +284,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
         permission.update({"bash": "deny", "webfetch": "deny", "websearch": "deny"})
         if schema is not None:
             permission["edit"] = "deny"
-        if (self.role == "planner" and schema is not None
+        if (schema is not None and (self.role == "planner" or empty_worktree)
                 or tool_policy in _INLINE_POLICIES):
             config["permission"] = {"*": "deny"}
             agent["steps"] = COMPACTED_DECISION_STEPS
@@ -321,7 +324,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
             if git is None:
                 raise ValueError("OpenCode requires Git to delimit the scratch worktree")
         started = time.monotonic()
-        single_step = (role == "planner" and schema is not None) or tool_policy is not None
+        single_step = (schema is not None and (role == "planner" or not original)) or tool_policy is not None
         with _scratch_tree(scratch_parent) as (directory, scratch_cleanup):
             with _before_dispatch():
                 state = Path(directory).resolve() / "private"
@@ -332,7 +335,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                     destination = file_at(root, path)
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(content.encode("utf-8"))
-                env = self._project_environment(state, settings, editable, system, schema, tool_policy=tool_policy)
+                env = self._project_environment(state, settings, editable, system, schema,
+                                                tool_policy=tool_policy, empty_worktree=not original)
                 subprocess.run([git, "init", "--quiet", "--template="], cwd=root, env=env,
                                check=True, timeout=15, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
                 fingerprint = _worktree_fingerprint(root) if schema is not None else None
@@ -340,6 +344,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                     raise InterruptedError("OpenCode request expired before dispatch")
             try:
                 observer = selection_event_guard(on_event, allow_compaction=True) if single_step else on_event
+                observer = progress_guard(observer, deny_tools=single_step, revision=lambda:sorted(
+                    (str(path.relative_to(root)),value) for path,value in _worktree_fingerprint(root).items()))
                 output = self._execute(root, state, env, prompt, cancel,
                                        deadline, thinking=True, on_event=observer,
                                        project_event=partial(_project_event, keep_text=schema is not None),
@@ -435,7 +441,7 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                 raise ValueError("OpenCode generation requires the Workbench system message, user message and schema")
         system = (("Use only the supplied inline task, diagnostics and current source. No tools are available. "
                    "Return one final JSON object now; do not explore a worktree.\n\n")
-                  if role == "planner" or tool_policy in _INLINE_POLICIES
+                  if role == "planner" or tool_policy in _INLINE_POLICIES or not original
                   else _STRUCTURED_SYSTEM_PREFIX) + messages[0]["content"]
 
         def collect(_root, events):

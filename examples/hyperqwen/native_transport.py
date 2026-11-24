@@ -324,6 +324,7 @@ class HyperQwenOpenCodeBridge:
         self._dispatch = threading.Lock()
         self._turn_profile = None
         self._stopping = threading.Event()
+        self._quiescing = threading.Event()
         self._failure = False
         self._unsettled = False
         self._request_count = 0
@@ -367,6 +368,21 @@ class HyperQwenOpenCodeBridge:
             if self._unsettled:
                 raise HyperQwenBridgeError("The HyperQwen upstream connection closed before [DONE]")
 
+    def begin_quiesce_turn(self):
+        self._quiescing.set()
+
+    def quiesce_turn(self, *, cancel=None, deadline=math.inf):
+        """Block new calls, then finish relaying the accepted call before the CLI exits."""
+        self.begin_quiesce_turn()
+        while not self._dispatch.acquire(timeout=.1):
+            if cancel is not None and cancel.is_set():raise InterruptedError('Native progress stop cancelled')
+            if time.monotonic() >= deadline:raise TimeoutError('Native progress stop deadline expired')
+        try:
+            if self._failure or self._unsettled:
+                raise HyperQwenBridgeError('HyperQwen transport is not settled for recovery')
+        finally:
+            self._dispatch.release()
+
     @contextmanager
     def turn_profile(self, stage, effort, *, generation_policy=None):
         """Bind every request in one synchronous OpenCode turn to an effort."""
@@ -385,6 +401,7 @@ class HyperQwenOpenCodeBridge:
             # restoring the medium default, even if the worker raised.
             with self._dispatch:
                 self._turn_profile = None
+                self._quiescing.clear()
 
     def __enter__(self):
         self.directory.mkdir(exist_ok=False)
@@ -406,6 +423,9 @@ class HyperQwenOpenCodeBridge:
             handler.reply(409, {"error": {"message": "The HyperQwen trial already has an active request"}})
             return
         try:
+            if self._quiescing.is_set():
+                handler.reply(409, {"error":{"message":"The current worker is settling for recovery"}})
+                return
             if self._failure or self._stopping.is_set():
                 handler.reply(400, {"error": {"message": "The HyperQwen trial cannot accept another request"}})
                 return

@@ -1,0 +1,210 @@
+{
+  "date": "2026-11-24",
+  "run25": {
+    "status": "cancelled",
+    "operator_cancelled_at_explicit_user_request": true,
+    "workflow_id": "f69f576c-2b04-4f1f-be33-6f4bd1c26bb3",
+    "approval_digest": "2af0cebf3a3448fcde38f58ba0bffedace4cc045db8d3917e980697303308fc3",
+    "source_runtime_commit": "74d4617da4743b280d4365f13db328fb982eb1ce",
+    "elapsed_seconds": 13148.834,
+    "application_files": 79,
+    "backend_compile_repairs": 2,
+    "frontend_compile_repairs": 1,
+    "self_repairs": 3,
+    "candidate_smoke_trusted_api_heldout_persistence": "passed",
+    "independent_qualification_review_delivery": "not_reached",
+    "frozen_files_verified": 121,
+    "checkpoints": 33,
+    "native": {
+      "qwen": {
+        "completed": 860,
+        "compactions": 14,
+        "other_outcomes": []
+      }
+    },
+    "owners": {
+      "qwen": {
+        "container_id": "182c67f587b2a8643fab92b4774c3f6144ef3098518a7202387c3e5423fa65d0",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "authoritative_closed_terminal_sha256": "7cdd354fb47b926c9a09334ce8412145133833d10882f3ac0721a1ee7fb8ec38",
+    "closed_execution_audit_sha256": "1c43c48b74bdcd12def42f48da742f70f562ed16ea568103833bdcc07ea7f2a6",
+    "original_runner_error_preserved": true
+  },
+  "root_cause": {
+    "stage": "build_tests_retry",
+    "initial_suite_files": 13,
+    "initial_suite_utf8_bytes": 32967,
+    "initial_semantic_error": "Independent tests changed the approved implementation path inventory",
+    "empty_readonly_worktree_exploration": true,
+    "saved_tool_events": 1069,
+    "identical_directory_reads": 448,
+    "identical_glob_all": 411
+  },
+  "recovery": {
+    "progress_policy": {
+      "policy": "tool-result-progress-v1",
+      "max_identical_results": 8,
+      "max_results_without_progress": 32,
+      "novel_completed_results_are_progress": true
+    },
+    "empty_structured_worktree_tools": "deny",
+    "compaction": "enabled",
+    "structured_decision_steps": 9,
+    "stop_protocol": "block_new_calls_drain_accepted_stream_with_stdout_draining_then_stop_cli",
+    "settled_failure_action": "consult_approved_agent_with_original_contract_and_bounded_inputs_results",
+    "unknown_execution_action": "block_new_inference",
+    "output_correction": "original_owner_schema_and_validator_under_existing_shared_allowance"
+  },
+  "validation": {
+    "core": {
+      "total": 628,
+      "passed": 620,
+      "optional_skips": 8,
+      "log_sha256": "0245cec102a99282a0f7e637f935be573840f1502fe4e44fec4087bf5f5c206b"
+    },
+    "native_adapters": {
+      "passed": 37,
+      "log_sha256": "fb900bfaf88ee6094553eb645e74de4142f733ff4a19a0fe545cb46477d61d92"
+    },
+    "saved_trace_and_fixture_control": {
+      "status": "passed",
+      "control_kind": "actual-saved-tool-trace-and-retained-response-with-fixture-model-output",
+      "saved_tool_events": 1069,
+      "loop_guard": {
+        "after_tool_events": 45,
+        "proof": {
+          "policy": "tool-result-progress-v1",
+          "max_identical_results": 8,
+          "max_results_without_progress": 32,
+          "novel_completed_results_are_progress": true,
+          "tool": "read",
+          "status": "error",
+          "result_digest": "fccdcaf819bbfbded4152c938a4453dcc12cb0e40be0438e597a5ce4e3dc5bd3",
+          "identical_results": 8,
+          "results_without_progress": 31,
+          "source_progress": false,
+          "compaction_resets_guard": false
+        }
+      },
+      "old_application_files_preserved": 79,
+      "original_spent_counters": {
+        "recovery_request": 12,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "new_counters": {
+        "recovery_request": 13,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3,
+        "recovery_diagnosis": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_output_correction": 1
+      },
+      "stages": [
+        "whole_recovery_1_consult",
+        "whole_recovery_1_output"
+      ],
+      "test_sources_unchanged_in_fixture_correction": true,
+      "frozen_files_verified": 121,
+      "original_cancelled_run_unchanged": true,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "application_execution": false,
+      "control_output_imported_into_continuation": false,
+      "acceptance_claim": false
+    },
+    "real_pinned_cli_synthetic_control": {
+      "status": "passed",
+      "control_kind": "real-pinned-opencode-and-native-bridge-with-synthetic-loopback-model",
+      "evidence_directory": "diagnostics/lp25/8a40fcd3",
+      "stages_and_roles": [
+        [
+          "build_tests",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_output",
+          "test_author"
+        ]
+      ],
+      "native_protocol_requests": 10,
+      "stalled_worker_evidence": [
+        {
+          "stage": "build_tests",
+          "type": "OpenCodeProgressError",
+          "message": "OpenCode made no authorized source progress: repeated tool result",
+          "proof": {
+            "policy": "tool-result-progress-v1",
+            "max_identical_results": 8,
+            "max_results_without_progress": 32,
+            "novel_completed_results_are_progress": true,
+            "tool": "glob",
+            "status": "completed",
+            "result_digest": "8b48f24186c25719fb9274901a77d2eba3576b7865081769b0ae1c702a5a7717",
+            "identical_results": 8,
+            "results_without_progress": 7,
+            "tool_input": {
+              "sha256": "69d6e1527e4619068bedea40dad927f661315486029121a8169bf7b88a79f822",
+              "complete": true
+            },
+            "tool_result": {
+              "sha256": "240f8d3a5d9b26182035167ab0351f215bc7e3c08b6aa3b92dff2801858e32d8",
+              "complete": true
+            },
+            "source_progress": false,
+            "compaction_resets_guard": false
+          },
+          "cleanup": true
+        }
+      ],
+      "consultations": 1,
+      "output_corrections": 1,
+      "same_schema_revalidated": true,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "actual_model_quality_or_end_to_end_claim": false,
+      "scratch_disposed": true,
+      "application_or_plan_imported_into_fresh_trial": false
+    },
+    "fault_injection_findings": [
+      "An early CLI close raced downstream native transport; corrected by two-phase quiesce with stdout draining",
+      "The native role turn must release its quiesce barrier before consultation; covered by regression tests"
+    ],
+    "actual_model_quality_or_end_to_end_claim": false
+  },
+  "continuation": {
+    "authorization": "User requested continuing Run 25 after fixing repeated-tool recovery",
+    "source_application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
+    "source_smoke_digest": "8fce6e64ddb66ba3d6fe95905bddab61e82d5051e3a6cbd56dd9835baf92f90b",
+    "initial_counters": {
+      "recovery_request": 12,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "compile_repair_attempts": 3,
+    "general_repair_attempts": 0,
+    "retained_independent_response_sha256": "cb8edc2203f4fcdddf50fb95edbd962ed4771c45064c2139787ca82ee4e2c098",
+    "source_is_preserved_and_not_ordinary_resumed": true,
+    "new_separate_approval_required": true,
+    "old_acceptance_credit": false,
+    "revalidate_original_and_downstream_gates": true,
+    "models_and_generation_unchanged": true,
+    "manually_edited_application_or_tests": false,
+    "ordinary_author_attempts_refunded": false,
+    "implementation_plan_redispatch": false,
+    "control_outputs_imported": false,
+    "outcome": "not_started_at_fix_publication"
+  }
+}
