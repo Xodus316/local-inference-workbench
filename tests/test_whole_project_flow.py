@@ -245,6 +245,31 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.assertEqual(stages.count('implement_inventory_retry'),1)
         self.assertIn('whole_self_tests', [call['stage'] for call in row['calls']])
 
+    def test_smoke_syntax_correction_checkpoint_replays_without_reauthoring(self):
+        self.provider.pause.return_value={'released':True}
+        self.executor.test.side_effect=lambda *args,**kwargs:verifier_receipt(passed=True)
+        worker=self.runtime.whole_project_workers['implementer'];author=worker.generate.side_effect
+        before='self.assertEqual(2, 1 + )';after='self.assertEqual(2, 1 + 1)'
+        def generate(**kwargs):
+            value=author(**kwargs)
+            if kwargs.get('tool_policy'):value['receipt']['tool_policy']=kwargs['tool_policy']
+            if kwargs['stage']=='whole_self_tests':
+                value['value']['files'][0]['content']=value['value']['files'][0]['content'].replace(after,before)
+            elif kwargs['stage']=='whole_self_tests_retry':
+                value['value']={'summary':'Correct the syntax','edits':[
+                    {'path':'tests/test_self.py','before':before,'after':after}]}
+                self.runtime.pause(self.runtime.active_run_id)
+            return value
+        worker.generate.side_effect=generate
+        paused=self.run_workflow(expected_status='paused',whole_project_repair_policy='verified-scoped-repair-v1')
+        self.assertEqual(paused['calls'][-1]['stage'],'whole_self_tests_retry')
+        self.assertEqual(paused['calls'][-1]['status'],'terminal')
+        self.runtime.approve(paused['id'],paused['digest'],resume=True);self.runtime.queue.join()
+        row=self.runtime.store.get(paused['id'])
+        self.assertEqual(row['status'],'completed',row)
+        self.assertEqual([c.kwargs['stage'] for c in worker.generate.call_args_list],
+                         ['whole_self_tests','whole_self_tests_retry'])
+
     def test_incomplete_implementation_without_confirmed_cleanup_stops(self):
         worker = self.runtime.whole_project_workers["implementer"]
         write = worker.run.side_effect

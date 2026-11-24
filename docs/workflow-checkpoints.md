@@ -14,6 +14,14 @@ The orchestrator routes a proven partial result into its existing single invento
 
 For a planned shutdown, use [Pause after current operation](workflow-pause.md) and wait for **paused**. A checkpoint cannot establish the outcome of a later interrupted model stream or sandbox process. Unknown execution, missing/changed receipts, corrupted checkpoint content or changed runtime code block ordinary resume. A runtime fix requires a new, explicit continuation; cancellation and an exhausted recovery budget are not converted into a paused run.
 
+## Smoke authorship syntax corrections
+
+Scoped smoke authorship retains a structurally validated suite when host parsing or the pinned Python compilation preflight raises a syntax diagnostic. The existing `whole_self_tests_retry` call uses `smoke-syntax-source-only-v1`: the same OpenCode author receives actual path/line/column/message diagnostics and the complete diagnosed test files. A parser reports its first error per file, so related invalid identifiers or later syntax errors can require edits beyond the first source snippet.
+
+The worker returns the existing bounded `scoped-text-edits-v1` format, not a replacement suite. Exact unique, disjoint anchors must belong to diagnosed files; test and class declarations cannot change. The host composes edits onto the retained suite, preserving implementation paths, commands, coverage and assumptions. Strict patch validation rejects manifest fields, unapproved files, ambiguous/overlapping anchors and excessive edit output. Syntax, discovery, coverage, fixture/environment and pinned compiler checks still run afterward; a remaining error stops the single correction. Existing deterministic test-reference qualification remains in place. No test is executed or accepted solely because a correction compiles, and reference/candidate/independent/review gates remain required.
+
+The retry uses its existing role, tool policy, token/context ceilings and allowance. Its receipts bind the retained suite/manifest digests and corrected source. Checkpoint replay reapplies the cached patch without regenerating the suite. Non-scoped legacy authoring and the separate guarded class-fixture correction keep their existing behavior. See the [Run 23 smoke recovery investigation](run23-smoke-syntax-recovery-2026-11-23.md).
+
 ## Compiler dependency evidence
 
 A compiler can report an unavailable dependency type or annotation member even when the repair worker has been given a partial public API catalog. Repeatedly moving an unknown type to another package does not establish that it exists. Optional image-cache inspection supplies evidence before another compiler repair:

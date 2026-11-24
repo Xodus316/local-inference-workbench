@@ -15,6 +15,7 @@ from .build_workflow import (actionable_failure, build_model_payload, normalized
                              reference_test_failures, validate_baseline)
 from .build_discovery import normalize_authored_test_paths
 from .project_build import (DEFAULT_TEST_BYTES, REVIEWED_POLICY, ProjectArtifact, ProjectBuildRun, ProjectProject,
+                            SelectedTextRepair, apply_test_syntax_repair,
                             execution_settled, failure_feedback, project_test_types,
                             replace_selected, scoped_repair_selection, selected_source, settled_group_response,
                             unittest_failure_excerpts, validate_project_prompt)
@@ -28,7 +29,8 @@ from .whole_project_limits import (DEFAULT_SOURCE_BYTES, LEGACY_SOURCE_BYTES, MA
                                    WHOLE_PROJECT_COMPLETION_TOKENS, validate_source_bytes)
 from .whole_project_mongo import TARGET_ID as MONGO_INCREMENT_TARGET
 from .whole_project_repair_evidence import repair_feedback, repair_record
-from .whole_project_sandbox import (SelfTestFixtureError, compose_smoke_source_patch, execute_self_test,
+from .whole_project_sandbox import (SelfTestFixtureError, SelfTestSyntaxError, compose_smoke_source_patch, execute_self_test,
+                                    smoke_syntax_repair_inputs,
                                     smoke_source_patch_type, smoke_test_type, validate_self_fixture_correction,
                                     validate_self_suite)
 from .project_dependency_reference import validate_dependency_reference
@@ -1269,6 +1271,30 @@ class WholeProjectBuildRun(ProjectBuildRun):
             feedback = _suite_feedback(value, error, byte_limit=byte_limit,
                                        file_limit=self.contract["test_files"])
             self.stages[stage]["validation_error"] = feedback["validation_error"]
+            if self.scoped_repairs and isinstance(error, SelfTestSyntaxError):
+                syntax_inputs = smoke_syntax_repair_inputs(error.suite, error.diagnostics)
+                self.stages[stage]['syntax_correction'] = {
+                    key:syntax_inputs[key] for key in ('policy', 'diagnostics', 'retained_suite_digest',
+                                                      'retained_manifest_digest')}
+                corrected = self._generate(
+                    stage + '_retry', 'implementer', SelectedTextRepair,
+                    'Correct the supplied Python syntax diagnostics using minimal exact-text edits. Return '
+                    'only summary and edits with path, before and after. Copy each before anchor verbatim '
+                    'from the diagnosed test source and use enough context for a unique match. Edits must '
+                    'be disjoint. Inspect the complete diagnosed files for related uses and further syntax '
+                    'errors hidden by the first parser failure. Preserve test/class names, assertions, '
+                    'expected values and intended behavior. Workbench retains every manifest field, '
+                    'including all implementation paths, commands, coverage and assumptions. '
+                    'Do not return a replacement suite, test inventory or manifest.',
+                    {**data, 'previous_suite_validation':feedback, **syntax_inputs}, source, **options,
+                )
+                repaired = apply_test_syntax_repair(error.suite, syntax_inputs, corrected)
+                revised = validate_self_suite(self, repaired.model_dump(), artifact)
+                self.stages.setdefault(stage + '_retry', {})['syntax_correction'] = {
+                    'policy':syntax_inputs['policy'], 'retained_manifest_digest':syntax_inputs['retained_manifest_digest'],
+                    'corrected_source_digest':digest([file.model_dump() for file in repaired.files]),
+                    'validated_suite_digest':digest(revised.model_dump())}
+                return revised
             if self.scoped_repairs and isinstance(error, SelfTestFixtureError):
                 patch_type = smoke_source_patch_type(tuple(sorted({item["path"] for item in error.diagnostics})))
                 corrected = self._generate(

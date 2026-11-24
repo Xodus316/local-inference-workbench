@@ -8,12 +8,13 @@ from typing import Literal
 
 from pydantic import Field
 
-from .build_coverage import (correct_test_references, parse_test_files, python_test_definitions,
+from .build_coverage import (TestSyntaxError, correct_test_references, parse_test_files, python_test_definitions,
                              python_test_names, validate_coverage_references)
 from .build_discovery import validate_discovery_suite
 from .build_models import BuildTestFile
 from .build_workflow import actionable_failure, assemble, validate_baseline, validate_paths
 from .project_build import (ProjectTestSuite, WholeProjectTestSuite, execution_settled, failure_feedback,
+                            test_syntax_repair_inputs,
                             matching_image_checks, sandbox_stage_results)
 from .schemas import Record
 from .store import digest
@@ -37,6 +38,30 @@ class SelfTestFixtureError(ValueError):
         self.suite = suite
         self.diagnostics = diagnostics
         super().__init__(diagnostics[0]["message"])
+
+
+class SelfTestSyntaxError(TestSyntaxError):
+    """Retain a structurally valid suite when its Python source cannot compile."""
+
+    def __init__(self, suite, diagnostics):
+        self.suite = suite
+        super().__init__(diagnostics)
+
+
+def smoke_syntax_repair_inputs(suite, diagnostics):
+    inputs = test_syntax_repair_inputs(suite, diagnostics)
+    if inputs is None or not inputs['snippets']:
+        raise ValueError('Smoke syntax correction requires located diagnostics in retained test source')
+    paths = {item['path'] for item in inputs['snippets']}
+    # A parser reports only its first error per file. Related uses can occur
+    # elsewhere (for example a malformed fixture identifier used by tests).
+    # Keep the complete diagnosed files, within the already validated suite
+    # byte limit, while retaining bounded exact-edit output and file scope.
+    inputs['snippets'] = [{'path':file.path, 'start_line':1, 'start_column':1, 'source':file.content}
+                          for file in suite.files if file.path in paths]
+    return {**inputs, 'policy':'smoke-syntax-source-only-v1',
+            'retained_suite_digest':digest(suite.model_dump()),
+            'retained_manifest_digest':digest(suite.model_dump(exclude={'files'}))}
 
 
 def _split_self_test_references(suite):
@@ -116,6 +141,15 @@ def validate_self_suite(workflow, raw, candidate):
     if set(suite.implementation_files) != {item.path for item in candidate.files}:
         raise ValueError("Self-tests must declare the exact whole-project implementation paths")
     validate_paths(suite, workflow.artifact_type, workflow.project_type)
+    try:
+        return _validate_self_suite(workflow, suite)
+    except TestSyntaxError as error:
+        if not getattr(workflow, 'scoped_repairs', False):
+            raise
+        raise SelfTestSyntaxError(suite, error.diagnostics) from error
+
+
+def _validate_self_suite(workflow, suite):
     suite = _split_self_test_references(suite)
     suite, _ = correct_test_references(suite, qualify_classes=True)
     criterion_count = len(workflow.output["plan"]["acceptance_criteria"])

@@ -1,0 +1,56 @@
+{
+  "policy": "run23-smoke-syntax-recovery-v1",
+  "date": "2026-11-23",
+  "original_run_status": "failed",
+  "original_run_id": "0e341ca7-c348-42f9-82a8-537331daffc8",
+  "causes": [
+    "Parser diagnostics and the rejected source were reduced to generic suite-validation feedback.",
+    "The single correction regenerated the entire smoke suite and its manifest instead of repairing syntax on retained source.",
+    "The regenerated correction omitted two implementation paths and introduced another syntax error, masked by earlier inventory rejection."
+  ],
+  "new_policy": "smoke-syntax-source-only-v1",
+  "existing_patch_format": "scoped-text-edits-v1",
+  "existing_retry_stage": "whole_self_tests_retry",
+  "new_model_calls_or_retry_allowances": false,
+  "model_and_acceptance_gates_changed": false,
+  "qwen_repairs_retained": true,
+  "tests": {
+    "core_total": 600,
+    "core_passed": 592,
+    "optional_skipped": 8,
+    "native_adapters_passed": 34
+  },
+  "saved_failure_cpu_control": {
+    "status": "passed",
+    "control_kind": "saved-run23-source-with-deterministic-edit-response-and-real-pinned-cpu-preflight",
+    "evidence_directory": "diagnostics/s23/0bd3bbf7",
+    "model_inference_calls": 0,
+    "gpu_used": false,
+    "application_executions": 0,
+    "generation_fixture_calls": 2,
+    "existing_smoke_corrections_used": 1,
+    "test_source_edits": 4,
+    "implementation_inventory_preserved": 72,
+    "commands_assumptions_coverage_meaning_and_test_declarations_preserved": true,
+    "pinned_test_compile_passed": true,
+    "frozen_files_verified": 121,
+    "original_run23_unchanged": true,
+    "original_failed_retry_also_had_syntax_errors": [
+      {
+        "path": "tests/test_smoke.py",
+        "line": 100,
+        "column": 56,
+        "message": "invalid syntax"
+      }
+    ],
+    "control_source_imported_into_future_trial": false,
+    "end_to_end_or_model_quality_claim": false
+  },
+  "evidence_sha256": {
+    "results/e2e-fresh-23/operator-verification.json": "b75c921f84c9af92e1b4237b08af170b97c790a2beeac730f968369828befa8a",
+    "results/e2e-fresh-23/terminal.json": "3b80fe1c0642b1887c13e6991fabb8046a13ec350f5e5642669e9bf425e93c9c",
+    "diagnostics/run23-smoke-syntax-recovery/core-tests.log": "bdc2da8c7fb357164b410425c9be0364539c487b80de3a661bda8ff983b8c8e5",
+    "diagnostics/run23-smoke-syntax-recovery/saved-failure-control-summary.json": "b0bf8284ec870dbe089a0b50885e26e0ca1894d120c815e46ac7cd5838712bc3",
+    "diagnostics/s23/0bd3bbf7/verification.json": "224012d01ce7bf404297b0afa85094ef7c19504c061705ae1898bc14ea52b87d"
+  }
+}
