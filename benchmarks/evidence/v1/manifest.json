@@ -118,8 +118,18 @@
     },
     {
       "path": "build/README.md",
-      "bytes": 4356,
-      "sha256": "636c9d31f6b52abd94a8270648fb05a8529193e8d9a3732c1560ca73aa9d3094"
+      "bytes": 4668,
+      "sha256": "f7ba8949e61c2e1c0d630df1e451284f68befeba14d877f020004ee45a7f59f8"
+    },
+    {
+      "path": "build/hyperinkling-2026-11-23/README.md",
+      "bytes": 5657,
+      "sha256": "d85c9b59bdadb19473248dcdbeb9b54a3b6a73413a4eeaf86462d73af3e3203a"
+    },
+    {
+      "path": "build/hyperinkling-2026-11-23/results.json",
+      "bytes": 7741,
+      "sha256": "9394fe82eb85e84f3bc950e74b2db84ca1345474a6a26fc7fb3588e54c97bd35"
     },
     {
       "path": "build/test-authorship/occupancy/heldout.json",

@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-23",
+  "gpu": "NVIDIA GeForce RTX 3090 (24 GiB)",
+  "context_tokens": 98304,
+  "seed": 20261123,
+  "stacks": {
+    "hyperinkling": {
+      "version": "0.1.3",
+      "image": "ghcr.io/pento95/hyperinkling@sha256:e6db7291d84c32821789d0e56c38fdd935fbe6375f6057dcf7f64302455c7878",
+      "model": "Inkling 2 Mini 26B W4A16 g128 GPTQ",
+      "checkpoint": {
+        "repo": "Pentium95/Inkling-2-Mini-W4A16-g128-gptq",
+        "revision": "6d30d67d02702a87a4f0852733fe410bb6d5bba9"
+      },
+      "kv_cache": "FP8",
+      "lookup_enabled": false,
+      "gpu_utilization": 0.92,
+      "pytorch_allocator": "garbage_collection_threshold:0.8,per_process_memory_fraction:0.95"
+    },
+    "unsloth": {
+      "release": "b12649-mix-c7059d6",
+      "model": "Inkling 2 Mini 26B UD-IQ4_XS",
+      "gguf": {
+        "repo": "unsloth/Inkling-2-Mini-GGUF",
+        "revision": "8078d149286eec7193795413b9e0643da6d11fa1",
+        "sha256": "374970bf6f151fc50da49419751c3e77b82e373a3b9445ded617bd386cd12163"
+      },
+      "kv_cache": "Q8_0"
+    },
+    "hyperqwen": {
+      "model": "Qwen 3.8 27B W4A16 AutoRound-fast with MTP",
+      "image": "ghcr.io/syv-ai/hyperqwen@sha256:e0e4f9db81c0ce6eda3089d1df445fd50b1abdac8ae92c6eb985b498ec4fd7a4",
+      "upstream_revision": "3d6c9543292efc17372b824071ef8d9f33366b21"
+    }
+  },
+  "starship_build": {
+    "reasoning_effort": "high",
+    "implementation_calls_per_stack": 1,
+    "rows": [
+      {
+        "stack": "hyperinkling_dspark_off",
+        "ordinary_build_tests": "passed",
+        "first_and_final_held_out": {
+          "ran": 20,
+          "passed": 20,
+          "suite_sha256": "49a6282bf0c83adfa74a80294a100239b94bc153562ff9aff798ae8b935f041d"
+        },
+        "build_wall_seconds": 174.2,
+        "implementation_finish_reason": "stop",
+        "implementation_decode_tokens_per_second": 103.3884252823525,
+        "implementation_first_token_seconds": 4.661473399999522,
+        "implementation_wall_seconds": 170.42071589999978,
+        "peak_board_memory_mib": 21408,
+        "prompt_tokens": 10409,
+        "completion_tokens": 17141
+      },
+      {
+        "stack": "hyperinkling_dspark_on",
+        "ordinary_build_tests": "passed",
+        "first_and_final_held_out": {
+          "ran": 20,
+          "passed": 19,
+          "suite_sha256": "49a6282bf0c83adfa74a80294a100239b94bc153562ff9aff798ae8b935f041d"
+        },
+        "build_wall_seconds": 99.1,
+        "implementation_finish_reason": "stop",
+        "implementation_decode_tokens_per_second": 226.66405225349004,
+        "implementation_first_token_seconds": 3.9510389999995823,
+        "implementation_wall_seconds": 95.23306380000031,
+        "peak_board_memory_mib": 21433,
+        "prompt_tokens": 10409,
+        "completion_tokens": 20695,
+        "dspark": {
+          "dspark_draft_tokens": 32295,
+          "dspark_accepted_tokens": 15361,
+          "dspark_draft_acceptance": 0.4756463848893018
+        }
+      },
+      {
+        "stack": "unsloth",
+        "ordinary_build_tests": "passed",
+        "first_and_final_held_out": {
+          "ran": 20,
+          "passed": 20,
+          "suite_sha256": "49a6282bf0c83adfa74a80294a100239b94bc153562ff9aff798ae8b935f041d"
+        },
+        "build_wall_seconds": 415.8,
+        "implementation_finish_reason": "stop",
+        "implementation_decode_tokens_per_second": 61.199262277318866,
+        "implementation_first_token_seconds": 17.02423909999925,
+        "implementation_wall_seconds": 316.8987995999996,
+        "peak_board_memory_mib": 18771,
+        "prompt_tokens": 10409,
+        "completion_tokens": 18356
+      }
+    ]
+  },
+  "commerce_run_17_test_authoring": {
+    "reasoning_effort": "xhigh",
+    "output_cap": 65536,
+    "requests_per_stack": 1,
+    "rows": [
+      {
+        "stack": "hyperinkling_dspark_off",
+        "prompt_tokens": 12620,
+        "completion_tokens": 65536,
+        "decode_tokens_per_second": 100.24227776313661,
+        "first_token_seconds": 4.615522400001282,
+        "wall_seconds": 658.3386653000016,
+        "peak_board_memory_mib": 21183,
+        "finish_reason": "length",
+        "answer_characters": 0,
+        "reference_status": "skipped"
+      },
+      {
+        "stack": "hyperinkling_dspark_on",
+        "prompt_tokens": 12620,
+        "completion_tokens": 65536,
+        "decode_tokens_per_second": 211.25725601416445,
+        "first_token_seconds": 5.192134900000383,
+        "wall_seconds": 315.3882604999999,
+        "peak_board_memory_mib": 21279,
+        "finish_reason": "length",
+        "answer_characters": 0,
+        "reference_status": "skipped",
+        "dspark": {
+          "draft_tokens": 94330,
+          "accepted_draft_tokens": 48538,
+          "draft_acceptance": 0.5145552846390332
+        }
+      },
+      {
+        "stack": "unsloth",
+        "prompt_tokens": 12620,
+        "completion_tokens": 65536,
+        "decode_tokens_per_second": 58.3909265430882,
+        "first_token_seconds": 22.965309900000648,
+        "wall_seconds": 1144.988018,
+        "peak_board_memory_mib": 18199,
+        "finish_reason": "length",
+        "answer_characters": 0,
+        "reference_status": "skipped"
+      }
+    ]
+  },
+  "commerce_run_18_implementation": {
+    "opencode_version": "1.19.0",
+    "approved_path_count": 71,
+    "reasoning_effort": "xhigh",
+    "thinking_target_tokens": 16384,
+    "completion_ceiling_tokens": 65536,
+    "supplemental_regression_case_count": 14,
+    "rows": [
+      {
+        "stack": "hyperinkling_dspark_off",
+        "files_written": 0,
+        "gradle_compile": "skipped",
+        "frontend_parse": "skipped",
+        "frontend_typecheck": "skipped",
+        "frontend_bundle": "skipped",
+        "java_diagnostics_observed": null,
+        "typescript_diagnostics_observed": null,
+        "completed_native_requests": 6,
+        "native_completion_tokens": 33378,
+        "wall_seconds": 348.661,
+        "supplemental_regression_status": "skipped"
+      },
+      {
+        "stack": "hyperinkling_dspark_on",
+        "files_written": 67,
+        "gradle_compile": "failed",
+        "frontend_parse": "passed",
+        "frontend_typecheck": "failed",
+        "frontend_bundle": "passed",
+        "java_diagnostics_observed": 10,
+        "typescript_diagnostics_observed": 1,
+        "completed_native_requests": 346,
+        "native_completion_tokens": 262514,
+        "wall_seconds": 1404.983,
+        "supplemental_regression_status": "skipped"
+      },
+      {
+        "stack": "unsloth",
+        "files_written": 60,
+        "gradle_compile": "failed",
+        "frontend_parse": "passed",
+        "frontend_typecheck": "failed",
+        "frontend_bundle": "failed",
+        "java_diagnostics_observed": 10,
+        "typescript_diagnostics_observed": 6,
+        "completed_native_requests": 40,
+        "native_completion_tokens": 104626,
+        "wall_seconds": null,
+        "supplemental_regression_status": "skipped",
+        "compatibility_retry": {
+          "generated_reasoning_field_character_limit": 65536,
+          "confirmed_write_calls": 66,
+          "incomplete_native_requests": 1,
+          "file_provenance": "Recovered approved files from confirmed write receipts after tokenizer failure."
+        }
+      },
+      {
+        "stack": "hyperqwen",
+        "files_written": 71,
+        "gradle_compile": "failed",
+        "frontend_parse": "passed",
+        "frontend_typecheck": "passed",
+        "frontend_bundle": "failed",
+        "java_diagnostics_observed": 11,
+        "typescript_diagnostics_observed": 0,
+        "completed_native_requests": 47,
+        "native_completion_tokens": 130001,
+        "wall_seconds": 1441.038,
+        "supplemental_regression_status": "skipped"
+      }
+    ]
+  }
+}
