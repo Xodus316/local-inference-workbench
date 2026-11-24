@@ -1436,6 +1436,10 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 " compiler_dependency_evidence was inspected without application execution in the pinned image. "
                 "Use its actual public signatures and jar versions to repair the reported API usage. "
                 "Do not relocate an absent type to a guessed package or invent a replacement annotation or method. "
+                  "Use diagnostic-member projections and pinned JDK enum signatures when supplied. Match the "
+                  "declared owner, argument and return types, not only a similar member name. An enum constant "
+                  "from a different interface family is not interchangeable. A generic-return helper is not "
+                  "automatically a Throwable. Preserve imports still referenced by unchanged source. "
                 "Preserve the required behavior; evidence of a class existing does not prove semantic correctness."
             )
 
@@ -1466,6 +1470,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
             if inspected is not None and (findings := missing_import_findings(proposed.files, inspected)):
                 remaining['remaining_dependency_imports'] = findings
                 remaining['compiler_dependency_evidence'] = inspected
+            if inspected is not None and inspected.get('policy') == 'pinned-java-api-probe-v2':
+                from .java_source_evidence import patch_findings
+                if findings := patch_findings(artifact.files,proposed.files,inspected):
+                    remaining['remaining_java_api_source'] = findings
+                    remaining['compiler_dependency_evidence'] = inspected
         if (not files or remaining) and _stopped_opencode_result(result):
             retry_stage = stage + "_edit_retry"
             self.stages[stage]["edit_retry"] = retry_stage

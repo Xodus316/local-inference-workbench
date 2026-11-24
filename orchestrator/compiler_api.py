@@ -7,7 +7,7 @@ import tempfile
 import uuid
 
 from .store import digest
-from .java_api_probe import POLICY
+from .java_api_probe import POLICY, POLICY_V2
 
 KEY = 'whole_project_java_api_probe'
 
@@ -15,8 +15,13 @@ KEY = 'whole_project_java_api_probe'
 def validate_policy(value):
     if value is None:
         return None
-    if (not isinstance(value, dict) or value.keys() != {'policy', 'classpath_roots'}
-            or value['policy'] != POLICY or not isinstance(value['classpath_roots'], list)
+    fields={'policy','classpath_roots'}
+    if isinstance(value,dict) and value.get('policy')==POLICY_V2:
+        fields.add('include_jdk')
+    if (not isinstance(value, dict) or value.keys() != fields
+            or value.get('policy') not in {POLICY,POLICY_V2}
+            or value.get('policy')==POLICY_V2 and value.get('include_jdk') is not True
+            or not isinstance(value['classpath_roots'], list)
             or not 1 <= len(value['classpath_roots']) <= 4):
         raise ValueError('Invalid approved Java API probe policy')
     for root in value['classpath_roots']:
@@ -42,7 +47,8 @@ def query(files, feedback, policy):
     if not text or '.java:' not in text:
         return None
     symbols = sorted(set(re.findall(r'symbol:\s+(?:class|interface|variable|method)\s+(\w+)', text)))[:32]
-    if not symbols:
+    focused=policy['policy']==POLICY_V2
+    if not symbols and not focused:
         return None
     from .whole_project_selection import compiler_diagnostic_selection
     selection = compiler_diagnostic_selection(files, feedback,
@@ -58,11 +64,15 @@ def query(files, feedback, policy):
                 r'\b(?:class|interface|enum|record)\s+(\w+)', file.content))
     imports = sorted({name for file in files if file.path in paths and file.path.endswith('.java')
                       for name in re.findall(r'(?m)^\s*import\s+([\w.$]+)\s*;', file.content)
-                      if name not in local and not name.startswith(('java.', 'javax.', 'jdk.', 'sun.'))})
+                      if name not in local and (focused or not name.startswith(('java.', 'javax.', 'jdk.', 'sun.')))})
     if not imports or len(imports) > 64:
         return None
-    return {'policy': POLICY, 'classpath_roots': list(policy['classpath_roots']),
-            'imports': imports, 'symbols': symbols}
+    request={'policy':policy['policy'],'classpath_roots':list(policy['classpath_roots']),
+             'imports':imports,'symbols':symbols}
+    if focused:
+        from .java_source_evidence import focus
+        request.update(include_jdk=True,**focus(files,selection))
+    return request
 
 
 def execute_probe(executor, run_id, request, image, cancel, deadline):
@@ -93,7 +103,7 @@ def execute_probe(executor, run_id, request, image, cancel, deadline):
             or (row.get('stdout_capture') or {}).get('complete') is not True):
         return result  # Preserve a settled failure before rejecting it as API evidence.
     evidence = final_json_record(row.get('stdout', ''), 'WORKBENCH_JAVA_API')
-    if (not evidence or evidence.get('policy') != POLICY or evidence.get('complete_index') is not True
+    if (not evidence or evidence.get('policy') != request.get('policy',POLICY) or evidence.get('complete_index') is not True
             or evidence.get('classpath_roots') != request['classpath_roots']):
         return result
     return {**result, 'status': 'passed', 'evidence': evidence}
@@ -116,8 +126,9 @@ def inspect_failure(flow, stage, artifact, feedback):
             or any(row.get('cleanup_confirmed') is not True or row.get('exit_code') != 0
                    or row.get('timed_out') or row.get('cancelled')
                    or (row.get('stdout_capture') or {}).get('complete') is not True for row in receipt['commands'])
-            or receipt.get('evidence', {}).get('policy') != POLICY
+            or receipt.get('evidence', {}).get('policy') != request['policy']
             or receipt['evidence'].get('complete_index') is not True
+            or request['policy']==POLICY_V2 and receipt['evidence'].get('complete_jdk_index') is not True
             or receipt['evidence'].get('classpath_roots') != request['classpath_roots']
             or not set(receipt['evidence'].get('missing_imports', [])) <= set(request['imports'])):
         raise ValueError('Saved Java API evidence differs from its approved query')
@@ -134,17 +145,22 @@ def missing_import_findings(files, evidence):
 
 def dependency_recovery_proof(records, evidence):
     """Spend an existing reserve only for new, verified missing-API evidence."""
-    if (not evidence or evidence.get('policy') != POLICY or evidence.get('complete_index') is not True or not evidence.get('missing_imports')
+    if (not evidence or evidence.get('policy') not in {POLICY,POLICY_V2}
+            or evidence.get('policy')==POLICY_V2 and evidence.get('complete_jdk_index') is not True
+            or evidence.get('complete_index') is not True or not evidence.get('missing_imports')
             or not evidence.get('documents')):
         return None
     symbols = set(evidence['symbols'])
     missing = [name for name in evidence['missing_imports'] if name.rsplit('.', 1)[-1] in symbols]
     if not missing:
         return None
+    if any(sorted((record.get('dependency_recovery') or {}).get('missing_imports',[]))==sorted(missing)
+           for record in records):
+        return None
     facts = {'missing_imports': missing, 'documents': evidence['documents'], 'image_id': evidence['image_id'],
              'classpath_roots': evidence['classpath_roots']}
     fingerprint = digest(facts)
     if any((record.get('dependency_recovery') or {}).get('facts_digest') == fingerprint for record in records):
         return None
-    return {'policy': POLICY, 'facts_digest': fingerprint, 'missing_imports': missing,
+    return {'policy': evidence['policy'], 'facts_digest': fingerprint, 'missing_imports': missing,
             'receipt_digest': evidence['receipt_digest'], 'acceptance_credit': False}

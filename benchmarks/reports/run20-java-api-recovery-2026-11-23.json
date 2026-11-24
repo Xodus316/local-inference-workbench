@@ -1,0 +1,146 @@
+{
+  "policy": "run20-java-api-recovery-v1",
+  "date": "2026-11-23",
+  "original_run": {
+    "status": "review_required",
+    "run_id": "45337d4d-9784-423c-b3ba-73d1061dcd30",
+    "elapsed_seconds": 2264.098,
+    "frozen_files_verified": 120,
+    "native": {
+      "qwen": {
+        "completed": 78,
+        "compactions": 3
+      },
+      "inkling": {
+        "completed": 23,
+        "compactions": 0
+      }
+    },
+    "no_operator_intervention": true,
+    "error": {
+      "message": "backend: Compiler errors remain after the checkpoint repair budget",
+      "stage": "build_compile_checkpoint_1_2"
+    }
+  },
+  "checkpoints_verified": 13,
+  "compiler_repairs_spent": 2,
+  "cause": [
+    "JDK imports excluded from the original API probe.",
+    "Fuzzy symbol candidates preceded exact diagnostic owners.",
+    "Relevant late Jackson signatures were removed by 4 KiB prefix truncation.",
+    "A later repair removed a still-used import."
+  ],
+  "new_policy": "pinned-java-api-probe-v2",
+  "opt_in_include_jdk": true,
+  "repair_budgets_or_acceptance_gates_changed": false,
+  "live_saved_failure_control": {
+    "status": "passed",
+    "separate_saved_failure_control": true,
+    "original_run20_unchanged": true,
+    "evidence_directory": "diagnostics/j21/be07b8e0",
+    "control_source_imported_into_next_build": false,
+    "compiler_repairs": 2,
+    "native_requests": 21,
+    "edit_corrections": [],
+    "original_compiler_gate_passed": true,
+    "cleanup": {
+      "container_id": "d5c3ee540a6f948e4b82f7b49a11b987d718204481b6db929eed10d132caee5d",
+      "epoch": 1,
+      "recorded_utc": "2026-11-24T03:20:15.025116+00:00",
+      "stopped": true,
+      "transport_drained": true,
+      "container_status": "exited",
+      "container_pid": 0,
+      "bridge_closed": true
+    },
+    "compiler_checks": [
+      {
+        "stage": "build_compile_checkpoint_1_0",
+        "status": "failed"
+      },
+      {
+        "stage": "build_compile_checkpoint_1_1",
+        "status": "failed"
+      },
+      {
+        "stage": "build_compile_checkpoint_1_2",
+        "status": "passed"
+      }
+    ]
+  },
+  "historical_bad_patch_findings": [
+    {
+      "stage": "build_compile_repair_1_1",
+      "findings": [
+        {
+          "path": "api/src/main/java/com/commerce/catalog/config/JacksonConfig.java",
+          "line": 77,
+          "kind": "constant-absent-from-pinned-enum",
+          "owner": "java.time.temporal.ChronoField",
+          "constant": "MILLI_SECOND",
+          "declared_constants": [
+            "ALIGNED_DAY_OF_WEEK_IN_MONTH",
+            "ALIGNED_DAY_OF_WEEK_IN_YEAR",
+            "ALIGNED_WEEK_OF_MONTH",
+            "ALIGNED_WEEK_OF_YEAR",
+            "AMPM_OF_DAY",
+            "CLOCK_HOUR_OF_AMPM",
+            "CLOCK_HOUR_OF_DAY",
+            "DAY_OF_MONTH",
+            "DAY_OF_WEEK",
+            "DAY_OF_YEAR",
+            "EPOCH_DAY",
+            "ERA",
+            "HOUR_OF_AMPM",
+            "HOUR_OF_DAY",
+            "INSTANT_SECONDS",
+            "MICRO_OF_DAY",
+            "MICRO_OF_SECOND",
+            "MILLI_OF_DAY",
+            "MILLI_OF_SECOND",
+            "MINUTE_OF_DAY",
+            "MINUTE_OF_HOUR",
+            "MONTH_OF_YEAR",
+            "NANO_OF_DAY",
+            "NANO_OF_SECOND",
+            "OFFSET_SECONDS",
+            "PROLEPTIC_MONTH",
+            "SECOND_OF_DAY",
+            "SECOND_OF_MINUTE",
+            "YEAR",
+            "YEAR_OF_ERA"
+          ]
+        }
+      ]
+    },
+    {
+      "stage": "build_compile_repair_1_2",
+      "findings": [
+        {
+          "path": "api/src/main/java/com/commerce/catalog/config/JacksonConfig.java",
+          "line": 50,
+          "kind": "removed-import-still-used",
+          "import": "com.fasterxml.jackson.databind.SerializationFeature",
+          "source": "mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "core_total": 582,
+    "core_passed": 574,
+    "optional_skipped": 8,
+    "adapter_tests_passed": 33,
+    "earlier_diagnostic_harness_stops_before_inference": [
+      "Empty-suite fixture corrected.",
+      "Windows MAX_PATH avoided with a short workspace."
+    ]
+  },
+  "local_evidence_sha256": {
+    "results/e2e-fresh-20/terminal.json": "51ee4883f3d06ef5cbdf47abdb210aba90a58fab45b1e12efb84bf6a40f8ad59",
+    "results/e2e-fresh-20/outcome.json": "a9be4e315181943cbd92766c55385e6bae25b93c655275c3e04facf52b79c2ae",
+    "results/e2e-fresh-20/operator-verification.json": "d23d5d4d14ed1c28d74178fa4d76c0657ea02144ba5346b168e941fdb3f46c08",
+    "diagnostics/run20-java-api-focus/live-repair-control-summary.json": "2fa18f7e55483c8fd7e4b60f5a15ac44b4605d129e34079586fe1ea0bed0ae14",
+    "diagnostics/j21/be07b8e0/verification.json": "7acf836b3decaceedf2eb7b853fde929a308ce2461280f41f2e377b58e907201"
+  }
+}
