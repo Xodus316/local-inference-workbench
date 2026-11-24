@@ -1,0 +1,73 @@
+{
+  "policy": "run19-mixed-model-terminal-v1",
+  "date": "2026-11-23",
+  "run19": {
+    "status": "failed",
+    "run_id": "95a2f564-2e36-4132-88be-409cffb9034d",
+    "elapsed_seconds": 1437.915,
+    "application_files": 66,
+    "frozen_files_verified": 120,
+    "checkpoint_count": 4,
+    "native": {
+      "qwen": {
+        "completed": 32,
+        "compactions": 1
+      },
+      "inkling": {
+        "completed": 0,
+        "compactions": 0
+      }
+    },
+    "error": {
+      "message": "The owned HyperQwen listing differs from the approved model and context",
+      "stage": "build_compile_repair_1_1"
+    },
+    "no_operator_intervention": true,
+    "both_owned_backends_closed": true
+  },
+  "root_cause": "Pinned HyperInkling exposes both inkling-2-mini and local for one checkpoint; inherited single-model listing validation rejected it before repair dispatch.",
+  "fix": {
+    "policy": "explicit-pinned-served-alias-inventory",
+    "inkling_aliases": [
+      "inkling-2-mini",
+      "local"
+    ],
+    "require_same_pinned_root_and_context": true,
+    "reject_unknown_missing_duplicate_aliases": true,
+    "legacy_qwen_single_model_rule_preserved": true,
+    "acceptance_gates_or_repair_budgets_changed": false
+  },
+  "verification": {
+    "adapter_tests_passed": 33,
+    "separate_live_toy_repair_probe": {
+      "status": "passed",
+      "separate_toy_fixture": true,
+      "not_a_commerce_trial": true,
+      "original_run19_unchanged": true,
+      "native_requests": 5,
+      "model": "inkling-2-mini",
+      "dspark": true,
+      "aliases": [
+        "inkling-2-mini",
+        "local"
+      ],
+      "cleanup": {
+        "container_id": "5fe9319c5e6b017dade5d87deffb7e0d926d64eda7564811b164dd8ee4ea5f41",
+        "epoch": 1,
+        "recorded_utc": "2026-11-24T02:16:14.541144+00:00",
+        "stopped": true,
+        "transport_drained": true,
+        "container_status": "exited",
+        "container_pid": 0,
+        "bridge_closed": true
+      }
+    },
+    "live_commerce_repair_success_claimed": false
+  },
+  "local_evidence_sha256": {
+    "results/e2e-fresh-19/terminal.json": "0f2b150da6b72932db44900db6de0ccf344ebd241f3f0c734f117d2b80b22839",
+    "results/e2e-fresh-19/outcome.json": "daec5359c1ef324b25bde7557c023bd3fb2ea26b2ebdb8fc17b823be87d65e6a",
+    "results/e2e-fresh-19/operator-verification.json": "0b01a171a1f245a9d18ff45d1b46e4543f9f4c03088696f8ae5516c8df8f8767",
+    "diagnostics/run19-mixed-models/alias-fix-probe-summary.json": "a3bc87a237f8adde5cf41fe2c90eed9c8b384517de9849f8fa241c62b17d4f95"
+  }
+}

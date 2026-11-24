@@ -29,6 +29,34 @@ def inkling_pin():
 
 
 class MixedModelTests(unittest.TestCase):
+    def test_alias_listing_accepts_only_the_explicit_same_root_context_deployment(self):
+        row={'id':inkling.MODEL,'root':'/checkpoint','max_model_len':98304}
+        listing={'data':[row,{**row,'id':'local'}]}
+        self.assertEqual(native_transport.validate_model_listing(listing,inkling.MODEL,98304,'/checkpoint',
+            aliases=[inkling.MODEL,'local']),row)
+        with tempfile.TemporaryDirectory() as directory:
+            bridge=inkling.Backend(Path(directory),inkling_pin()).bridge
+            connection=MagicMock()
+            response=connection.getresponse.return_value.__enter__.return_value
+            response.status=200
+            response.read.return_value=json.dumps({'data':list(reversed(listing['data']))}).encode()
+            with patch.object(native_transport,'HTTPConnection',return_value=connection):
+                self.assertEqual(bridge.model_record()['id'],inkling.MODEL)
+            connection.close.assert_called_once()
+        # Preserve strict single-model behavior for existing Qwen pins.
+        with self.assertRaises(native_transport.HyperQwenBridgeError):
+            native_transport.validate_model_listing(listing,inkling.MODEL,98304,'/checkpoint')
+        for kind in ('missing','duplicate','foreign','root','context','malformed'):
+            changed=deepcopy(listing)
+            if kind=='missing':changed['data'].pop(0)
+            if kind=='duplicate':changed['data'][1]['id']=inkling.MODEL
+            if kind=='foreign':changed['data'][1]['id']='unapproved'
+            if kind=='root':changed['data'][1]['root']='/another-model'
+            if kind=='context':changed['data'][1]['max_model_len']=32768
+            if kind=='malformed':changed['data'][1]=None
+            with self.subTest(kind=kind),self.assertRaises(native_transport.HyperQwenBridgeError):
+                native_transport.validate_model_listing(changed,inkling.MODEL,98304,'/checkpoint',aliases=[inkling.MODEL,'local'])
+
     def preview(self,root):
         return mixed.profile(qwen_pin(),inkling_pin(),executable(root),source_bytes=DEFAULT_SOURCE_BYTES)
 

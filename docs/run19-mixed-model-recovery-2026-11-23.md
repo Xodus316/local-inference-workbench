@@ -1,0 +1,13 @@
+# Run 19 mixed-model recovery — November 23, 2026
+
+Run 19 was a fresh, unattended Commerce build with Qwen 3.8 27B AutoRound-fast handling planning, implementation, smoke and independent test authorship, and review. Inkling 2 Mini W4A16 g128 GPTQ through HyperInkling with DSpark enabled was assigned application diagnosis, file selection and edits. All agents used OpenCode with compaction, with model manifests and isolated sessions explicitly approved per role.
+
+The run ended `failed` before its first Inkling repair request. Qwen completed planning and the 66-file implementation. The first backend checkpoint reported a Kotlin build-script syntax error. The orchestrator selected a scoped compiler repair, drained and stopped Qwen, and started its owned Inkling container. Admission then rejected the model listing because the inherited bridge expected exactly one model entry. The pinned HyperInkling deployment advertises both `inkling-2-mini` and `local` for the same checkpoint. No Inkling inference was dispatched.
+
+The run was observed without edits, rescue, restart or continuation. All 120 frozen source/input hashes and four saved checkpoints were independently verified. Its 32 Qwen native requests completed, including one automatic compaction. Both owned containers were independently verified by exact ID, image and ownership nonce, stopped with PID zero, drained and closed. The failed terminal outcome and original candidate remain unchanged.
+
+The compatibility fix freezes the explicit served-alias inventory. Admission requires every approved name exactly once, all pointing to the pinned model root and context. It rejects unknown, duplicate, missing or differently bound aliases. The original single-model HyperQwen rule is unchanged. Compiler requirements, privacy barriers and repair allowances were not relaxed.
+
+All 33 native-adapter tests passed, including the alias inventory, authenticated listing path, malformed/ambiguous listings and unchanged single-model behavior. A separate owned Inkling lease then validated the actual model listing and completed a tiny synthetic OpenCode syntax repair with normal native receipts and confirmed cleanup. That control used no Commerce source and is not an autonomous Commerce repair or end-to-end success. [Derived terminal/probe results and local receipt hashes](../benchmarks/reports/run19-mixed-model-2026-11-23.json) retain the distinction.
+
+The user authorized a new numbered fresh build after repairing an orchestrator defect. Run 20 is prepared separately from the unchanged specification and verifier inputs, with a new code/model-binding approval and empty application/plan state. No Run 19 candidate or synthetic control source is imported.

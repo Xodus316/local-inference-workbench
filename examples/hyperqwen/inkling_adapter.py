@@ -16,6 +16,7 @@ MODEL = 'inkling-2-mini'
 IMAGE = 'ghcr.io/pento95/hyperinkling@sha256:e6db7291d84c32821789d0e56c38fdd935fbe6375f6057dcf7f64302455c7878'
 POLICY = 'hyperinkling-dspark-isolated-repair-v1'
 SETTINGS = {'MODEL':'/checkpoint','HOST':'0.0.0.0','ENV_FILE':'','SERVED_NAME':MODEL,
+    'SERVED_ALIASES':'local',
     'MAX_LEN':'98304','MAX_SEQS':'1','NBT':'1024','GPU_UTIL':'0.92','KV_DTYPE':'fp8',
     'KV_OFFLOAD_GB':'0','MM_CACHE_GB':'1','IMAGES':'0','WARMUP':'0','SPEC':'dspark',
     'SPEC_DRAFT':'probabilistic','HYPERINKLING_LOOKUP':'0',
@@ -51,7 +52,8 @@ class Bridge(native.Bridge):
         self._role_profile = None
         self._identity.update(name='hyperinkling-vllm',e2e_policy=POLICY,reasoning_effort='xhigh',
             adapter_sha256=native.sha(native.__file__),session_isolation=native.ISOLATION,
-            native_source_sha256=native.native_source_identity(),mixed_native_source_sha256=source_identity())
+            native_source_sha256=native.native_source_identity(),mixed_native_source_sha256=source_identity(),
+            served_aliases=[MODEL,'local'])
 
     def role_profile(self,stage,role,tool_policy=None):
         if role != 'repairer':

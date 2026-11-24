@@ -69,6 +69,23 @@ class HyperQwenGenerationPolicyError(HyperQwenBridgeError):
     """An upstream-completed response failed its approved generation budget."""
 
 
+def validate_model_listing(listing, model, context, model_root, *, aliases=None):
+    """Aliases may identify one deployment; unrelated or ambiguous models may not."""
+    expected = [model] if aliases is None else aliases
+    records = listing.get('data') if isinstance(listing,dict) else None
+    if (not isinstance(expected,list) or not expected or model not in expected
+            or any(not isinstance(alias,str) or not alias for alias in expected)
+            or len(set(expected)) != len(expected)
+            or not isinstance(records,list) or len(records) != len(expected)
+            or any(not isinstance(row,dict) or not isinstance(row.get('id'),str) for row in records)):
+        raise HyperQwenBridgeError('Owned model listing differs from the approved alias inventory')
+    if (set(row['id'] for row in records) != set(expected)
+            or any(row.get('max_model_len') != context
+                   or model_root is not None and row.get('root') != model_root for row in records)):
+        raise HyperQwenBridgeError('Owned model listing differs from the approved aliases, root or context')
+    return next(row for row in records if row['id']==model)
+
+
 def _generation_policy(stage, effort, value):
     if value is None:
         return None
@@ -326,11 +343,8 @@ class HyperQwenOpenCodeBridge:
         finally:
             connection.close()
         listing = _strict_json(raw.decode("utf-8"))
-        records = listing.get("data") if isinstance(listing, dict) else None
-        row = records[0] if isinstance(records, list) and len(records) == 1 else None
-        if (not isinstance(row, dict) or row.get("id") != self.model or row.get("max_model_len") != self.context
-                or self._identity.get("model_root", row.get("root")) != row.get("root")):
-            raise HyperQwenBridgeError("The owned HyperQwen listing differs from the approved model and context")
+        validate_model_listing(listing, self.model, self.context, self._identity.get('model_root'),
+                               aliases=self._identity.get('served_aliases'))
         return {"id": self.model, "object": "model", "owned_by": "vllm", "max_model_len": self.context}
 
     def identity(self):
