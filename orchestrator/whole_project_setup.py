@@ -6,7 +6,7 @@ from pathlib import Path
 from .project_build import (REFERENCE_TEST_REPAIR, REVIEWED_POLICY,
                             WHOLE_PROJECT_REPAIR_SELECTED_BYTES, offline_project_contract)
 from .project_dependency_reference import validate_dependency_reference
-from .role_isolation import KEY as ISOLATION_KEY, POLICY as ISOLATION_POLICY, SESSION, validate_role_isolation
+from .role_isolation import KEY as ISOLATION_KEY, isolation_binding, validate_role_isolation
 from .store import digest
 from .compile_progress import KEY as COMPILE_PROGRESS_KEY, POLICY as COMPILE_PROGRESS_POLICY, additional_repairs
 from .stage_recovery import KEY as RECOVERY_KEY, POLICY as RECOVERY_POLICY, enabled as recovery_enabled
@@ -85,15 +85,7 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
     if shared:
         if not runtime.config.build.allow_shared_test_author:
             raise ValueError('Same-model roles require explicit isolated-role configuration')
-        backend = value['backend']
-        value[ISOLATION_KEY] = {
-            'policy': ISOLATION_POLICY, 'model': value['roles']['test_author'],
-            'model_manifest_sha256': backend.get('model_manifest_sha256'),
-            'context': value['generation']['test_author']['context'],
-            'same_model_weights': True, 'session_isolation': SESSION,
-            'worker_identity_digests': {role: digest(worker) for role, worker in value['whole_project_workers'].items()},
-            'provider_identity_digest': digest(backend),
-        }
+        value[ISOLATION_KEY] = isolation_binding(value)
         validate_role_isolation(value)
     from .supplemental_test_capacity import projected_test_bytes
     for role, worker in value['whole_project_workers'].items():

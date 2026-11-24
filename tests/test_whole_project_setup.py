@@ -61,6 +61,21 @@ class FreshSetupTests(unittest.TestCase):
     def configure(self, value=None):
         return setup.configure_fresh_bundle(self.runtime, value or bundle(), source_bytes=SOURCE_BYTES)
 
+    def test_mixed_repair_model_freezes_per_role_manifests_without_a_same_weights_claim(self):
+        from orchestrator.role_isolation import KEY, MIXED_POLICY, validate_role_isolation
+        original=bundle()
+        original['roles']['repairer']='inkling-repair'
+        worker={**identity('repairer'),'model':'inkling-repair','model_digest':'b'*64}
+        self.runtime.whole_project_workers['repairer'].identity.return_value=worker
+        original['backend'].update(context=98304,review_worker={**identity('reviewer')})
+        value=self.configure(original)
+        self.assertEqual(value[KEY]['policy'],MIXED_POLICY)
+        self.assertEqual(value[KEY]['role_bindings']['repairer']['manifest'],'b'*64)
+        self.assertNotIn('same_model_weights',value[KEY])
+        self.assertTrue(validate_role_isolation(value))
+        value['roles']['repairer']=MODEL
+        with self.assertRaises(ValueError):validate_role_isolation(value)
+
     def test_fresh_bundle_has_zero_costs_no_seed_and_exact_worker_source_binding(self):
         original = bundle()
         before = deepcopy(original)

@@ -53,7 +53,7 @@ class HyperQwenWholeBackend:
         if type(port) is not int or not 1024 <= port <= 65535:
             raise ValueError("HyperQwen requires a local trial port")
         self.directory = Path(directory)
-        self.pin = _validated_pin(pin)
+        self.pin = self.validate_pin(pin)
         self.port = port
         self.owner = None
         self.bridge = None
@@ -63,6 +63,8 @@ class HyperQwenWholeBackend:
         self._epoch = 0
         self._deactivations = 0
         self._lock = RLock()
+
+    validate_pin = staticmethod(_validated_pin)
 
 
     def __exit__(self, _exc_type, error, _traceback):
@@ -93,6 +95,7 @@ class HyperQwenWholeBackend:
     def activate(self, cancel, deadline):
         """Start the same container and return its authenticated, checked identity."""
         with self._lock:
+            deadline = min(deadline, time.monotonic() + 1200)
             if self._closed or not self._bridge_open:
                 raise ValueError("Open the owned HyperQwen lifecycle before activation")
             _remaining(cancel, deadline)
@@ -246,6 +249,11 @@ def checked_command(*args,env=None,timeout=60):
 
 class OwnedBackend(HyperQwenWholeBackend):
     """Never treats a timed-out create client as proof that Docker did nothing."""
+    image, model, launch_profile = IMAGE, MODEL, PROFILE
+    mounts, start_command, shm_size = (MODELS_MOUNT, CACHE_MOUNT), ('single',), '1g'
+
+    def _make_bridge(self, *args, **kwargs):
+        return make_bridge(*args, **kwargs)
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
         self.create_intent=None
@@ -280,7 +288,7 @@ class OwnedBackend(HyperQwenWholeBackend):
         if (not isinstance(observed['container_id'],str) or re.fullmatch('[a-f0-9]{64}',observed['container_id']) is None
                 or observed['name']!='/'+self.create_intent['name']
                 or observed['image_id']!=self.create_intent['image_id']
-                or observed['image_reference']!=IMAGE
+                or observed['image_reference']!=self.image
                 or observed['ownership_label']!=self.create_intent['ownership_nonce']
                 or (self.owner is not None and self.owner!=observed['container_id'])):
             raise ValueError('Inspected container does not match exact name, nonce and pinned image ownership')
@@ -291,7 +299,7 @@ class OwnedBackend(HyperQwenWholeBackend):
         save(self.directory/'owner.json',{'container_id':self.owner,'name':self.create_intent['name'],
             'port':self.port,'lifecycle_policy':POLICY,'ownership_label':OWNER_LABEL,
             'ownership_nonce':self.create_intent['ownership_nonce'],'image_id':self.create_intent['image_id'],
-            'image_reference':IMAGE,'reconciled_after_create_failure':reconciled})
+            'image_reference':self.image,'reconciled_after_create_failure':reconciled})
 
     def __enter__(self):
         with self._lock:
@@ -305,17 +313,17 @@ class OwnedBackend(HyperQwenWholeBackend):
             name='workbench-fresh-model-'+uuid4().hex[:10]
             nonce=uuid4().hex
             self.create_intent={'policy':POLICY,'name':name,'ownership_label':OWNER_LABEL,
-                'ownership_nonce':nonce,'image_reference':IMAGE,'image_id':None,'port':self.port,
-                'create_timeout_seconds':CREATE_TIMEOUT_SECONDS,'settings':{**PROFILE,'PORT':str(self.port)},
+                'ownership_nonce':nonce,'image_reference':self.image,'image_id':None,'port':self.port,
+                'create_timeout_seconds':CREATE_TIMEOUT_SECONDS,'settings':{**self.launch_profile,'PORT':str(self.port)},
                 'provisioning_timeout_seconds':CREATE_TIMEOUT_SECONDS,
-                'mounts':[MODELS_MOUNT,CACHE_MOUNT],'gpu_device':'0','secret_material_recorded':False}
+                'mounts':list(self.mounts),'gpu_device':'0','secret_material_recorded':False}
             save(self.directory/'provisioning-intent.json',self.create_intent)
             self._provisioning_deadline=time.monotonic()+CREATE_TIMEOUT_SECONDS
             key=secrets.token_urlsafe(32)
             settings=[item for k,v in self.create_intent['settings'].items() for item in ('-e',f'{k}={v}')]
             phase='image-resolution'
             try:
-                image_id=checked_command('image','inspect','--format','{{.Id}}',IMAGE,timeout=self._provisioning_remaining())
+                image_id=checked_command('image','inspect','--format','{{.Id}}',self.image,timeout=self._provisioning_remaining())
                 if re.fullmatch('sha256:[a-f0-9]{64}',image_id) is None:
                     raise ValueError('Pinned image inspection returned an invalid config ID')
                 self.create_intent['image_id']=image_id
@@ -327,8 +335,9 @@ class OwnedBackend(HyperQwenWholeBackend):
                 save(self.directory/'create-intent.json',self.create_intent)
                 self._create_dispatched=True
                 owner=checked_command('create','--pull','never','--name',name,'--label',OWNER_LABEL+'='+nonce,
-                    '--gpus','device=0','--shm-size','1g','-p',f'127.0.0.1:{self.port}:{self.port}',
-                    '--mount',MODELS_MOUNT,'--mount',CACHE_MOUNT,'-e','VLLM_API_KEY',*settings,IMAGE,'single',
+                    '--gpus','device=0','--shm-size',self.shm_size,'-p',f'127.0.0.1:{self.port}:{self.port}',
+                    *[item for mount in self.mounts for item in ('--mount',mount)],
+                    '-e','VLLM_API_KEY',*settings,self.image,*self.start_command,
                     env={**os.environ,'VLLM_API_KEY':key},timeout=create_remaining)
                 if re.fullmatch('[a-f0-9]{64}',owner) is None:
                     raise ValueError('Docker did not return the exact created container ID')
@@ -342,7 +351,7 @@ class OwnedBackend(HyperQwenWholeBackend):
                 if not _stopped(observed['state']) or observed['state']['Status']!='created':
                     raise ValueError('The owned backend must begin stopped')
                 phase='bridge-open'
-                self.bridge=make_bridge(f'http://127.0.0.1:{self.port}',key,model=MODEL,context=CONTEXT,
+                self.bridge=self._make_bridge(f'http://127.0.0.1:{self.port}',key,model=self.model,context=CONTEXT,
                     directory=self.directory/'requests',backend_identity=self.pin)
                 self.bridge.__enter__();self._bridge_open=True
                 return self
