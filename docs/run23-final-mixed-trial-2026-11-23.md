@@ -1,0 +1,13 @@
+# Final mixed-model trial — Run 23, November 23, 2026
+
+Run 23 ended **failed** after 52m50s without operator intervention. Qwen's initial planner response reached its output cap; its existing single plan correction succeeded. Qwen then completed a fresh 72-file implementation with two automatic OpenCode compactions. Inkling repaired backend compilation on its first attempt and frontend compilation after two attempts. Both original compiler gates passed. This was the furthest progress of the mixed-model trials.
+
+The terminal failure occurred in Qwen smoke-test authoring. The initial suite declared the correct 72 application paths but contained invalid Python syntax. The existing correction returned a 70-path inventory, omitting AffiliateRevenueRow.java and ProductRevenueRow.java. Exact application inventory validation rejected it. No smoke suite ran, and independent test qualification, review, final verification and delivery were not reached. The 72 application files remain in the recorded output; they have no completed end-to-end acceptance or delivery claim. No application/test source, gate or frozen input was manually changed during the trial.
+
+Independent audit verified every one of the 121 frozen inputs, all 18 code/approval/receipt-bound checkpoints, 75 complete Qwen native requests with two compactions and 22 complete Inkling native requests. Exact owned Qwen and Inkling containers stopped with PID 0 and drained/closed bridges. The GPU was released.
+
+This run demonstrates actual Inkling compiler recovery on a fresh application. It does not establish an overall end-to-end benefit or that Inkling caused the terminal failure: both failed smoke-authoring calls used Qwen. Across Runs 19–23 there is still no completed end-to-end result. Run 19 failed integration admission; Runs 20–21 stopped at backend compilation; Run 22 stopped at Qwen implementation output limits; Run 23 passed both compiler gates before the smoke-authoring rejection.
+
+The user limited the experiment to this last mixed-model trial and requested Qwen repairs if it failed. Further mixed-model trials stop. The next prepared configuration returns every workflow role, including repair selection/diagnosis/edits, to the pinned Qwen 3.8 27B HyperQwen+MTP OpenCode route. Existing automatic compaction, isolated role sessions, checkpoints, recovery evidence, token/repair budgets and all compiler/test/review gates remain enabled. HyperInkling support remains available as an optional capability, but is not selected for the next configuration. No next GPU run is launched as part of this fallback preparation.
+
+[Derived result and receipt hashes](../benchmarks/reports/run23-final-mixed-trial-2026-11-23.json).

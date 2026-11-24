@@ -1,0 +1,67 @@
+{
+  "policy": "run23-final-mixed-trial-v1",
+  "date": "2026-11-23",
+  "status": "failed",
+  "run_id": "0e341ca7-c348-42f9-82a8-537331daffc8",
+  "elapsed_seconds": 3169.634,
+  "no_operator_intervention": true,
+  "frozen_files_verified": 121,
+  "checkpoints_verified": 18,
+  "native": {
+    "qwen": {
+      "completed": 75,
+      "compactions": 2
+    },
+    "inkling": {
+      "completed": 22,
+      "compactions": 0
+    }
+  },
+  "implementation_files": 72,
+  "compiler_checks": [
+    {
+      "stage": "build_compile_checkpoint_1_0",
+      "status": "failed"
+    },
+    {
+      "stage": "build_compile_checkpoint_1_1",
+      "status": "passed"
+    },
+    {
+      "stage": "build_compile_checkpoint_2_0",
+      "status": "failed"
+    },
+    {
+      "stage": "build_compile_checkpoint_2_1",
+      "status": "failed"
+    },
+    {
+      "stage": "build_compile_checkpoint_2_2",
+      "status": "passed"
+    }
+  ],
+  "compiler_repairs": {
+    "backend": 1,
+    "frontend": 2
+  },
+  "smoke_authoring": {
+    "model": "qwen3.8-27b",
+    "initial_rejection": "Generated Python test file has invalid syntax: tests/test_smoke.py",
+    "correction_rejection": "Self-tests must declare the exact whole-project implementation paths",
+    "corrected_inventory_count": 70,
+    "missing_paths": [
+      "api/src/main/java/com/example/commerce/dto/AffiliateRevenueRow.java",
+      "api/src/main/java/com/example/commerce/dto/ProductRevenueRow.java"
+    ]
+  },
+  "smoke_execution_independent_tests_review_delivery_reached": false,
+  "qwen_repair_fallback_requested": true,
+  "further_mixed_model_trials_authorized": false,
+  "next_trial_policy": "Fresh Qwen-only OpenCode roles, prepare without launching; retain unchanged verifier and recovery gates.",
+  "evidence_sha256": {
+    "results/e2e-fresh-23/operator-verification.json": "b75c921f84c9af92e1b4237b08af170b97c790a2beeac730f968369828befa8a",
+    "results/e2e-fresh-23/terminal.json": "3b80fe1c0642b1887c13e6991fabb8046a13ec350f5e5642669e9bf425e93c9c",
+    "results/e2e-fresh-23/state/artifacts/0e341ca7-c348-42f9-82a8-537331daffc8/whole_self_tests.raw.json": "a5f9d3c832e5f9dce17b2dc10b20ca5d05fc3885fcf41cb9c7ceea10f195c839",
+    "results/e2e-fresh-23/state/artifacts/0e341ca7-c348-42f9-82a8-537331daffc8/whole_self_tests_retry.raw.json": "d148de41b8e9c2215a756831a37b95f9f6fd8c305060d049dd43ba83e805f175"
+  }
+}
