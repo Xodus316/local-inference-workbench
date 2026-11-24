@@ -270,6 +270,44 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.assertEqual([c.kwargs['stage'] for c in worker.generate.call_args_list],
                          ['whole_self_tests','whole_self_tests_retry'])
 
+    def test_unknown_validation_consults_agent_and_replays_its_correction_after_pause(self):
+        from orchestrator.stage_recovery import KEY,DYNAMIC_POLICY
+        self.provider.pause.return_value={'released':True}
+        self.executor.test.side_effect=lambda *args,**kwargs:verifier_receipt(passed=True)
+        bad='self.assertEqual(2, 1 + )';fixed='self.assertEqual(2, 1 + 1)'
+        for role in ['implementer','repairer']:
+            worker=self.runtime.whole_project_workers[role];author=worker.generate.side_effect
+            def generate(*, _author=author, **kwargs):
+                stage=kwargs['stage'];data=json.loads(kwargs['payload']['messages'][1]['content'])
+                framed={**kwargs,'payload':{'messages':[{}, {'content':json.dumps({'implementation_files':['app.py']})}]}}
+                value=_author(**framed)
+                if kwargs.get('tool_policy'):value['receipt']['tool_policy']=kwargs['tool_policy']
+                if stage=='whole_self_tests':value['value']['files'][0]['content']=value['value']['files'][0]['content'].replace(fixed,bad)
+                elif stage=='whole_self_tests_retry':
+                    value['value']={'summary':'A malformed edit response','edits':[
+                        {'path':'tests/test_self.py','before':'anchor absent from diagnosed source','after':fixed}]}
+                elif stage.endswith('_consult'):
+                    value['value']={'diagnosis':'The exact edit anchor is absent','evidence_quote':data['failure'],
+                        'action':'correct_stage_output','requested_changes':['Use an exact source anchor']}
+                elif stage.endswith('_output'):
+                    value['value']={'summary':'Correct the exact anchor','edits':[
+                        {'path':'tests/test_self.py','before':bad,'after':fixed}]}
+                    self.runtime.pause(self.runtime.active_run_id)
+                return value
+            worker.generate.side_effect=generate
+        paused=self.run_workflow(expected_status='paused',whole_project_repair_policy='verified-scoped-repair-v1',
+                                 **{KEY:DYNAMIC_POLICY})
+        self.assertEqual(paused['calls'][-1]['stage'],'whole_recovery_1_output')
+        self.runtime.approve(paused['id'],paused['digest'],resume=True);self.runtime.queue.join()
+        row=self.runtime.store.get(paused['id'])
+        self.assertEqual(row['status'],'completed',row.get('result'))
+        stages=[call['stage'] for call in row['calls']]
+        self.assertEqual(stages.count('whole_recovery_1_consult'),1)
+        self.assertEqual(stages.count('whole_recovery_1_output'),1)
+        counters=row['result']['output']['verification']['whole_project']['budget_counters']
+        self.assertEqual(counters['recovery_diagnosis'],1)
+        self.assertEqual(counters['recovery_output_correction'],1)
+
     def test_incomplete_implementation_without_confirmed_cleanup_stops(self):
         worker = self.runtime.whole_project_workers["implementer"]
         write = worker.run.side_effect

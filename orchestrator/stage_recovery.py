@@ -17,24 +17,31 @@ from .store import digest
 KEY = 'whole_project_stage_recovery_policy'
 POLICY = {'policy': 'evidence-routed-stage-recovery-v1', 'max_diagnoses': 16,
           'max_requests': 64, 'max_identical_diagnoses': 2}
+DYNAMIC_POLICY = {**POLICY, 'policy':'agent-consulted-stage-recovery-v2', 'max_output_corrections':4}
 
 
 def enabled(bundle):
     value = bundle.get(KEY)
     if value is None:
         return False
-    if (value != POLICY or any(type(value.get(k)) is not int for k in
-                              ('max_diagnoses', 'max_requests', 'max_identical_diagnoses'))
+    if (value not in (POLICY,DYNAMIC_POLICY) or any(type(v) is not int for k,v in value.items() if k!='policy')
             or bundle.get('whole_project_repair_policy') != 'verified-scoped-repair-v1'):
         raise ValueError('Invalid approved stage recovery policy')
     return True
+
+
+def dynamic_enabled(bundle):
+    return enabled(bundle) and bundle[KEY] == DYNAMIC_POLICY
 
 
 def validate_costs(bundle, counters):
     if not enabled(bundle):
         return
     limits = {'recovery_diagnosis': POLICY['max_diagnoses'], 'recovery_request': POLICY['max_requests']}
+    if dynamic_enabled(bundle):limits['recovery_output_correction'] = DYNAMIC_POLICY['max_output_corrections']
     for key, count in counters.items():
+        if key == 'recovery_output_correction' and not dynamic_enabled(bundle) and count:
+            raise ValueError('Agent output correction costs require their explicit V2 approval')
         maximum = POLICY['max_identical_diagnoses'] if key.startswith('recovery_issue_') else limits.get(key)
         if maximum is not None and (type(count) is not int or not 0 <= count <= maximum):
             raise ValueError('Acceptance checkpoint has invalid stage recovery costs')
@@ -163,7 +170,7 @@ def validate_diagnosis(raw, files, diagnostic, byte_limit):
 class StageRecovery:
     def __init__(self, flow):
         self.flow = flow
-        self.requests = flow.output.setdefault('recovery', {'policy': POLICY['policy'], 'requests': []})['requests']
+        self.requests = flow.output.setdefault('recovery', {'policy':flow.bundle[KEY]['policy'], 'requests': []})['requests']
         self.authorized = {}
         self.dispatch_requests = set()
 
@@ -204,10 +211,14 @@ class StageRecovery:
                 raise ValueError('Recovery request budget is exhausted; worker dispatch was not authorized')
             self.dispatch_requests.add(stage)
 
-    def terminal(self, stage, message, *, execution_unknown=False):
+    def terminal(self, stage, message, *, execution_unknown=False, error=None):
         _, owner = route(stage)
         unknown = execution_unknown or any(marker in message.lower() for marker in (
             'native_completion_unknown', 'completion is unknown', 'unresolved owned', 'cleanup incomplete', 'ownership mismatch'))
+        if dynamic_enabled(self.flow.bundle):
+            from .agent_recovery import barrier
+            unknown = unknown or bool(barrier(self.flow,message))
+        consultation = self.consult(stage,error if error is not None else message) if dynamic_enabled(self.flow.bundle) and not unknown else None
         value = self.request(stage, 'operator' if unknown else owner,
             'resolve_execution' if unknown else 'correct_stage_output', evidence=message,
             status='blocked', reason=message)
@@ -215,7 +226,19 @@ class StageRecovery:
             self.flow.output['recovery']['terminal_request'] = {
                 'stage': stage, 'phase': route(stage)[0], 'owner': 'operator',
                 'action': 'assess_exhausted_recovery', 'status': 'blocked', 'reason': message[:1600]}
+        elif consultation is not None:
+            value['agent_consultation'] = consultation
         return value
+
+    def consult(self, stage, error, context=None):
+        if not dynamic_enabled(self.flow.bundle):return None
+        from .agent_recovery import consult
+        return consult(self,stage,error,context)
+
+    def validate_output(self, value, validator, context=None):
+        if not dynamic_enabled(self.flow.bundle):return validator(value)
+        from .agent_recovery import validate_output
+        return validate_output(self,value,validator,context)
 
     def diagnose(self, artifact, suite, receipt, *, checkpoint=None, profile=None):
         flow, failed_stage = self.flow, self.flow.stage
@@ -261,7 +284,8 @@ class StageRecovery:
                 'project_dependency_reference': getattr(flow, 'dependency_reference', None)}
         try:
             raw, _, _ = flow._repair_decision(stage, FailureDiagnosis, instruction, data)
-            value, paths = validate_diagnosis(raw, artifact.files, diagnostic, flow.contract['repair_selected_bytes'])
+            value, paths = flow.validate_generated(raw, lambda response:validate_diagnosis(
+                response,artifact.files,diagnostic,flow.contract['repair_selected_bytes']))
         finally:
             flow.stage = failed_stage
         owner = 'repairer' if paths else 'test_author' if value.owner == 'test_author' else 'operator'

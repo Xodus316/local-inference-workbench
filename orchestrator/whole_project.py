@@ -1,6 +1,7 @@
 """Run an opt-in whole-project implementation and two separate test suites."""
 
 from functools import lru_cache, partial
+from copy import deepcopy
 import math
 import re
 import time
@@ -34,6 +35,7 @@ from .whole_project_sandbox import (SelfTestFixtureError, SelfTestSyntaxError, c
                                     smoke_source_patch_type, smoke_test_type, validate_self_fixture_correction,
                                     validate_self_suite)
 from .project_dependency_reference import validate_dependency_reference
+from .agent_recovery import INLINE_RECOVERY_POLICY
 from .whole_project_repair import (POLICY as REPAIR_POLICY, focused_feedback, public_repair_plan,
                                    verification_observation, verification_regressions)
 from .whole_project_selection import (COMPILER_SELECTION_POLICY, INLINE_SELECTION_POLICY, SELECTION_OUTPUT_TOKENS,
@@ -656,21 +658,27 @@ class WholeProjectBuildRun(ProjectBuildRun):
             paths = sorted(set(selection.files))
             selected_bytes = sum(sizes[path] for path in paths)
             if selected_bytes > limit:
-                raise ValueError(f"Repair selection still exceeds {limit} UTF-8 bytes after one retry ({selected_bytes} bytes)")
+                def bounded_selection(response):
+                    selected = model_type.model_validate(response)
+                    chosen = sorted(set(selected.files))
+                    size = sum(sizes[path] for path in chosen)
+                    if size > limit:
+                        raise ValueError(f'Repair selection still exceeds {limit} UTF-8 bytes after one retry ({size} bytes)')
+                    return selected,chosen,size
+                selection,paths,selected_bytes = self.validate_generated(raw,bounded_selection)
         selected_source(artifact.files, paths, limit)
         self.stages[selection_stage].update(selected_paths=paths, selected_utf8_bytes=selected_bytes,
                                            diagnosis=selection.diagnosis.model_dump())
         return paths, {**evidence, "diagnosis": selection.diagnosis.model_dump()}
 
-    def _repair_decision(self, stage, model_type, instruction, data):
+    def _repair_decision(self, stage, model_type, instruction, data, *, role='repairer', tool_policy=INLINE_SELECTION_POLICY):
         """One clean, smaller-context restart for any shared repair decision."""
         try:
-            raw = self._generate(stage, "repairer", model_type, instruction, data, {},
-                                 tool_policy=INLINE_SELECTION_POLICY)
+            raw = self._generate(stage, role, model_type, instruction, data, {}, tool_policy=tool_policy)
             return raw, stage, False
         except OpenCodeSettledResponseError as error:
             proof = error.proof
-            if (error.reason != "structured-output-limit" or stage.endswith("_retry_select")
+            if (error.reason != "structured-output-limit" or stage.endswith(("_retry_select","_retry_consult"))
                     or (proof.get("completed_requests") != 1 and not (
                         proof.get("primary_requests") == 1 and type(proof.get("compaction_requests")) is int
                         and 1 <= proof['compaction_requests'] <= 8
@@ -679,16 +687,16 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     or not re.fullmatch(r"[a-f0-9]{64}", proof.get("native_receipts_digest", ""))
                     or not proof.get("session_id")):
                 raise
-            retry_stage = stage.removesuffix("_select") + "_retry_select"
+            retry_stage = (stage.removesuffix('_consult') + '_retry_consult' if stage.endswith('_consult')
+                           else stage.removesuffix('_select') + '_retry_select')
             self.stages.setdefault(stage, {})["selection_rejection"] = {
                 "reason": error.reason, "settled_response_proof": proof, "retry_stage": retry_stage}
-            source = data["current_source"]
+            source = data.get('current_source',[])
             while sum(len(row["content"].encode("utf8")) for row in source) > SELECTION_RESTART_SOURCE_BYTES:
                 source = trim_selection_source(source)
             retry_data = {**data, "current_source": source,
                 "previous_selection_rejection": "Completed at output limit; no selection was accepted. Return a compact final decision."}
-            raw = self._generate(retry_stage, "repairer", model_type, instruction, retry_data, {},
-                                 tool_policy=INLINE_SELECTION_POLICY)
+            raw = self._generate(retry_stage, role, model_type, instruction, retry_data, {}, tool_policy=tool_policy)
             return raw, retry_stage, True
 
     def repair_selected(self, stage, artifact, suite, plan, problem, feedback, *,
@@ -842,12 +850,23 @@ class WholeProjectBuildRun(ProjectBuildRun):
 
     def _generate(self, stage, role, model_type, instruction, data, visible, *, tool_policy=None):
         self.stage = stage
+        agent_recovery = tool_policy == INLINE_RECOVERY_POLICY
+        if agent_recovery:
+            from .stage_recovery import dynamic_enabled
+            from .agent_recovery import AGENT_STAGE
+            authority = getattr(self,'_agent_output_authority',None)
+            if (not getattr(self,'recovery',None) or not dynamic_enabled(self.bundle)
+                    or not AGENT_STAGE.fullmatch(stage) or visible
+                    or (stage.endswith('_consult') and not getattr(self.recovery,'_consulting',False))
+                    or (stage.endswith('_output') and authority != {'stage':stage,'role':role,
+                        'schema_digest':digest(model_type.model_json_schema())})):
+                raise ValueError('Agent recovery requires its approved coordinator, role and original schema')
         method_patch = isinstance(model_type, type) and issubclass(model_type, ReferenceMethodPatch)
         method_policy = data.get("method_patch_policy")
         method_tool_policy = {METHOD_PATCH_POLICY: None, METHOD_PATCH_POLICY_V2: INLINE_METHOD_PATCH_POLICY,
                               METHOD_PATCH_POLICY_V3: INLINE_METHOD_PATCH_POLICY_V3,
                               METHOD_PATCH_POLICY_V4: INLINE_METHOD_PATCH_POLICY_V4}.get(method_policy)
-        if method_patch and (
+        if method_patch and not agent_recovery and (
                 not self.scoped_repairs or not METHOD_PATCH_STAGE.fullmatch(stage) or role != "test_author" or visible
                 or method_policy not in {METHOD_PATCH_POLICY, METHOD_PATCH_POLICY_V2, METHOD_PATCH_POLICY_V3, METHOD_PATCH_POLICY_V4}
                 or model_type.model_json_schema() != reference_method_patch_type(data["targets"], policy=method_policy).model_json_schema()
@@ -859,7 +878,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
         diagnosis_policy = data.get("diagnosis_policy")
         diagnosis_tool_policy = {DIAGNOSIS_POLICY: INLINE_DIAGNOSIS_POLICY,
                                  DIAGNOSIS_POLICY_V2: INLINE_DIAGNOSIS_POLICY_V2}.get(diagnosis_policy)
-        if diagnosis and (
+        if diagnosis and not agent_recovery and (
                 not self.scoped_repairs or not DIAGNOSIS_STAGE.fullmatch(stage) or role != "test_author" or visible
                 or diagnosis_policy not in {DIAGNOSIS_POLICY, DIAGNOSIS_POLICY_V2} or tool_policy != diagnosis_tool_policy
                 or model_type.model_json_schema() != reference_diagnosis_type(data).model_json_schema()):
@@ -892,7 +911,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
         approved_tokenizer = self.bundle.get("whole_project_prompt_tokenizers", {}).get(role)
         if (tokenizer.identity() if tokenizer is not None else None) != approved_tokenizer:
             raise ValueError("The whole-project tokenizer differs from the approved model profile")
-        if tool_policy not in (None, INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, INLINE_AUTHOR_RESTART_POLICY,
+        if tool_policy not in (None, INLINE_SELECTION_POLICY, INLINE_SMOKE_POLICY, INLINE_AUTHOR_RESTART_POLICY, INLINE_RECOVERY_POLICY,
                                *REFERENCE_GENERATION_LIMITS):
             raise ValueError("Unapproved whole-project structured tool policy")
         if tool_policy in {INLINE_METHOD_PATCH_POLICY, INLINE_METHOD_PATCH_POLICY_V3, INLINE_METHOD_PATCH_POLICY_V4} and not method_patch:
@@ -915,7 +934,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                           SMOKE_OUTPUT_TOKENS if tool_policy == INLINE_SMOKE_POLICY else SELECTION_OUTPUT_TOKENS)
         data = dict(data)
         while True:
-            if inline and not reference_repair and not bounded_method and not author_restart:
+            if inline and not reference_repair and not bounded_method and not author_restart and not agent_recovery:
                 data["source_projection"] = projection_details(data["implementation_tree"], data["current_source"],
                                                               policy=tool_policy)
             inputs = self.model_inputs(data)
@@ -950,13 +969,15 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 raise ValueError("Complete reference method correction and output reserve exceed the approved context; inference was not dispatched")
             if author_restart:
                 raise ValueError("Independent author restart and its output reserve exceed the approved context")
+            if agent_recovery:
+                raise ValueError('Complete agent recovery evidence and output reserve exceed the approved context; inference was not dispatched')
             data["current_source"] = trim_selection_source(data["current_source"])
         options = {"tool_policy": tool_policy} if tool_policy is not None else {}
         result = self._opencode(stage, role, "generate", visible, payload=payload, **options)
         if "test_author_plan_projection" in inputs:
             self.stages.setdefault(stage, {})["test_author_plan_projection"] = inputs["test_author_plan_projection"]
         if inline:
-            if not bounded_method and not author_restart:
+            if not bounded_method and not author_restart and not agent_recovery:
                 self.stages[stage]["source_projection"] = inputs["source_projection"]
             self.stages[stage]["tool_policy"] = tool_policy
         if tokenizer is not None:
@@ -967,7 +988,23 @@ class WholeProjectBuildRun(ProjectBuildRun):
         value = result.get("value")
         if not isinstance(value, dict):
             raise ValueError("OpenCode did not return a structured result")
+        if agent_recovery:
+            model_type.model_validate(value)
+            return value
+        from .stage_recovery import dynamic_enabled
+        if getattr(self,'recovery',None) is not None and dynamic_enabled(self.bundle):
+            self._generation_context = {'stage':stage, 'role':role, 'model_type':model_type,
+                'instruction':instruction, 'data':deepcopy(data), 'value':deepcopy(value), 'value_digest':digest(value)}
+            def checked(raw):
+                model_type.model_validate(raw)
+                return raw
+            return self.validate_generated(value, checked)
         return value
+
+    def validate_generated(self, value, validator):
+        recovery = getattr(self,'recovery',None)
+        if recovery is None:return validator(value)
+        return recovery.validate_output(value, validator, getattr(self,'_generation_context',None))
 
     def ask(self, stage, role, model_type, instruction, **data):
         if getattr(self, 'recovery', None) is not None:
@@ -1175,7 +1212,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             "build_plan_retry", "planner", WholeProjectPlan,
             PLAN_BRIEF + instruction + " Return the complete plan. This is the only plan correction attempt.", **inputs,
         )
-        return self._validated_plan(corrected)
+        return self.validate_generated(corrected, self._validated_plan)
 
     def _implement(self, paths):
         stage = "implement"
@@ -1288,11 +1325,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     'Do not return a replacement suite, test inventory or manifest.',
                     {**data, 'previous_suite_validation':feedback, **syntax_inputs}, source, **options,
                 )
-                repaired = apply_test_syntax_repair(error.suite, syntax_inputs, corrected)
-                revised = validate_self_suite(self, repaired.model_dump(), artifact)
+                revised = self.validate_generated(corrected, lambda patch:validate_self_suite(self,
+                    apply_test_syntax_repair(error.suite,syntax_inputs,patch).model_dump(),artifact))
                 self.stages.setdefault(stage + '_retry', {})['syntax_correction'] = {
                     'policy':syntax_inputs['policy'], 'retained_manifest_digest':syntax_inputs['retained_manifest_digest'],
-                    'corrected_source_digest':digest([file.model_dump() for file in repaired.files]),
+                    'corrected_source_digest':digest([file.model_dump() for file in revised.files]),
                     'validated_suite_digest':digest(revised.model_dump())}
                 return revised
             if self.scoped_repairs and isinstance(error, SelfTestFixtureError):
@@ -1307,14 +1344,16 @@ class WholeProjectBuildRun(ProjectBuildRun):
                      "previous_suite": error.suite.model_dump(exclude={"implementation_files"}),
                      "fixture_diagnostics": error.diagnostics}, source, **options,
                 )
-                revised = validate_self_suite(self, compose_smoke_source_patch(error.suite, patch_type, corrected), artifact)
-                return validate_self_fixture_correction(error.suite, revised)
+                def checked_fixture(raw):
+                    revised = validate_self_suite(self,compose_smoke_source_patch(error.suite,patch_type,raw),artifact)
+                    return validate_self_fixture_correction(error.suite,revised)
+                return self.validate_generated(corrected,checked_fixture)
             corrected = self._generate(
                 stage + "_retry", "implementer", suite_type,
                 brief + " Use the validation feedback to write a corrected complete smoke suite.",
                 {**data, "previous_suite_validation": feedback}, source, **options,
             )
-            return validate_self_suite(self, corrected, artifact)
+            return self.validate_generated(corrected, lambda raw:validate_self_suite(self,raw,artifact))
 
     def _parse_independent_suite(self, raw, paths, stage):
         declared = raw.get("implementation_files")
@@ -1403,7 +1442,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     + getattr(self, "frontend_dom_test_brief", ""),
                     **patch_inputs,
                 )
-                revised = compose_coverage_patch(coverage_error.suite, corrected, criteria)
+                revised = self.validate_generated(corrected,lambda raw:compose_coverage_patch(coverage_error.suite,raw,criteria))
                 self.stages[stage]["coverage_correction"] = {
                     "policy": COVERAGE_PATCH_POLICY,
                     "previous_suite_digest": digest(coverage_error.suite.model_dump()),
@@ -1419,7 +1458,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 brief + " Use the validation feedback to write a corrected complete test suite.",
                 **data, previous_suite_validation=feedback,
             )
-            revised = self._parse_independent_suite(corrected, paths, stage)
+            revised = self.validate_generated(corrected,lambda raw:self._parse_independent_suite(raw,paths,stage))
             return revised
         if retained is not None:
             raise ValueError("Retained independent draft does not require a coverage-index correction")
@@ -1830,11 +1869,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
         except (IndependentSuiteRepairExhausted, VerificationGateStop) as error:
             self.output["error"] = {"stage": self.stage, "message": str(error)}
             if getattr(self, 'recovery', None) is not None:
-                self.recovery.terminal(self.stage, public_error(error))
+                self.recovery.terminal(self.stage, public_error(error), error=error)
             return "review_required"
         except Exception as error:
             if getattr(self, 'recovery', None) is not None:
-                self.recovery.terminal(self.stage, public_error(error))
+                self.recovery.terminal(self.stage, public_error(error), error=error)
             raise
 
     def _execute(self):

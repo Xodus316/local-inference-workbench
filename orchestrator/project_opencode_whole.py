@@ -20,6 +20,7 @@ from .project_opencode import (
     _session_events, _worker_path,
 )
 from .project_opencode_review import _terminal_review
+from .agent_recovery import INLINE_RECOVERY_POLICY, AGENT_STAGE
 from .repository import MAX_FILE, file_at
 from .store import MAX_ARTIFACT_BYTES
 from .whole_project_limits import (DEFAULT_SOURCE_BYTES, MAX_SOURCE_FILES, WHOLE_PROJECT_COMPLETION_TOKENS,
@@ -38,7 +39,7 @@ _MAX_TEST_FILES = 15
 SUPPLEMENTAL_TEST_BYTES = 48 * 1024
 _WORKTREE_TOOLS = frozenset({"apply_patch", "edit", "glob", "grep", "list", "multiedit", "read", "write"})
 _INLINE_POLICIES = (INLINE_SELECTION_POLICY, INLINE_REVIEW_POLICY, INLINE_SMOKE_POLICY, INLINE_AUTHOR_RESTART_POLICY,
-                    *REFERENCE_GENERATION_LIMITS)
+                    INLINE_RECOVERY_POLICY, *REFERENCE_GENERATION_LIMITS)
 WORKTREE_PARTIAL_POLICY = 'settled-worktree-output-limit-v1'
 _STRUCTURED_SYSTEM_PREFIX = (
     "Use only the supplied evidence and any files in this read-only worktree. "
@@ -302,6 +303,8 @@ class OpenCodeProjectWorker(OpenCodeWorker):
                     or (tool_policy == INLINE_REVIEW_POLICY and role != "reviewer")
                     or (tool_policy == INLINE_SMOKE_POLICY and (role != "implementer" or stage not in SMOKE_STAGES))
                     or (tool_policy == INLINE_AUTHOR_RESTART_POLICY and (role != "test_author" or stage != AUTHOR_RESTART_STAGE))
+                    or (tool_policy == INLINE_RECOVERY_POLICY and (not AGENT_STAGE.fullmatch(stage)
+                        or role not in {'planner','implementer','test_author','repairer'}))
                     or (tool_policy in REFERENCE_GENERATION_LIMITS and (role != "test_author" or not
                         (DIAGNOSIS_STAGE if tool_policy in DIAGNOSIS_TOOL_POLICIES else METHOD_PATCH_STAGE).fullmatch(stage)))):
                 raise ValueError("Inline generation requires an approved role and stage, schema and empty no-tool worktree")

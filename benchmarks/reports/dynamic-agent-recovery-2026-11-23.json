@@ -1,0 +1,76 @@
+{
+  "policy": "agent-consulted-stage-recovery-v2",
+  "date": "2026-11-23",
+  "models_in_next_preparation": {
+    "general_consultant": "qwen3.8-27b",
+    "independent_consultant": "qwen3.8-27b",
+    "correction": "original stage owner and approved model"
+  },
+  "transport": "OpenCode 1.19.0 with automatic compaction, HyperQwen+MTP",
+  "budgets": {
+    "shared_diagnoses": 16,
+    "shared_requests": 64,
+    "generic_output_corrections": 4,
+    "identical_diagnoses": 2
+  },
+  "tests": {
+    "core_total": 612,
+    "core_passed": 604,
+    "optional_skipped": 8,
+    "native_adapter_passed": 34
+  },
+  "fault_injection_phases": [
+    "planning",
+    "implementation",
+    "compile",
+    "smoke_authoring",
+    "smoke_qualification",
+    "smoke_verification",
+    "independent_authoring",
+    "independent_qualification",
+    "candidate_verification",
+    "supplemental_verification",
+    "verification_profile",
+    "review",
+    "final_verification",
+    "delivery",
+    "uncatalogued_stage"
+  ],
+  "unknown_execution_and_unsettled_sandbox_block_new_inference": true,
+  "original_schema_role_semantic_validator_and_acceptance_gates_retained": true,
+  "v1_approvals_unchanged": true,
+  "real_cli_synthetic_model_control": {
+    "status": "passed",
+    "control_kind": "real-pinned-opencode-and-native-bridge-with-synthetic-loopback-model",
+    "evidence_directory": "diagnostics/ag24/a2fc8a9d",
+    "stages_and_roles": [
+      [
+        "whole_self_tests_retry",
+        "implementer"
+      ],
+      [
+        "whole_recovery_1_consult",
+        "repairer"
+      ],
+      [
+        "whole_recovery_1_output",
+        "implementer"
+      ]
+    ],
+    "native_protocol_requests": 3,
+    "consultations": 1,
+    "output_corrections": 1,
+    "same_schema_revalidated": true,
+    "gpu_used": false,
+    "actual_model_inference": false,
+    "actual_model_quality_or_end_to_end_claim": false,
+    "scratch_disposed": true,
+    "application_or_plan_imported_into_fresh_trial": false
+  },
+  "gpu_or_actual_model_inference_started": false,
+  "evidence_sha256": {
+    "diagnostics/dynamic-agent-recovery/core-tests.log": "9783b496cbb52941053663c3e39c18efd1c2d47b1568c9224a1b0c5474ff0f86",
+    "diagnostics/dynamic-agent-recovery/real-cli-control-summary.json": "b22b055d99c94a36b4036eda9af7143f139429374c923568a4d3de20093f624e",
+    "diagnostics/ag24/a2fc8a9d/recovery-output.json": "a1707321aaddc977cabcf373061854562ea7cdd1aecbf541ec159b04f7633e01"
+  }
+}

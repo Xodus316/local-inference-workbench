@@ -15,6 +15,11 @@ import native_transport
 
 
 CASES = [('build_plan', 'planner', None), ('implement', 'implementer', None),
+    ('whole_recovery_1_consult','repairer',adapter.INLINE_RECOVERY_POLICY),
+    ('whole_recovery_1_retry_consult','repairer',adapter.INLINE_RECOVERY_POLICY),
+    ('whole_recovery_1_output','planner',adapter.INLINE_RECOVERY_POLICY),
+    ('whole_recovery_1_output','implementer',adapter.INLINE_RECOVERY_POLICY),
+    ('whole_recovery_1_output','test_author',adapter.INLINE_RECOVERY_POLICY),
     ('repair_1', 'repairer', None), ('build_tests_retry', 'test_author', None),
     ('build_code_review_1_chunk_1', 'reviewer', adapter.REVIEW_POLICY),
     ('whole_self_tests', 'implementer', adapter.INLINE_SMOKE_POLICY),

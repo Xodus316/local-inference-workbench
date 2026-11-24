@@ -9,7 +9,7 @@ from .project_dependency_reference import validate_dependency_reference
 from .role_isolation import KEY as ISOLATION_KEY, isolation_binding, validate_role_isolation
 from .store import digest
 from .compile_progress import KEY as COMPILE_PROGRESS_KEY, POLICY as COMPILE_PROGRESS_POLICY, additional_repairs
-from .stage_recovery import KEY as RECOVERY_KEY, POLICY as RECOVERY_POLICY, enabled as recovery_enabled
+from .stage_recovery import KEY as RECOVERY_KEY, DYNAMIC_POLICY as RECOVERY_POLICY, enabled as recovery_enabled
 from .whole_project import POLICY, WORKER_ROLES
 from .whole_project_checkpoint import REPAIR_POLICY
 from .whole_project_gates import POLICY as GATE_POLICY

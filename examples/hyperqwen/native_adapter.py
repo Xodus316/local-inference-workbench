@@ -29,6 +29,7 @@ from orchestrator.project_opencode_whole import (OpenCodeProjectWorker, OpenCode
 from orchestrator.store import digest, encoded
 from orchestrator.whole_project_limits import WHOLE_PROJECT_COMPLETION_TOKENS, WHOLE_PROJECT_TEST_BYTES, DEFAULT_SOURCE_BYTES
 from orchestrator.whole_project_selection import INLINE_SELECTION_POLICY, COMPACTED_DECISION_STEPS
+from orchestrator.agent_recovery import INLINE_RECOVERY_POLICY, AGENT_STAGE
 from orchestrator.whole_project_smoke import INLINE_SMOKE_POLICY, SMOKE_STAGES
 from orchestrator.whole_project_test_author import AUTHOR_RESTART_STAGE, INLINE_AUTHOR_RESTART_POLICY
 from orchestrator.whole_project_test_repair import DIAGNOSIS_STAGE, METHOD_PATCH_STAGE
@@ -65,7 +66,10 @@ def generation_policy(stage, role, tool_policy=None):
     if not isinstance(stage, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', stage):
         raise ValueError('Require a canonical workflow stage')
     thinking = 16384
-    if role == 'reviewer':
+    if tool_policy == INLINE_RECOVERY_POLICY:
+        valid = role in ROLES and AGENT_STAGE.fullmatch(stage)
+        if role == 'planner':thinking = 4096
+    elif role == 'reviewer':
         valid = (tool_policy == REVIEW_POLICY and
                  re.fullmatch(r'build_code_review_\d+_chunk_[1-9]\d*(?:_citation_retry)?', stage))
     elif role == 'planner':
@@ -324,7 +328,7 @@ class Worker(HyperQwenWholeProjectWorker):
             removed = []
             if original_schema is not None:
                 arguments['schema'], removed = transport_schema(original_schema)
-        if self.role == 'planner':
+        if self.role == 'planner' and arguments.get('tool_policy') != INLINE_RECOVERY_POLICY:
             arguments['system'] = PLANNER_SYSTEM + '\n\n' + arguments['system']
             arguments['prompt'] = PLANNER_PROMPT + '\n\n' + arguments['prompt']
         with self.bridge.role_profile(stage, self.role, arguments.get('tool_policy')) as session:
@@ -333,7 +337,7 @@ class Worker(HyperQwenWholeProjectWorker):
                 if native_receipts(self.bridge, stage):
                     raise ValueError('A native stage cannot be silently dispatched twice')
             restartable = ((self.role == 'test_author' and stage in {'build_tests', AUTHOR_RESTART_STAGE})
-                           or arguments.get('tool_policy') == INLINE_SELECTION_POLICY)
+                           or arguments.get('tool_policy') in {INLINE_SELECTION_POLICY,INLINE_RECOVERY_POLICY})
             try:
                 result = OpenCodeProjectWorker._session(self, stage=stage, **arguments)
             except BaseException as error:
@@ -343,7 +347,7 @@ class Worker(HyperQwenWholeProjectWorker):
                     known = (getattr(error, 'not_dispatched', False) if not rows else
                              all(row['receipt'].get('upstream_dispatched') is False or
                                  row['receipt'].get('done_event') is True for row in rows))
-                    if ((self.role == 'planner' or arguments.get('tool_policy') == INLINE_SELECTION_POLICY)
+                    if ((self.role == 'planner' or arguments.get('tool_policy') in {INLINE_SELECTION_POLICY,INLINE_RECOVERY_POLICY})
                             and isinstance(error, OpenCodeOutputLimitError)):
                         known = (1 <= error.steps <= COMPACTED_DECISION_STEPS and decision_rows(rows, finish='length')
                                  and all(row['receipt'].get('session_id') == session
