@@ -53,6 +53,8 @@ Verified requires a compatible local System One endpoint and decision model. The
 
 For internet access, set `research.enabled` and choose `research.provider`. The example selects Exa’s hosted search, which works without an account key. Ollama Web Search and Brave Search are also supported. Select **Internet Research** for a required lookup or enable optional search on a Balanced run. [Windows setup and provider comparison](docs/internet-research.md)
 
+To ground a reasoning run in local Markdown, start the optional Solr container, index the docs, and select **Search local docs**. Retrieved passages appear in the approval preview and can be cited in the answer. [Local document search setup](docs/local-document-search.md)
+
 Add absolute repository paths to `repositories` in your configuration to enable planning and edits. Inspect the selected file contents and proposed diff before approving changes. A separate worktree keeps the proposed files available for testing and review. Approved test commands run with the service account’s operating-system permissions. Use trusted repositories and commands. A Git worktree shares the host filesystem and network.
 
 ### State and API

@@ -57,6 +57,10 @@ prepared = api("/api/runs", {
 
 Inspect `result.stages.research` for the provider, queries, source excerpts, URLs and errors. A completed answer in `result.output` cites retrieved content. Balanced callers retain conditional lookup through `{"mode": "balanced", "research": true}`. [Provider setup](internet-research.md)
 
+## Search local documents
+
+After [setting up Solr](local-document-search.md), pass `"rag": true` in an Auto, Fast, Balanced, Verified, or Deep request with Internet search off. The prepare response lists the search method, corpus snapshot and retrieved source IDs in `bundle.local_search`. The matching excerpts are in `bundle.request.sources` with `kind: "local_document"`. Approve the prepared digest to run with those excerpts. Citations in `result.output.evidence` refer to one-based lines in the excerpt.
+
 ## Build a standalone Python program
 
 Complete the [Build setup](using-the-workbench.md#build-a-python-project) on the service machine. Use the `api` helper, approval and polling loop above with the following request.

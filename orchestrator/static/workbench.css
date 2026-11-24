@@ -7,3 +7,8 @@
 #search-sources{padding-inline-start:1.6rem}
 #search-sources li{margin:.45rem 0;overflow-wrap:anywhere}
 #search-sources p{white-space:pre-wrap;margin:.35rem 0}
+
+#rag-field{display:flex;align-items:center}
+#local-sources:empty{display:none}
+#local-sources{padding-inline-start:1.6rem}
+#local-sources li{overflow-wrap:anywhere}

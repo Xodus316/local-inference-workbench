@@ -15,8 +15,9 @@ from .build_sandbox import DockerBuildExecutor
 from .graph import build
 from .ollama import _strict_json
 from .provider import NativeProvider
+from .rag import SolrRetriever, embed
 from .research import create_researcher
-from .schemas import Request
+from .schemas import MAX_SOURCE_BYTES, MAX_SOURCES, RAG_MODES, Request
 from .stages import Stages
 from .store import Store, digest
 from .test_runner import run_test
@@ -33,6 +34,7 @@ class Runtime(CodeBuild, Stages):
         self.store = Store(Path(directory), config.storage_bytes)
         self.build_executor = build_executor or DockerBuildExecutor(self.store.directory, config.build)
         self.researcher = create_researcher(config.research)
+        self.retriever = SolrRetriever(config.rag)
         self.inference_lock = threading.Lock()
         self.management = threading.RLock()
         self.queue = queue.Queue(maxsize=config.queue_size)
@@ -59,6 +61,37 @@ class Runtime(CodeBuild, Stages):
         return {"provider": self.config.research.provider, "available": available,
                 "reason": None if available else "Internet search is unavailable in this service."}
 
+    def rag_settings(self):
+        return {"enabled": self.config.rag.enabled, "method": self.config.rag.method,
+                "modes": sorted(RAG_MODES)}
+
+    def _embed_question(self, question):
+        timeout = self.config.rag.timeout_seconds
+        if not self.inference_lock.acquire(timeout=timeout):
+            raise ValueError("Local inference is busy. Prepare the run again when it is idle")
+        try:
+            return embed(self.config.ollama_url, [question], timeout, truncate=True)[0]
+        finally:
+            self.inference_lock.release()
+
+    def _retrieve_inputs(self, request, packed):
+        config = self.config.rag
+        if not config.enabled:
+            raise ValueError("Enable rag.enabled in the Workbench configuration to search local docs")
+        remaining = MAX_SOURCES - len(request.sources)
+        if not remaining:
+            raise ValueError("Leave room for at least one retrieved source")
+        snapshot, sources = self.retriever.retrieve(request.prompt, min(config.top_k, remaining), self._embed_question)
+        used = sum(len(source.text.encode()) for source in request.sources)
+        ids = {source.id for source in request.sources}
+        for source in sources:
+            used += len(source.text.encode())
+            if source.id in ids or used > MAX_SOURCE_BYTES:
+                raise ValueError("Retrieved passages conflict with the attached sources or exceed the source size limit")
+            packed["sources"].append(source.model_dump())
+        return {"method": config.method, "core": config.core, "snapshot": snapshot,
+                "source_ids": [source.id for source in sources]}
+
     def prepare_whole_project(self, raw, **options):
         """Prepare a fresh, explicitly configured whole-project build."""
         return self.prepare(raw, whole_project=options)
@@ -72,6 +105,8 @@ class Runtime(CodeBuild, Stages):
                 raise ValueError(f"Internet search is unavailable ({readiness['provider']}, {readiness['reason']})")
         scope = None
         packed = request.model_dump()
+        if not request.rag:
+            packed.pop("rag")
         if mode in {"edit", "plan"}:
             root = Path(request.repository).resolve(strict=True)
             if root not in {Path(p).resolve() for p in self.config.repositories}:
@@ -97,13 +132,16 @@ class Runtime(CodeBuild, Stages):
         backend = identity() if callable(identity) else {"name": "injected"}
         bundle = {"tests": commands, "mode":mode, "request":packed, "repository":scope, "roles":self.config.roles,
                   "generation":{role:self.config.generation_for(role).model_dump()
-                                for role in self.config.roles}, "config_digest":digest(self.config.model_dump()),
+                                for role in self.config.roles},
+                  "config_digest":digest(self.config.model_dump(exclude=set() if request.rag else {"rag"})),
                   "web_research":mode == "research" or request.research,
                   "backend": backend}
         if self.config.run_timeout_seconds is None:
             bundle["run_timeout_seconds"] = None
         if bundle["web_research"]:
             bundle["internet_search_provider"] = self.config.research.provider
+        if request.rag:
+            bundle["local_search"] = self._retrieve_inputs(request, packed)
         if mode == "build":
             if (bundle["roles"]["test_author"] in {bundle["roles"][r] for r in ("implementer", "repairer")}
                     and not (self.config.build.allow_shared_test_author and request.build_profile is not None)):
@@ -137,9 +175,15 @@ class Runtime(CodeBuild, Stages):
     def _config_matches(self, bundle):
         current = self.config.model_dump()
         candidates = [current]
+        # Unused retrieval settings add no authority to an approval.
+        if "local_search" not in bundle:
+            candidates.append({key: value for key, value in current.items() if key != "rag"})
         # An unused optional backend adds no authority to historical approvals.
         if current.get("llama_cpp") is None:
-            candidates.append({key: value for key, value in current.items() if key != "llama_cpp"})
+            candidates += [
+                {key: value for key, value in candidate.items() if key != "llama_cpp"}
+                for candidate in candidates
+            ]
         if current["build"].get("reference_project") is None:
             for candidate in list(candidates):
                 legacy = copy.deepcopy(candidate)

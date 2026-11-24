@@ -89,11 +89,17 @@ class ControlFile(Record):
     content: str = Field(max_length=16000)
 
 
+RAG_MODES = frozenset({"auto", "fast", "balanced", "verified", "deep"})
+MAX_SOURCES = 32
+MAX_SOURCE_BYTES = 180_000
+
+
 class Request(Record):
     prompt: str = Field(min_length=1, max_length=20000)
     mode: Literal["auto","fast","balanced","research","verified","deep","plan","edit","build"] = "auto"
-    sources: list[Source] = Field(default_factory=list, max_length=32)
+    sources: list[Source] = Field(default_factory=list, max_length=MAX_SOURCES)
     research: bool = False
+    rag: bool = False
     tests: list[str] = Field(default_factory=list, max_length=8)
     control_files: list[ControlFile] = Field(default_factory=list, max_length=40)
     build_profile: Literal["offline-project-v1", "offline-project-reviewed-v1"] | None = None
@@ -117,10 +123,12 @@ class Request(Record):
             raise ValueError("Select distinct tests in edit mode")
         if self.research and self.mode not in {"balanced", "research"}:
             raise ValueError("Web research requires Balanced or Research mode")
+        if self.rag and (self.mode not in RAG_MODES or self.research):
+            raise ValueError("Local document search requires a reasoning mode without Internet search")
         if len({s.id for s in self.sources}) != len(self.sources):
             raise ValueError("Duplicate source identifier")
         if len({p.casefold() for p in self.files}) != len(self.files):
             raise ValueError("Duplicate selected path")
-        if sum(len(s.text.encode()) for s in self.sources) > 180000:
+        if sum(len(s.text.encode()) for s in self.sources) > MAX_SOURCE_BYTES:
             raise ValueError("Source text exceeds the combined input bound")
         return self

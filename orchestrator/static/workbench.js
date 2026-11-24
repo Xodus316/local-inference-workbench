@@ -7,6 +7,7 @@
   let polling = false;
   let testNames = [];
   let internetSearch = null;
+  let localSearch = null;
 
   async function api(path, body) {
     const options = { method: body === undefined ? "GET" : "POST", cache: "no-store",
@@ -154,6 +155,34 @@
       el("search-sources").append(item);
     }
   }
+  function showLocalPassages(row, previous) {
+    if (previous?.id === row.id && previous.updated === row.updated && previous.status === row.status) return;
+    const receipt = row.bundle.local_search;
+    const list = el("local-sources");
+    el("local-results").hidden = !receipt;
+    list.replaceChildren();
+    if (!receipt) return;
+
+    const count = receipt.source_ids.length;
+    const method = {keyword: "Keyword", vector: "Vector", hybrid: "Hybrid"}[receipt.method];
+    el("local-outcome").textContent = count
+      ? method + " search retrieved " + count + (count === 1 ? " passage." : " passages.")
+      : method + " search found no matching passages.";
+    const sources = new Map(row.bundle.request.sources.map(source => [source.id, source]));
+    const cited = new Set((row.result?.output?.evidence || []).map(ref => ref.source_id));
+    for (const id of receipt.source_ids) {
+      const source = sources.get(id);
+      const item = document.createElement("li");
+      const details = document.createElement("details");
+      const title = document.createElement("summary");
+      title.textContent = source.title + (cited.has(id) ? " · Cited in answer" : "");
+      const text = document.createElement("pre");
+      text.textContent = source.text;
+      details.append(title, text);
+      item.append(details);
+      list.append(item);
+    }
+  }
   function renderRun(row) {
     const previous = selected;
     selected = row;
@@ -184,12 +213,13 @@
       el("calls").append(item);
     }
     const result = row.result || {};
-    const researchAnswer = request.mode === "research" && typeof result.output?.answer === "string";
-    const output = researchAnswer ? result.output.answer : result.output ?? result.error ?? result.review ?? result;
-    el("research-assessment").hidden = !researchAnswer;
-    el("research-assessment-data").textContent = researchAnswer ? JSON.stringify(result.output, null, 2) : "";
+    const groundedAnswer = (request.mode === "research" || request.rag) && typeof result.output?.answer === "string";
+    const output = groundedAnswer ? result.output.answer : result.output ?? result.error ?? result.review ?? result;
+    el("research-assessment").hidden = !groundedAnswer;
+    el("research-assessment-data").textContent = groundedAnswer ? JSON.stringify(result.output, null, 2) : "";
     renderBuild(row, previous);
     showSearchReceipt(row, previous);
+    showLocalPassages(row, previous);
     el("result-block").hidden = !row.error && (!row.result || !el("build-output").hidden);
     el("result").textContent = el("result-block").hidden ? "" : row.error || (typeof output === "string" ? output : JSON.stringify(output, null, 2));
     el("diff-block").hidden = !result.diff;
@@ -261,8 +291,10 @@
   };
   function updateSearchHelp() {
     const mode = el("mode").value;
+    const webRequested = mode === "research" || (mode === "balanced" && el("research").checked);
+    el("rag-field").hidden = !localSearch?.enabled || !localSearch.modes.includes(mode) || webRequested;
     const help = el("search-help");
-    help.hidden = !(mode === "research" || (mode === "balanced" && el("research").checked));
+    help.hidden = !webRequested;
     if (help.hidden) return;
     if (!internetSearch) {
       help.textContent = "Search availability has not been confirmed.";
@@ -295,6 +327,7 @@
     const body = {mode, prompt: el("prompt").value, sources: []};
     if (el("source").value.trim()) body.sources.push({id: "source", text: el("source").value});
     if (mode === "balanced") body.research = el("research").checked;
+    if (!el("rag-field").hidden && el("rag").checked) body.rag = true;
     if (mode === "plan" || mode === "edit") {
       body.repository = el("repository").value.trim();
       body.files = el("files").value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
@@ -326,6 +359,7 @@
     try {
       const status = await api("/api/status");
       internetSearch = status.internet_search || null;
+      localSearch = status.local_search || null;
       const checkedTests = Array.from(el("test-options").querySelectorAll("input:checked"), item => item.value);
       testNames = status.test_commands || [];
       el("test-options").replaceChildren();

@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from orchestrator.config import Config, Research
 from orchestrator.runtime import Runtime
+from orchestrator.schemas import Source
 from orchestrator.store import digest
 
 
@@ -96,6 +97,41 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual([c["stage"] for c in row["calls"]], ["primary"])
         self.provider.cite = ["note:L7"]
         self.assertEqual(self.execute("fast")["status"],"failed")
+
+    def test_local_passages_are_frozen_before_approval_and_cited(self):
+        old_run = self.runtime.prepare({"prompt": "General question"})
+        self.runtime.config.rag.enabled = True
+        self.assertTrue(self.runtime._config_matches(old_run["bundle"]))
+        passage = Source(id="doc-example", text="Heading\nApprove the saved digest.",
+                         title="docs/api.md:15", kind="local_document")
+        self.provider.cite = ["doc-example:L2"]
+        with patch.object(self.runtime.retriever, "retrieve", return_value=("a" * 64, [passage])) as search:
+            prepared = self.runtime.prepare({"mode": "fast", "prompt": "How do I approve?", "rag": True})
+            search.assert_called_once()
+        self.assertEqual(self.provider.calls, [])
+        self.assertEqual(prepared["bundle"]["local_search"]["source_ids"], ["doc-example"])
+        self.assertEqual(prepared["bundle"]["request"]["sources"], [passage.model_dump()])
+        with patch.object(self.runtime.retriever, "retrieve", side_effect=AssertionError("Repeated retrieval")):
+            self.runtime.approve(prepared["id"], prepared["digest"])
+            for _ in range(200):
+                row = self.runtime.store.get(prepared["id"])
+                if row["status"] not in {"queued", "running"}:
+                    break
+                time.sleep(.01)
+        self.assertEqual(row["status"], "completed", row)
+        evidence = row["result"]["output"]["evidence"][0]
+        self.assertEqual(evidence["source_id"], passage.id)
+        self.assertEqual(evidence["quote"], "Approve the saved digest.")
+
+    def test_local_search_requires_opt_in_without_web_search(self):
+        with patch.object(self.runtime.retriever, "retrieve") as search:
+            with self.assertRaisesRegex(ValueError, "rag.enabled"):
+                self.runtime.prepare({"prompt": "Local question", "rag": True})
+            self.runtime.config.rag.enabled = True
+            with self.assertRaisesRegex(ValueError, "without Internet search"):
+                self.runtime.prepare({"mode": "balanced", "prompt": "Local question", "rag": True, "research": True})
+            self.runtime.prepare({"prompt": "Ordinary question"})
+            search.assert_not_called()
 
     def test_balanced_keeps_analysts_independent_and_synthesizes_search_snippets(self):
         self.runtime.researcher = FakeSearch()

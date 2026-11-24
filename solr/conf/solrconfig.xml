@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <luceneMatchVersion>10.0.0</luceneMatchVersion>
+  <schemaFactory class="ClassicIndexSchemaFactory"/>
+  <requestHandler name="/select" class="solr.SearchHandler"/>
+  <requestHandler name="/update" class="solr.UpdateRequestHandler"/>
+</config>

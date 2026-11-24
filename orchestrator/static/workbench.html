@@ -15,7 +15,8 @@
 <h1>New workflow</h1>
 <form id="prepare">
 <div class="options"><label>Mode<select id="mode"><option value="auto">Auto</option><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="research">Internet Research</option><option value="verified">Verified</option><option value="deep">Deep reasoning</option><optgroup label="Coding"><option value="build">Build a Python project</option><option value="plan">Code plan</option><option value="edit">Repository edit</option></optgroup></select></label>
-<label id="research-field" hidden><input type="checkbox" id="research"> Search public sources when needed</label></div>
+<label id="research-field" hidden><input type="checkbox" id="research"> Search public sources when needed</label>
+<label id="rag-field" hidden><input type="checkbox" id="rag"> Search local docs</label></div>
 <p id="search-help" role="status" hidden></p>
 <div id="build-help" hidden>Describe the Python program, its inputs, expected outputs and error cases. Build creates an independent test suite and runs the implementation in Docker.</div>
 <label>Request<textarea id="prompt" rows="4" required placeholder="What would you like the system to do?"></textarea></label>
@@ -32,6 +33,8 @@
 <section id="selected" hidden><div class="sectionhead"><h2>Run details</h2><span id="status"></span></div>
 <dl id="metadata"></dl>
 <details id="input-view"><summary>Prepared inputs and roles</summary><pre id="input"></pre></details>
+<section id="local-results" hidden><h3>Local documents</h3>
+<p id="local-outcome"></p><ol id="local-sources" aria-label="Retrieved local passages"></ol></section>
 <h3>Model activity</h3><div id="calls"></div>
 <section id="build-output" hidden><h3>Build results</h3>
 <p id="build-summary"></p>

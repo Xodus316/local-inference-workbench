@@ -154,6 +154,26 @@ class Research(Record):
     results_per_query: int = Field(default=3, ge=1, le=5)
 
 
+class RagConfig(Record):
+    enabled: bool = False
+    solr_url: str = "http://127.0.0.1:8983"
+    core: str = Field(default="workbench_docs", pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$")
+    method: Literal["keyword", "vector", "hybrid"] = "keyword"
+    top_k: int = Field(default=5, ge=1, le=8)
+    timeout_seconds: int = Field(default=10, ge=1, le=60)
+
+    @field_validator("solr_url")
+    @classmethod
+    def local_endpoint(cls, value):
+        try:
+            endpoint = Config.local_endpoint(value)
+            if urlsplit(endpoint).port == 0:
+                raise ValueError
+        except ValueError:
+            raise ValueError("Configure a loopback HTTP Solr endpoint") from None
+        return endpoint
+
+
 class BuildConfig(Record):
     enabled: bool = True
     offline_project_enabled: bool = False
@@ -219,6 +239,7 @@ class Config(Record):
     generation: dict[str, Generation] = Field(default_factory=dict)
     repositories: list[str] = Field(default_factory=list)
     research: Research = Field(default_factory=Research)
+    rag: RagConfig = Field(default_factory=RagConfig)
     test_commands: dict[str, list[str]] = Field(default_factory=dict, max_length=20)
     test_timeout_seconds: int = Field(default=120, ge=1, le=600)
     # Null is an explicit opt-in; finite defaults and per-operation limits remain.

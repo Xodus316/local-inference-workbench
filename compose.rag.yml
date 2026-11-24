@@ -1,0 +1,17 @@
+services:
+  solr:
+    image: solr:10.1.0-slim
+    ports:
+      - "127.0.0.1:8983:8983"
+    command: ["solr-precreate", "workbench_docs", "/workbench-solr"]
+    volumes:
+      - workbench_solr:/var/solr
+      - ./solr:/workbench-solr:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8983/solr/workbench_docs/select?q=*:*&rows=0"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  workbench_solr:

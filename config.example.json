@@ -26,5 +26,6 @@
   "build": {"enabled": true, "image": "python:3.13-alpine"},
   "repositories": [],
   "test_commands": {"unittest": ["python", "-m", "unittest", "discover", "-s", "tests"]},
-  "research": {"enabled": false, "provider": "exa"}
+  "research": {"enabled": false, "provider": "exa"},
+  "rag": {"enabled": false, "method": "keyword"}
 }

@@ -56,6 +56,12 @@ class Stages:
                 "Do not imply you measured performance, "
                 "or inspected the user's hardware. Mark version-dependent details for verification. "
             ) + instruction
+        if "local_search" in bundle:
+            instruction += (
+                "Support claims about the indexed documentation with relevant local_document line references. "
+                "If the retrieved passages do not answer the question, state what the documentation could "
+                "not establish. Distinguish any additional inference from documented facts. "
+            )
         if compare and state.get("research"):
             prompt["web_research"] = {
                 key: value

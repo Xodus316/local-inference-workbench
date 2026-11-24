@@ -91,7 +91,8 @@ class Handler(BaseHTTPRequestHandler):
         runtime = self.server.runtime
         if method == "GET":
             if path == "/api/status":
-                return {"internet_search":runtime.search_readiness(), "roles":runtime.config.roles, "test_commands": list(runtime.config.test_commands), "active_run_id":runtime.active_run_id,
+                return {"internet_search":runtime.search_readiness(), "local_search":runtime.rag_settings(),
+                        "roles":runtime.config.roles, "test_commands": list(runtime.config.test_commands), "active_run_id":runtime.active_run_id,
                         "queued":runtime.queue.qsize(), "inference_active":runtime.inference_lock.locked(),
                         "runs":runtime.store.list()}
             if path == "/api/models":
