@@ -1,0 +1,66 @@
+{
+  "policy": "run22-worktree-output-recovery-v1",
+  "date": "2026-11-23",
+  "original_run": {
+    "status": "failed",
+    "run_id": "7c72ee9e-821c-4f23-96cd-dbe6c3239961",
+    "elapsed_seconds": 949.004,
+    "frozen_files_verified": 121,
+    "native": {
+      "qwen": {
+        "completed": 2,
+        "compactions": 0
+      },
+      "inkling": {
+        "completed": 0,
+        "compactions": 0
+      }
+    },
+    "error": {
+      "message": "OpenCode reached the output token limit on step 1",
+      "stage": "implement"
+    }
+  },
+  "no_operator_intervention": true,
+  "checkpoints_verified": 3,
+  "planned_application_files": 66,
+  "accepted_implementation_files": 0,
+  "compiler_or_inkling_reached": false,
+  "cause": "A settled implementation output limit raised before the existing inventory correction; no partial-worktree recovery receipt was available.",
+  "new_policy": "settled-worktree-output-limit-v1",
+  "repair_budgets_or_acceptance_gates_changed": false,
+  "real_cli_synthetic_stream_control": {
+    "status": "passed",
+    "control_kind": "real-pinned-opencode-with-synthetic-loopback-model",
+    "gpu_used": false,
+    "actual_model_quality_claim": false,
+    "evidence_directory": "diagnostics/oc23/3115b545",
+    "stages": [
+      "implement",
+      "implement_inventory_retry"
+    ],
+    "native_protocol_requests": 3,
+    "one_existing_inventory_correction": true,
+    "partial_grants_acceptance_credit": false,
+    "scratch_disposed": true,
+    "application_or_plan_imported_into_fresh_run": false
+  },
+  "tests": {
+    "core_total": 593,
+    "core_passed": 585,
+    "optional_skipped": 8,
+    "native_adapter_passed": 34
+  },
+  "next_trial": {
+    "number": 23,
+    "fresh_empty_plan_and_application": true,
+    "last_authorized_mixed_model_trial": true,
+    "on_failure": "Switch repair steps back to Qwen; stop further mixed-model trials."
+  },
+  "evidence_sha256": {
+    "results/e2e-fresh-22/operator-verification.json": "e0e162ec422595da7f58f13b5d54b8aace95da849af1de1d6773b6ac73a7b340",
+    "results/e2e-fresh-22/terminal.json": "5b061b2dd92bddae915f15f40336c9bf8b5fdc911966e050ff423c8eda160946",
+    "diagnostics/run22-output-recovery/core-tests.log": "edb3a821d177e12cfa285f218453399d8651aa8cdb46b3ccf7219b82a25d153c",
+    "diagnostics/run22-output-recovery/real-cli-control-summary.json": "85938e94714f5e6636a0e62c6a0f394d3eb88634d07a660364d256bac923a326"
+  }
+}

@@ -169,7 +169,9 @@ class GradleDialectRecoveryTests(unittest.TestCase):
                 self.assertEqual(visible[self.SETTINGS], self.SOURCES[self.SETTINGS])
                 self.assertEqual({row["kind"] for row in arguments["inputs"]["remaining_gradle_kotlin_dsl"]},
                                  {"dependency-call", "string-assignment", "task-type"})
-                return {"files": {self.BUILD: corrected, self.SETTINGS: 'rootProject.name = "example"\n'}}
+                return {"files": {self.BUILD: corrected, self.SETTINGS: 'rootProject.name = "example"\n'},
+                    "receipt":{"scratch_cleanup_confirmed":True,
+                        "events":[{"type":"step_finish","part":{"reason":"stop"}}]}}
             return {"files": {self.BUILD: partial}, "receipt": {"scratch_cleanup_confirmed": True,
                 "events": [{"type": "step_finish", "part": {"reason": "stop"}}]}}
 
@@ -247,7 +249,8 @@ class JsonConfig {
                 self.assertEqual(visible[self.PATH], self.PARTIAL)
                 self.assertEqual({row["signature"] for row in call["inputs"]["remaining_java_date_format"]},
                                  {"parse(String, ParsePosition)", "getZone()"})
-                return {"files": {self.PATH: corrected}}
+                return {"files": {self.PATH: corrected},"receipt":{"scratch_cleanup_confirmed":True,
+                    "events":[{"type":"step_finish","part":{"reason":"stop"}}]}}
             return {"files": {self.PATH: self.PARTIAL}, "receipt": {"scratch_cleanup_confirmed": True,
                 "events": [{"type": "step_finish", "part": {"reason": "stop"}}]}}
 

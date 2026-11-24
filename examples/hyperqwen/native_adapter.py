@@ -364,8 +364,11 @@ class Worker(HyperQwenWholeProjectWorker):
                         raise OpenCodeSettledResponseError('structured-output-limit', proof) from error
                 raise
             rows = native_receipts(self.bridge, stage)
+            partial = (result.get('finish_reason') == 'length' and arguments.get('schema') is None
+                and self.role in {'implementer','repairer'} and policy['tool_policy'] is None
+                and result.get('receipt',{}).get('scratch_cleanup_confirmed') is True)
             if (not completed_rows(rows) or ((policy['tool_policy'] is not None or self.role == 'planner') and not decision_rows(rows))
-                    or rows[-1]['receipt'].get('finish_reason') != 'stop'):
+                    or rows[-1]['receipt'].get('finish_reason') != ('length' if partial else 'stop')):
                 raise ValueError('The stage lacks complete normally stopped native evidence')
             for row in rows:
                 native = row['receipt']

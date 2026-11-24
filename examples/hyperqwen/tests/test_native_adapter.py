@@ -38,6 +38,35 @@ def executable(root):
 
 
 class FreshNativeAdapterTests(unittest.TestCase):
+    def test_partial_worktree_requires_complete_matching_native_length_evidence(self):
+        from orchestrator.project_opencode_whole import WORKTREE_PARTIAL_POLICY
+        for role,stage in [('implementer','implement'),('repairer','repair_1')]:
+            for verified in [True,False]:
+                with self.subTest(role=role,verified=verified),tempfile.TemporaryDirectory() as folder:
+                    root=Path(folder)
+                    bridge=adapter.Bridge('http://127.0.0.1:18031','a'*24,model=adapter.MODEL,
+                        context=adapter.CONTEXT,directory=root,backend_identity=pin())
+                    bridge.endpoint='http://127.0.0.1:1'
+                    worker=adapter.Worker(executable(root),bridge,pin(),role=role,
+                        source_bytes=DEFAULT_SOURCE_BYTES,test_bytes=65536)
+                    policy=adapter.generation_policy(stage,role)
+                    @contextmanager
+                    def profile(*args):yield 'isolated'
+                    rows=[{'receipt':{'status':'completed','done_event':verified,'generation_policy_verified':True,
+                        'session_id':'isolated','generation_policy':policy,'finish_reason':'length'}}]
+                    value={'files':{},'finish_reason':'length','receipt':{'scratch_cleanup_confirmed':True,
+                        'worktree_partial_policy':WORKTREE_PARTIAL_POLICY}}
+                    with patch.object(bridge,'role_profile',side_effect=profile),patch.object(bridge,'ready'), \
+                            patch.object(adapter,'native_receipts',side_effect=[[],rows]), \
+                            patch.object(adapter.OpenCodeProjectWorker,'_session',return_value=value):
+                        if verified:
+                            result=worker._session(stage=stage,schema=None)
+                            self.assertEqual(result['finish_reason'],'length')
+                            self.assertEqual(result['receipt']['native_receipts'],rows)
+                        else:
+                            with self.assertRaisesRegex(ValueError,'complete normally stopped'):
+                                worker._session(stage=stage,schema=None)
+
     def test_pause_requires_owned_backend_release_and_transport_drain(self):
         provider = object.__new__(adapter.ReviewerProvider)
         receipt = {'stopped': True, 'transport_drained': True, 'container_id': 'owned'}

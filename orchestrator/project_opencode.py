@@ -103,7 +103,7 @@ class OpenCodeOutputLimitError(ValueError):
         self.steps = steps
 
 
-def _session_events(output, max_steps, *, on_event=None):
+def _session_events(output, max_steps, *, on_event=None, allow_length=False):
     events = []
     try:
         for line in output.decode("utf-8").splitlines():
@@ -130,9 +130,9 @@ def _session_events(output, max_steps, *, on_event=None):
     if on_event is not None:
         for event in events:
             on_event(event)
-    if part.get("reason") == "length":
+    if part.get("reason") == "length" and not allow_length:
         raise OpenCodeOutputLimitError(len(steps))
-    if part.get("reason") != "stop":
+    if part.get("reason") not in ({"stop", "length"} if allow_length else {"stop"}):
         raise ValueError(f"OpenCode ended without a normal stop after {len(steps)} steps")
     return events
 

@@ -20,7 +20,7 @@ from .project_build import (DEFAULT_TEST_BYTES, REVIEWED_POLICY, ProjectArtifact
                             unittest_failure_excerpts, validate_project_prompt)
 from .ollama import _strict_json
 from .project_opencode import OpenCodeOutputLimitError
-from .project_opencode_whole import OpenCodeSettledResponseError
+from .project_opencode_whole import OpenCodeSettledResponseError, WORKTREE_PARTIAL_POLICY
 from .repository import MAX_FILE
 from .store import digest
 from .whole_project_java_format import JAVA_FORMAT_REPAIR_GUIDANCE, java_date_format_findings
@@ -100,6 +100,19 @@ def _stopped_opencode_result(result):
     final = events[-1]
     part = final.get("part")
     return final.get("type") == "step_finish" and isinstance(part, dict) and part.get("reason") == "stop"
+
+
+def _partial_opencode_worktree(result):
+    """A settled length stop can request the existing correction, never acceptance."""
+    receipt = result.get('receipt') or {}
+    if not isinstance(receipt,dict):return False
+    events = receipt.get('events') or []
+    return (result.get('finish_reason') == 'length' and isinstance(result.get('files'),dict)
+        and receipt.get('worktree_partial_policy') == WORKTREE_PARTIAL_POLICY
+        and receipt.get('scratch_cleanup_confirmed') is True and isinstance(events,list) and bool(events)
+        and isinstance(events[-1],dict) and isinstance(events[-1].get('part'),dict)
+        and events[-1].get('type') == 'step_finish'
+        and (events[-1].get('part') or {}).get('reason') == 'length')
 
 
 def _smoke_repair_feedback(result):
@@ -1167,6 +1180,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
         instruction = ("Write the complete application in this one session. Implement every approved path. "
                        "Follow the plan and serve the API under its declared prefix. Write source files through "
                        "the workspace tools, and ensure build configuration and imports agree across files. "
+                       "Write one complete file per tool call rather than one giant source response. "
                        "Return only a short summary after all files are on disk. Workbench runs tests next.")
         inputs = self.model_inputs({"implementation_files": paths, "max_utf8_source_bytes": self.source_bytes})
         result = self._opencode(
@@ -1176,24 +1190,40 @@ class WholeProjectBuildRun(ProjectBuildRun):
         files = result.get("files")
         if not isinstance(files, dict) or not files.keys() <= set(paths):
             raise ValueError("Whole-project implementation changed the approved path inventory")
+        partial = _partial_opencode_worktree(result)
+        if result.get('finish_reason') == 'length' and not partial:
+            raise ValueError('Output-limited implementation lacks a settled partial-worktree receipt')
         missing = [path for path in paths if path not in files]
-        if missing:
-            if not _stopped_opencode_result(result):
+        if missing or partial:
+            if not (_stopped_opencode_result(result) or partial):
                 raise ValueError("Incomplete implementation lacks a settled worker receipt")
             retry_stage = "implement_inventory_retry"
             self.stages[stage]["inventory_retry"] = {"stage": retry_stage, "missing_paths": missing,
                                                       "retained_paths": sorted(files)}
-            if files:
+            if not missing:
+                instruction = ("Review the retained implementation against the full plan and brief, finish any "
+                               "incomplete source using the workspace tools, and return a short summary. "
+                               "All approved files are present, but the previous response reached its output cap.")
+            elif files:
                 instruction = ("Finish the implementation by creating every approved missing path. The existing files "
                                "are read-only context. Follow their interfaces, the full plan and the original brief. "
                                "Write complete source through the workspace tools, then return a short summary.")
             else:
                 instruction += " The previous attempt wrote no files. Start again from the brief and plan."
-            recovered = self._opencode(
-                retry_stage, "implementer", "run", files, allow_create=True, editable_paths=missing,
+            if partial:
+                instruction += (" The previous response reached its output cap. Write one complete file per tool "
+                                "call, then proceed directly to the next path. Do not repeat the application in "
+                                "assistant text or a single giant tool call. This is the only inventory correction.")
+                self.stages[stage]['inventory_retry']['trigger'] = WORKTREE_PARTIAL_POLICY
+            revised = self._opencode(
+                retry_stage, "implementer", "run", files, allow_create=bool(missing), editable_paths=missing or paths,
                 instruction=instruction, inputs=inputs,
-            ).get("files")
-            if not isinstance(recovered, dict) or recovered.keys() != set(missing):
+            )
+            if not _stopped_opencode_result(revised):
+                raise ValueError('Implementation correction did not end with a normally stopped worker receipt')
+            recovered = revised.get('files')
+            if (not isinstance(recovered, dict) or (recovered.keys() != set(missing) if missing
+                    else not recovered.keys() <= set(paths))):
                 raise ValueError("Implementation recovery did not write every missing approved path")
             files = {**files, **recovered}
         return self.artifact_type(summary="Whole-project OpenCode implementation", files=[
@@ -1459,6 +1489,9 @@ class WholeProjectBuildRun(ProjectBuildRun):
             instruction=instruction, inputs=inputs,
         )
         files = checked_edits(result, visible)
+        partial = _partial_opencode_worktree(result)
+        if result.get('finish_reason') == 'length' and not partial:
+            raise ValueError('Output-limited repair lacks a settled partial-worktree receipt')
         draft = {**visible, **files}
         selected_draft = {path: draft[path] for path in editable}
         remaining = {}
@@ -1492,7 +1525,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
             if findings:
                 remaining['remaining_java_api_source'] = list(findings.values())[:64]
                 remaining['compiler_dependency_evidence'] = inspected or prior
-        if (not files or remaining) and _stopped_opencode_result(result):
+        if (not files or remaining or partial) and (_stopped_opencode_result(result) or partial):
             retry_stage = stage + "_edit_retry"
             self.stages[stage]["edit_retry"] = retry_stage
             retry_note = " The previous attempt made no changes. Apply the repair in the workspace before returning."
@@ -1501,10 +1534,17 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 retry_note = (" The workspace includes the previous attempt. Correct every remaining source finding "
                               "before returning. Preserve changes that already address the failure.")
                 inputs = {**inputs, **remaining}
+            if partial:
+                self.stages[stage]['output_limit_recovery'] = WORKTREE_PARTIAL_POLICY
+                retry_note += (" The previous response reached its output cap. Review the retained edits and "
+                               "finish the scoped repair using one complete file per tool call. Do not repeat "
+                               "source in assistant text or one giant tool request. This is the only edit correction.")
             retried = self._opencode(
                 retry_stage, role, "run", draft, editable_paths=editable, allow_create=False,
                 instruction=instruction + retry_note, inputs=inputs,
             )
+            if not _stopped_opencode_result(retried):
+                raise ValueError('Edit correction did not end with a normally stopped worker receipt')
             files = {path: text for path, text in {**files, **checked_edits(retried, draft)}.items()
                      if text != visible[path]}
         if not files:

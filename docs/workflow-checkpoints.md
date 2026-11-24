@@ -6,6 +6,12 @@ Checkpoints are immutable files under the run's data directory, indexed in SQLit
 
 After a service/process interruption, reopen the same data directory and configuration and resume the interrupted run with its saved approval digest. Completed graph steps restore their saved results. Build control flow reconstructs state from completed receipts without redispatching those operations. The restart tests terminate a separate process immediately after a checkpoint and verify that the next process skips the completed agent step.
 
+## Settled worktree output limits
+
+OpenCode compaction summarizes conversation context; it cannot prevent an individual response from exhausting its completion-token ceiling. For implementation and application-edit workers, `settled-worktree-output-limit-v1` collects safe scoped files after a terminal `length` stop and confirmed scratch disposal. Native adapters additionally require completed streams with `[DONE]`, verified generation usage and matching role/session/model profiles. Interrupted or unknown completions remain a retry barrier. A partial receipt is checkpointed as settled evidence, never accepted implementation or passing verification.
+
+The orchestrator routes a proven partial result into its existing single inventory correction or single edit correction. Retained implementation files are read-only while missing files are created. Even a full inventory at an output limit requires a normally stopped completion/review; edits stay inside the original approved inventory. A second capped or unverified correction stops the stage. Workers write one complete file per tool call to avoid a giant source response. Context, per-request completion/thinking caps, repair budgets, models and all downstream gates remain unchanged. Structured planner, selection, test-author and reviewer boundaries retain their separate existing policies. Checkpoint replay retains the spent operation and does not repeat the capped request.
+
 For a planned shutdown, use [Pause after current operation](workflow-pause.md) and wait for **paused**. A checkpoint cannot establish the outcome of a later interrupted model stream or sandbox process. Unknown execution, missing/changed receipts, corrupted checkpoint content or changed runtime code block ordinary resume. A runtime fix requires a new, explicit continuation; cancellation and an exhausted recovery budget are not converted into a paused run.
 
 ## Compiler dependency evidence

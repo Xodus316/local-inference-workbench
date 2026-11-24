@@ -220,6 +220,31 @@ class WholeProjectFlowTests(unittest.TestCase):
         self.assertEqual(worker.run.call_args.kwargs["editable_paths"], ["app.py"])
         self.assertIn("Start again from the brief", worker.run.call_args.kwargs["instruction"])
 
+    def test_output_limited_worktree_checkpoint_resumes_into_one_inventory_correction(self):
+        from test_worktree_output_recovery import response
+        self.provider.pause.return_value={'released':True}
+        worker=self.runtime.whole_project_workers['implementer']
+        write=worker.run.side_effect
+        def respond(**kwargs):
+            value=write(**kwargs)
+            if kwargs['stage']=='implement':
+                partial=response({},'length')
+                value={**value,**partial,'receipt':{**value['receipt'],**partial['receipt']}}
+                self.runtime.pause(self.runtime.active_run_id)
+            return value
+        worker.run.side_effect=respond
+        paused=self.run_workflow(expected_status='paused')
+        self.assertEqual(paused['calls'][-1]['stage'],'implement')
+        self.assertEqual(paused['calls'][-1]['status'],'terminal')
+        self.runtime.approve(paused['id'],paused['digest'],resume=True)
+        self.runtime.queue.join()
+        row=self.runtime.store.get(paused['id'])
+        self.assertEqual(row['status'],'completed',row)
+        stages=[call.kwargs['stage'] for call in worker.run.call_args_list]
+        self.assertEqual(stages.count('implement'),1)
+        self.assertEqual(stages.count('implement_inventory_retry'),1)
+        self.assertIn('whole_self_tests', [call['stage'] for call in row['calls']])
+
     def test_incomplete_implementation_without_confirmed_cleanup_stops(self):
         worker = self.runtime.whole_project_workers["implementer"]
         write = worker.run.side_effect
