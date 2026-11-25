@@ -9,6 +9,7 @@ from typing import Literal
 
 from .schemas import Record
 from .store import digest, encoded
+from .repair_allowance import output_limit
 
 INLINE_RECOVERY_POLICY = 'inline-agent-recovery-v1'
 AGENT_STAGE = re.compile(r'whole_recovery_(?:[1-9]|1[0-6])_(?:consult|retry_consult|output)')
@@ -102,7 +103,7 @@ def consult(recovery, stage, error, context=None):
     flow.evidence['budget_counters'] = dict(flow.counters)
     flow.runtime.store.snapshot_result(flow.state['run_id'], {'output':flow.output, 'stages':flow.stages})
     capabilities = (['correct_stage_output'] if context is not None
-        and flow.counters['recovery_output_correction'] < DYNAMIC_POLICY['max_output_corrections'] else [])
+        and flow.counters['recovery_output_correction'] < output_limit(flow.bundle) else [])
     # Independent author material stays with that isolated author. Other
     # unfamiliar failures are diagnosed by the approved repair agent.
     role = 'test_author' if route(stage)[0] in {'independent_authoring','independent_qualification'} else 'repairer'
@@ -121,6 +122,8 @@ def consult(recovery, stage, error, context=None):
             if Path(frame.filename).parent == Path(__file__).parent]
         from .worker_progress import OpenCodeProgressError
         if isinstance(error,OpenCodeProgressError):data['worker_progress']=dict(error.proof)
+        from .repair_diagnostics import PatchValidationError
+        if isinstance(error,PatchValidationError):data['composed_patch_rejection']=deepcopy(error.feedback)
         from .build_coverage import TestSyntaxError
         if isinstance(error,TestSyntaxError):data['parser_diagnostics']=deepcopy(error.diagnostics)
         if getattr(error,'not_dispatched',False) is True:
@@ -173,6 +176,10 @@ def consult(recovery, stage, error, context=None):
                         'correction_scope':'Correct the rejected generated output under this original contract. '
                             'A validator rejection does not authorize changing retained inputs, coverage mappings '
                             'or other immutable artifacts. The same validator must accept the correction.'})
+        if context['data'].get('repair_policy')=='grouped-anchored-recovery-v2' and context['value'].get('edits'):
+            data['rejected_output']={'host_retained':True,'digest':digest(context['value']),
+                'executable_edits_digest':digest(context['value']['edits']),
+                'replacement_base':'Original base_suite; the rejected proposal was never applied.'}
     evidence_ref='F'+digest(message)[:12]
     model_type=advice_type(evidence_ref)
     data['failure_evidence_id']=evidence_ref
@@ -234,7 +241,7 @@ def validate_output(recovery, value, validator, context):
             proof = consult(recovery, context['stage'], error, context)
             if proof is None or proof['advice']['action'] != 'correct_stage_output':raise
             if (proof['request_id'] in attempted or flow.counters['recovery_output_correction']
-                    >= DYNAMIC_POLICY['max_output_corrections']):raise
+                    >= output_limit(flow.bundle)):raise
             attempted.add(proof['request_id'])
             flow.counters['recovery_output_correction'] += 1
             flow.evidence['budget_counters'] = dict(flow.counters)
@@ -252,7 +259,8 @@ def validate_output(recovery, value, validator, context):
                     'Preserve the original scope and contract. The host will repeat the same validator; '
                     'no gate or budget can be waived.',
                     {**deepcopy(context['data']), 'rejected_output':value,
-                     'validation_failure':str(error)[:1600], 'agent_advice':proof['advice']},
+                     'validation_failure':str(error)[:1600], 'agent_advice':proof['advice'],
+                     **({'composed_patch_rejection':deepcopy(error.feedback)} if hasattr(error,'feedback') else {})},
                     {}, tool_policy=INLINE_RECOVERY_POLICY)
             except Exception as failure:
                 from .build_workflow import public_error

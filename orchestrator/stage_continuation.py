@@ -5,6 +5,7 @@ import json
 import re
 
 from .store import digest
+from .repair_allowance import POLICY as RENEWED_POLICY,output_limit,grant
 from .whole_project_checkpoint import binding_digest,validate_checkpoint
 
 KEY = 'whole_project_stage_continuation'
@@ -102,7 +103,7 @@ def retained_suite(row,requests,raw):
     return suite_type.model_validate(current).model_dump()
 
 
-def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes=None, test_preflight_bytes=None, reference_bytes=None, retain_proposal=False):
+def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes=None, test_preflight_bytes=None, reference_bytes=None, retain_proposal=False, fresh_repair_allowance=None):
     """Trusted host first verifies frozen files, checkpoints, native DONE and exact owner cleanup."""
     from .whole_project import WholeProjectPlan,whole_project_types,_stopped_opencode_result
     source=row['bundle'];output=row['result']['output'];evidence=output['verification']['whole_project']
@@ -171,7 +172,7 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
             static_findings=defects(typed)
             if (not dynamic_enabled(target) or row['status'] not in {'failed','review_required'} or output.get('suite') is not None
                     or route(stage or '')[0] not in {'independent_authoring','independent_qualification'}
-                    or (evidence['budget_counters'].get('recovery_output_correction',0)>=DYNAMIC_POLICY['max_output_corrections'] and not retain_proposal)
+                    or (evidence['budget_counters'].get('recovery_output_correction',0)>=DYNAMIC_POLICY['max_output_corrections'] and not retain_proposal and fresh_repair_allowance is None)
                     or (not static_findings and not reference_bytes) or not checkpoint_bytes or not test_preflight_bytes or not row.get('checkpoints')):
                 raise ValueError('Retained test validation requires a settled checkpoint, static defects and shared budget')
             record=row['checkpoints'][-1];checkpoint=json.loads(checkpoint_bytes);preflight=json.loads(test_preflight_bytes)
@@ -223,7 +224,11 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
     if retain_proposal:
         if value['policy']!=REFERENCE_POLICY:raise ValueError('Pending proposal evaluation requires complete failed reference qualification')
         value.update(policy=PENDING_POLICY,pending_proposal=pending_proposal)
-    validate(value,target)
+    if fresh_repair_allowance is not None:
+        if value['policy']!=REFERENCE_POLICY or retain_proposal:
+            raise ValueError('A fresh allowance requires a settled failed reference checkpoint, not a pending proposal')
+        value.update(policy=RENEWED_POLICY,repair_allowance=grant(row['digest'],value['counters'],fresh_repair_allowance))
+    validate(value,{**target,KEY:value})
     return value
 
 
@@ -234,16 +239,19 @@ def validate(value,bundle):
     required={'policy','source_run_id','source_approval_digest','source_contract_digest','target_binding_digest',
         'plan','artifact','self_suite','counters','repair_attempts','compile_repair_attempts','generation',
         'source_receipts','closed_execution_audit'}
-    if isinstance(value,dict) and value.get('policy') in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY}:required|={'independent_suite','independent_suite_digest'}
+    if isinstance(value,dict) and value.get('policy') in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY,RENEWED_POLICY}:required|={'independent_suite','independent_suite_digest'}
     if isinstance(value,dict) and value.get('policy')==VALIDATION_POLICY:required|={'source_checkpoint','retained_diagnostics'}
-    if isinstance(value,dict) and value.get('policy') in {REFERENCE_POLICY,PENDING_POLICY}:required|={'source_checkpoint','retained_reference','coordinated_history'}
+    if isinstance(value,dict) and value.get('policy') in {REFERENCE_POLICY,PENDING_POLICY,RENEWED_POLICY}:required|={'source_checkpoint','retained_reference','coordinated_history'}
     if isinstance(value,dict) and value.get('policy')==PENDING_POLICY:required.add('pending_proposal')
+    if isinstance(value,dict) and value.get('policy')==RENEWED_POLICY:required.add('repair_allowance')
     if isinstance(value,dict) and value.get('counters',{}).get('coordinated_patch',0):required.add('coordinated_history')
-    if (not isinstance(value,dict) or value.keys()!=required or value['policy'] not in {POLICY,SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY}
+    if (not isinstance(value,dict) or value.keys()!=required or value['policy'] not in {POLICY,SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY,RENEWED_POLICY}
             or {'fresh_project','whole_project_seed','whole_project_checkpoint','whole_project_initial_compile_recovery'}.intersection(bundle)
             or value['target_binding_digest']!=binding_digest(bundle)
             or value['source_contract_digest']!=contract_digest(bundle)):
         raise ValueError('Stage continuation differs from its frozen target or contracts')
+    bundle={**bundle,KEY:value}
+    output_limit(bundle)
     artifact_type,_=whole_project_types(bundle);suite_type,_=project_test_types(bundle)
     plan=WholeProjectPlan.model_validate(value['plan']);artifact=artifact_type.model_validate(value['artifact'])
     smoke=suite_type.model_validate(value['self_suite'])
@@ -264,22 +272,22 @@ def validate(value,bundle):
         raise ValueError('Retained generation differs from its original author/schema contract')
     for key in ('source_approval_digest','source_contract_digest','closed_execution_audit'):
         if not re.fullmatch('[a-f0-9]{64}',value[key]):raise ValueError('Invalid continuation evidence digest')
-    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY}:
+    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY,RENEWED_POLICY}:
         suite=suite_type.model_validate(value['independent_suite'])
         if (digest(suite.model_dump())!=value['independent_suite_digest']
                 or set(suite.implementation_files)!=set(plan.implementation_files)):
             raise ValueError('Retained unfrozen suite inventory or digest changed')
-    if value['policy'] in {VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY}:
+    if value['policy'] in {VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY,RENEWED_POLICY}:
         from .project_test_lint import defects
         from .stage_recovery import dynamic_enabled,DYNAMIC_POLICY
         record=value['source_checkpoint']
-        if (not dynamic_enabled(bundle) or (value['counters'].get('recovery_output_correction',0)>=DYNAMIC_POLICY['max_output_corrections'] and value['policy']!=PENDING_POLICY)
+        if (not dynamic_enabled(bundle) or (value['counters'].get('recovery_output_correction',0)>=output_limit(bundle) and value['policy']!=PENDING_POLICY)
                 or (value['policy']==VALIDATION_POLICY and (not defects(suite) or defects(suite)!=value['retained_diagnostics']))
                 or not isinstance(record,dict) or record.keys()!={'kind','stage','binding','content_sha256','created'}
                 or record['kind'] not in {'graph','native','sandbox'}
                 or not all(re.fullmatch('[a-f0-9]{64}',record[k]) for k in ('binding','content_sha256'))):
             raise ValueError('Retained test validation checkpoint, diagnostics or shared budget changed')
-        if value['policy'] in {REFERENCE_POLICY,PENDING_POLICY}:
+        if value['policy'] in {REFERENCE_POLICY,PENDING_POLICY,RENEWED_POLICY}:
             from .reference_repair_coordinator import inventory
             reference=value['retained_reference'];cases=inventory(suite)
             if (defects(suite) or reference.keys()!={'failed','tests_run','receipt_digest','failures'}
@@ -310,7 +318,7 @@ def restore(flow):
     flow.evidence.update(budget_counters=dict(flow.counters),stage_continuation={
         'source_run_id':value['source_run_id'],'source_approval_digest':value['source_approval_digest'],
         'closed_execution_audit':value['closed_execution_audit'],'acceptance_credit':False})
-    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY}:flow._continued_independent_suite=deepcopy(value['independent_suite'])
+    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY,PENDING_POLICY,RENEWED_POLICY}:flow._continued_independent_suite=deepcopy(value['independent_suite'])
     else:flow._continued_generation=deepcopy(value['generation'])
     if 'coordinated_history' in value:flow.evidence['coordinated_repairs']=deepcopy(value['coordinated_history'])
     if value['policy']==PENDING_POLICY:flow._pending_repair=deepcopy(value['pending_proposal'])

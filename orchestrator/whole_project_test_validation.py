@@ -37,7 +37,7 @@ def rewrite(flow, suite, diagnostics, reason):
     items=observations(diagnostics,suite);scope=test_scope(suite,items)
     data={'base_suite':suite.model_dump(),'base_suite_digest':digest(suite.model_dump()),
         'scope':scope,'failures':items,'root_cause_hints':root_hints(items),
-        'previous_attempts':prior_attempts(flow.evidence.get('coordinated_repairs',[]))}
+        'previous_attempts':prior_attempts(flow.evidence.get('coordinated_repairs',[]),flow=flow,suite=suite)}
     ordinary=None
     if flow.counters['build_tests_defect']<flow.limits['max_test_defect_repairs']:
         ordinary=flow.bounded('build_tests_defect','max_test_defect_repairs')
@@ -63,6 +63,7 @@ def rewrite(flow, suite, diagnostics, reason):
         except Exception as error:
             from .build_workflow import public_error
             record['rejection']=public_error(error)
+            if hasattr(error,'feedback'):record['validation_feedback']=deepcopy(error.feedback)
             raise
         finally:
             flow.stage=saved

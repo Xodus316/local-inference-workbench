@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-24",
+  "status": "implementation_and_checkpoint_control_passed_before_continuation",
+  "source_run_id": "33454b77-32bc-4ca5-9322-7d3781f180e5",
+  "root_cause": "Partial local binding rename left a later branch using tok",
+  "changes": [
+    "Structured composed-method diagnostics and dangling-binding locations",
+    "Persistent rejection feedback for consultant and original-role correction",
+    "CPU-only replay of prior rejected patches for diagnostics",
+    "Explicit four-correction continuation grant with inherited counter floors"
+  ],
+  "saved_checkpoint_control": {
+    "status": "passed",
+    "source_run_id": "33454b77-32bc-4ca5-9322-7d3781f180e5",
+    "source_checkpoint": {
+      "kind": "graph",
+      "stage": "code_build",
+      "binding": "7028298c5cb06edb63a95f000648926756f6fc6f101ea9191445fcd355291e12",
+      "content_sha256": "0c2b33787f9488fa69e5a2e346c1abdd7202277b95ee168f8b714254de476e65",
+      "created": 1795579255.5510936
+    },
+    "inherited_counters_preserved": true,
+    "inherited_repair_history_preserved": true,
+    "fresh_output_corrections": 4,
+    "spent_output_corrections": 4,
+    "cumulative_output_limit": 8,
+    "old_budget_not_refunded": true,
+    "root_cause": "Partial local binding rename left a later branch using tok",
+    "diagnostic_method": "TestConfig.test_api_prefix",
+    "dangling_bindings": {
+      "tok": [
+        40
+      ]
+    },
+    "complete_method_context": true,
+    "diagnostic_digest": "9236c198f45edb04da1b2fc399be91869697f8701a7316bf440bf84c9b99c9bd",
+    "public_source_files": 14,
+    "pinned_prompt_tokens": {
+      "producer": 28926,
+      "correction": 29763,
+      "consult": 28730
+    },
+    "completion_reserve": 65536,
+    "framing_reserve": 2048,
+    "maximum_reserved": 97347,
+    "approved_context": 98304,
+    "frozen_files_verified": 3069,
+    "actual_model_inference": false,
+    "gpu_used": false,
+    "application_or_test_edits_applied": false,
+    "acceptance_credit": false
+  },
+  "validation": {
+    "core_tests": 663,
+    "adapter_tests": 38,
+    "adapter_passed": 38,
+    "core_passed": 655,
+    "optional_skips": 8
+  },
+  "continuation8": {
+    "status": "not_started",
+    "fresh_output_corrections": 4,
+    "inherited_spent_output_corrections": 4,
+    "cumulative_limit": 8,
+    "operator_intervention_allowed": false
+  }
+}

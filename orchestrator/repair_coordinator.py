@@ -41,6 +41,11 @@ def project_prompt_contract(inputs):
             value['base_suite']=projected
             value['base_suite_projection']={'original_digest':digest(base),'source_complete':True,
                 'omitted_metadata':['coverage'],'reason':'Host retains the exact immutable coverage map; proposals contain no coverage edits.'}
+    rejected=value.get('rejected_output')
+    if inputs.get('repair_policy')==POLICY and isinstance(rejected,dict) and rejected.get('edits'):
+        value['rejected_output']={'host_retained':True,'digest':digest(rejected),
+            'executable_edits_digest':digest(rejected['edits']),
+            'replacement_base':'Return a complete new proposal against base_suite; the rejected draft was never applied.'}
     return value
 
 
@@ -200,10 +205,19 @@ def root_hints(items):
     return [{'headline_family':key,'failure_ids':ids,'causal_diagnosis_required':True} for key,ids in sorted(groups.items())]
 
 
-def prior_attempts(attempts):
+def prior_attempts(attempts,*,flow=None,suite=None):
     from .agent_recovery import excerpt
-    return [{**{k:r[k] for k in ('patch_digest','base_suite_digest','disposition','progress','rejection') if k in r},
-        'patch_excerpt':excerpt(r.get('edits',[]),6000)} for r in attempts[-4:]]
+    result=[]
+    for record in attempts[-4:]:
+        value={k:record[k] for k in ('patch_digest','base_suite_digest','disposition','progress','rejection') if k in record}
+        value['patch_excerpt']=excerpt(record.get('edits',[]),2500)
+        details=record.get('validation_feedback')
+        if details is None and flow is not None and suite is not None:
+            from .repair_diagnostics import replay
+            details=replay(flow,suite,record)
+        if details is not None:value['composed_patch_rejection']=deepcopy(details)
+        result.append(value)
+    return result
 
 
 def compose_tests(flow,suite,items,scope,raw):
@@ -242,7 +256,9 @@ def compose_tests(flow,suite,items,scope,raw):
         for name,node in definitions.items():
             if (path,name) not in failed and ast.dump(node,include_attributes=False)!=ast.dump(new[path][name],include_attributes=False):
                 raise ValueError('Anchored repair changed a previously passing test: '+path+'::'+name)
-    if findings:=flow.test_defects(revised):raise ValueError('Anchored repair has static defects: '+str(findings))
+    if findings:=flow.test_defects(revised):
+        from .repair_diagnostics import PatchValidationError,feedback
+        raise PatchValidationError(feedback(suite,revised,findings))
     return revised
 
 
@@ -285,7 +301,9 @@ INSTRUCTION=(
     'cause; for each cluster select its exact host-provided evidence_id values in evidence_refs and identify zero-based edit_indexes. '
     'The host binds those references to literal captured diagnostics; do not reproduce or complete truncated quotes. '
     'A shared helper fix may address several failures. Inspect its actual definition and return values; do not guess '
-    'signatures. Copy each before anchor exactly and uniquely from current source; edits are simultaneous and may '
+    'signatures. A binding rename must update every use in the complete enclosing method, including later branches. '
+    'Inspect composed_patch_rejection and previous_attempts; never repeat a rejected partial rename. '
+    'Copy each before anchor exactly and uniquely from current source; edits are simultaneous and may '
     'not overlap. Return only changed fragments, never whole files. Preserve every test/class name, all coverage '
     'and commands, passing test methods and the specification. Correct test expectations only from the public '
     'contract. Do not skip tests, make operations optional, weaken assertions to vacuous checks, or tailor tests '

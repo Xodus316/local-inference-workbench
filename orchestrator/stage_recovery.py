@@ -39,7 +39,9 @@ def validate_costs(bundle, counters):
         return
     limits = {'recovery_diagnosis': POLICY['max_diagnoses'], 'recovery_request': POLICY['max_requests']}
     if dynamic_enabled(bundle):
-        limits['recovery_output_correction'] = DYNAMIC_POLICY['max_output_corrections']
+        from .repair_allowance import output_limit,validate_floors
+        limits['recovery_output_correction'] = output_limit(bundle)
+        validate_floors(bundle,counters)
         limits['coordinated_patch'] = 6  # Two ordinary author repairs plus four shared corrections.
     for key, count in counters.items():
         if key == 'recovery_output_correction' and not dynamic_enabled(bundle) and count:

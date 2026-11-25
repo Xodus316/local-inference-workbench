@@ -120,7 +120,7 @@ def repair(flow,suite,result):
     instruction=INSTRUCTION+' This is pre-freeze independent test qualification against the trusted reference. '+flow.frontend_dom_test_brief
     data={'base_suite':suite.model_dump(),'base_suite_digest':original,'scope':scope,'failures':items,
         'root_cause_hints':root_hints(items),'read_only_application_inventory':list(suite.implementation_files),
-        'previous_attempts':prior_attempts(attempts),
+        'previous_attempts':prior_attempts(attempts,flow=flow,suite=suite),
         'verification_plan':['affected Python syntax/static checks','selected original reference cases',
             'all original reference cases with unchanged verifier','all downstream candidate/review/delivery gates']}
 
@@ -156,6 +156,7 @@ def repair(flow,suite,result):
         except Exception as error:
             from .build_workflow import public_error
             record['rejection']=public_error(error)
+            if hasattr(error,'feedback'):record['validation_feedback']=deepcopy(error.feedback)
             raise
         finally:
             flow.stage=saved
