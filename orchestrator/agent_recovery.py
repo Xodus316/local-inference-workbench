@@ -5,7 +5,7 @@ import re
 import traceback
 
 from pydantic import Field,create_model,model_validator
-from typing import Literal
+from typing import Literal,ClassVar
 
 from .schemas import Record
 from .store import digest, encoded
@@ -32,6 +32,7 @@ class RecoveryAdvice(Record):
 
 
 class EvidenceRecoveryAdvice(Record):
+    conditional_actions:ClassVar[bool]=False
     diagnosis: str = Field(min_length=1,max_length=1600)
     evidence_ref: str = Field(min_length=1,max_length=64)
     action: Literal['correct_stage_output','request_capability','stop']
@@ -44,10 +45,39 @@ class EvidenceRecoveryAdvice(Record):
         from .repair_coordinator import project_narrative
         return project_narrative(value,{'diagnosis':1600,'required_capability':600})
 
+    @model_validator(mode='after')
+    def actionable(self):
+        if self.conditional_actions:
+            if self.action=='correct_stage_output':
+                if not self.requested_changes or any(not x.strip() for x in self.requested_changes):
+                    raise ValueError('correct_stage_output requires a nonempty requested_changes list describing the executable correction')
+                if self.required_capability:
+                    raise ValueError('correct_stage_output requires an empty required_capability')
+            if self.action=='request_capability' and not self.required_capability.strip():
+                raise ValueError('Recovery agent did not describe the missing capability')
+        return self
+
+    @classmethod
+    def model_json_schema(cls,*args,**kwargs):
+        value=super().model_json_schema(*args,**kwargs)
+        if cls.conditional_actions:
+            reference=value['properties'].get('evidence_ref',{})
+            if 'const' in reference:reference['enum']=[reference['const']]
+            value['oneOf']=[
+                {'properties':{'action':{'type':'string','enum':['correct_stage_output']},
+                    'requested_changes':{'type':'array','items':{'type':'string','minLength':1},'minItems':1,'maxItems':8},
+                    'required_capability':{'type':'string','maxLength':0}},'required':['action','requested_changes']},
+                {'properties':{'action':{'type':'string','enum':['request_capability']},
+                    'required_capability':{'type':'string','minLength':1,'maxLength':600}},'required':['action','required_capability']},
+                {'properties':{'action':{'type':'string','enum':['stop']}},'required':['action']}]
+        return value
+
 
 def advice_type(evidence_ref):
-    return create_model('BoundRecoveryAdvice',__base__=EvidenceRecoveryAdvice,
+    model=create_model('BoundRecoveryAdvice',__base__=EvidenceRecoveryAdvice,
         evidence_ref=(Literal[evidence_ref],...))
+    model.conditional_actions=True
+    return model
 
 
 def excerpt(value, limit=12000):
@@ -219,7 +249,7 @@ def consult(recovery, stage, error, context=None):
             'The orchestrator has no successful handler for this failure. Diagnose the retained evidence '+
             'and choose a next action. Select the exact failure_evidence_id in evidence_ref. '+
             'Use correct_stage_output only when it '
-            'is an available host capability; specify minimal corrections preserving all immutable contracts. '
+            'is an available host capability. For correct_stage_output, put 1 to 8 concrete executable corrections in requested_changes (never leave it empty); diagnosis is evidence, not a substitute for this list, and required_capability must be empty. Preserve all immutable contracts. '
             'Otherwise request the missing capability with actionable requirements, or stop if the approved '
             'budget cannot permit recovery. Excerpts explicitly marked incomplete are not complete source. '
             'Do not invent evidence, execute commands, modify runtime code, change models/budgets or waive gates.',

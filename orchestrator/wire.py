@@ -18,6 +18,8 @@ def wire_schema(model):
         "maximum",
     }
 
+    conditional_actions = getattr(model, 'conditional_actions', False) is True
+
     def convert(node):
         if "$ref" in node:
             return convert(original["$defs"][node["$ref"].rsplit("/", 1)[-1]])
@@ -28,6 +30,8 @@ def wire_schema(model):
             }
         if "items" in result:
             result["items"] = convert(result["items"])
+        if conditional_actions and 'oneOf' in node:
+            result['oneOf'] = [convert(branch) for branch in node['oneOf']]
         return result
 
     return convert(original)
