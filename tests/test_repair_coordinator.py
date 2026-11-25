@@ -75,6 +75,18 @@ def proposal(items):
 
 
 class RepairCoordinatorTests(unittest.TestCase):
+    def test_source_admission_projection_preserves_exact_criteria_and_avoids_duplicate_contract_text(self):
+        from orchestrator.repair_coordinator import project_prompt_contract,POLICY
+        from orchestrator.whole_project_test_author import numbered_criteria
+        plan={'goal':'Build','acceptance_criteria':['Observable behavior'],'assumptions':[],'implementation_files':['app.py']}
+        inputs={'repair_policy':POLICY,'plan':plan,'numbered_acceptance_criteria':numbered_criteria(plan['acceptance_criteria']),
+            'base_suite':{'implementation_files':['app.py']}}
+        projected=project_prompt_contract(inputs)
+        self.assertEqual(projected['numbered_acceptance_criteria'],inputs['numbered_acceptance_criteria'])
+        self.assertEqual(projected['base_suite'],inputs['base_suite']);self.assertNotIn('acceptance_criteria',projected['plan'])
+        self.assertEqual(inputs['plan'],plan)
+        with self.assertRaises(ValueError):project_prompt_contract({**inputs,'numbered_acceptance_criteria':[]})
+
     def test_reference_budget_falls_back_to_shared_pool_and_verifies_affected_then_full_suite(self):
         flow,suite=fixture();before=receipt(flow,suite);events=[]
         def targeted(f,candidate,cases,index):
@@ -92,6 +104,11 @@ class RepairCoordinatorTests(unittest.TestCase):
         self.assertNotIn('PRIVATE_API_LOG',str(flow._generate.call_args_list))
         projected=flow._generate.call_args_list[0].args[4]['coordinated_repair']['failure_observations']
         self.assertTrue(projected['complete']);self.assertIn('AssertionError: 0 != 1',projected['json_excerpt'])
+        context=flow._generate.call_args_list[0].args[4]['coordinated_repair']
+        self.assertTrue(context['source_complete']);self.assertEqual(context['editable_source'],suite.model_dump()['files'])
+        self.assertEqual(context['immutable_suite_metadata']['commands'],suite.commands)
+        self.assertEqual(context['immutable_suite_metadata']['coverage']['digest'],digest(suite.model_dump()['coverage']))
+        self.assertFalse(context['immutable_suite_metadata']['coverage']['editable'])
         self.assertEqual(suite.files[0].content,SOURCE)
         completed=flow._coordinator_reference['receipt']
         self.assertIs(WholeProjectBuildRun.control(flow,corrected),completed)
@@ -180,3 +197,18 @@ class RepairCoordinatorTests(unittest.TestCase):
         self.assertEqual(retained_suite(row,{'whole_recovery_8_output':request},{'whole_recovery_8_output':{'value':value}}),changed.model_dump())
         record['candidate_suite_digest']='f'*64
         with self.assertRaises(ValueError):retained_suite(row,{'whole_recovery_8_output':request},{'whole_recovery_8_output':{'value':value}})
+
+    def test_large_source_is_supplied_completely_instead_of_being_cut_off_by_the_contract_excerpt(self):
+        flow,suite=fixture();value=suite.model_dump();value['files'][0]['content']+='\n# '+('large-source '*2500)+'TAIL_MARKER\n'
+        from orchestrator.project_build import WholeProjectTestSuite
+        suite=WholeProjectTestSuite.model_validate(value);items=reference_evidence(flow.bundle,suite,receipt(flow,suite))['failures']
+        from orchestrator.repair_coordinator import CoordinatedPatch
+        raw={'summary':'No model output','clusters':[],'edits':[]}
+        data={'repair_policy':'grouped-anchored-recovery-v1','base_suite':suite.model_dump(),
+            'base_suite_digest':digest(suite.model_dump()),'scope':['tests/test_math.py'],'failures':items}
+        context={'stage':'build_control_recovery','role':'test_author','model_type':CoordinatedPatch,
+            'instruction':'Apply exact source anchors','data':data,'value':raw,'value_digest':digest(raw)}
+        flow.recovery.consult(context['stage'],ValueError('Reference repair required'),context)
+        payload=flow._generate.call_args.args[4]
+        self.assertIn('TAIL_MARKER',payload['coordinated_repair']['editable_source'][0]['content'])
+        self.assertTrue(payload['original_stage_contract']['inputs']['complete'])

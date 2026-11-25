@@ -108,6 +108,7 @@ def consult(recovery, stage, error, context=None):
             data['dispatch_proof']={'not_dispatched':True,'original_output_available':False,
                 'recovery_scope':'Produce the original schema-bound output through the approved recovery capability; no model, budget or gate changes.'}
     if context is not None:
+        contract_inputs=context['data']
         if context['data'].get('repair_policy')=='grouped-anchored-recovery-v1':
             data['coordinated_repair']={
                 'input_kind':'host_anchored_patch_request; no initial model patch is claimed',
@@ -116,12 +117,40 @@ def consult(recovery, stage, error, context=None):
                 'root_cause_hints':excerpt(context['data'].get('root_cause_hints',[]),6000),
                 'base_suite_digest':context['data'].get('base_suite_digest'),
                 'verification_rule':'Promote only a strictly smaller failed-case set with no regressions; all original gates remain required.'}
+            base=context['data'].get('base_suite')
+            if isinstance(base,dict) and isinstance(base.get('files'),list):
+                if digest(base)!=context['data'].get('base_suite_digest'):
+                    raise ValueError('Coordinator source context differs from its captured suite digest')
+                scope=set(context['data'].get('scope',[]));files=base['files']
+                if not scope<={f['path'] for f in files}:
+                    raise ValueError('Coordinator source scope exceeds its captured suite')
+                metadata=deepcopy({k:v for k,v in base.items() if k not in {'files','coverage'}})
+                if 'coverage' in base:
+                    metadata['coverage']={'host_retained':True,'digest':digest(base['coverage']),
+                        'entries':len(base['coverage']),'editable':False}
+                data['coordinated_repair'].update(source_complete=True,
+                    editable_source=deepcopy([f for f in files if f['path'] in scope]),
+                    read_only_support_source=deepcopy([f for f in files if f['path'] not in scope]),
+                    immutable_suite_metadata=metadata,
+                    producer_receives_original_complete_inputs=True)
+                # Source requiring byte-exact anchors must never be hidden in a generic excerpt.
+                # Keep one complete copy and let the pinned tokenizer admit the entire prompt.
+                contract_inputs={**context['data'],'base_suite':{'digest':digest(base),
+                    'complete_source_location':'coordinated_repair.editable_source and read_only_support_source',
+                    'metadata_location':'coordinated_repair.immutable_suite_metadata'}}
+                for key,location in [('failures','failure_observations'),('root_cause_hints','root_cause_hints')]:
+                    if key in contract_inputs:
+                        contract_inputs[key]={'digest':digest(context['data'][key]),'location':'coordinated_repair.'+location}
+                if 'read_only_application_inventory' in contract_inputs:
+                    contract_inputs['read_only_application_inventory']={
+                        'digest':digest(context['data']['read_only_application_inventory']),
+                        'location':'coordinated_repair.immutable_suite_metadata.implementation_files'}
         data.update(expected_schema=excerpt(context['model_type'].model_json_schema()),
                     rejected_output=excerpt(context['value']),
                     original_stage_contract={
                         'stage':context['stage'], 'role':context['role'],
                         'instruction':excerpt(context['instruction'],8000),
-                        'inputs':excerpt(context['data'],24000),
+                        'inputs':excerpt(contract_inputs,24000),
                         'correction_scope':'Correct the rejected generated output under this original contract. '
                             'A validator rejection does not authorize changing retained inputs, coverage mappings '
                             'or other immutable artifacts. The same validator must accept the correction.'})

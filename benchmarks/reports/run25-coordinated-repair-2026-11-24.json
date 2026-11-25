@@ -160,5 +160,119 @@
       "coordinator-cli-control-summary.json": "18afb0f0389353f2fd53ed89e93dcbe397cb6470ec57a692b1d102d8a5e57ed8"
     }
   },
-  "continuation5_status_at_publication": "not_started"
+  "continuation5": {
+    "status": "failed",
+    "workflow_id": "67e8db86-f86f-41b8-abc5-16de72ad119c",
+    "runtime_commit": "b0fc2c2b75733c816c0956641d4f2106de18d2bd",
+    "elapsed_seconds": 799.114,
+    "frozen_files_verified": 2705,
+    "checkpoints": 10,
+    "native": {
+      "qwen": {
+        "completed": 2,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owners": {
+      "qwen": {
+        "container_id": "2b47f0f3ff091bf75288c6fb432a55100feb8bef94ba0da9dba056972cf4a326",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "no_operator_intervention": true,
+    "patch_dispatched": false,
+    "root_cause": "Consultation had complete failure observations but only a truncated generic source excerpt; the agent requested the missing exact source instead of inventing anchors.",
+    "shared_corrections_spent": 3,
+    "shared_corrections_remaining": 1,
+    "terminal_error": {
+      "message": "Reference qualification needs a causal anchored repair of 17 observed failed cases",
+      "stage": "build_control_recovery"
+    },
+    "evidence_sha256": {
+      "terminal.json": "e4cb5b2add8bdcfc4c8286bcfc26174ff3f668ee2d88d727f13f705f2a444e6d",
+      "outcome.json": "2d8c2939acc0b927e7e70c1d55f6cea7a0481c3017c3dd62b3ef2449dd87c502",
+      "operator-verification.json": "1aeb600330cb7de21bf64c6fa75f387b0cf95b64e3920681f150f8fce1b4de81"
+    }
+  },
+  "complete_source_followup": {
+    "complete_editable_and_read_only_test_source": true,
+    "host_retained_coverage_digest_and_count": true,
+    "exact_numbered_criteria_preserved_once": true,
+    "duplicate_contract_metadata_projected_to_existing_locations": true,
+    "original_producer_inputs_remain_complete": true,
+    "core": {
+      "total": 650,
+      "passed": 642,
+      "optional_skips": 8
+    },
+    "native_adapter": {
+      "total": 38,
+      "passed": 38
+    },
+    "pinned_cpu_admission_control": {
+      "status": "passed",
+      "control_kind": "actual-saved-consultation-with-complete-source-and-pinned-cpu-tokenizer",
+      "source_run_id": "67e8db86-f86f-41b8-abc5-16de72ad119c",
+      "complete_test_files": 14,
+      "editable_files": 10,
+      "read_only_support_files": 4,
+      "source_utf8_bytes": 43963,
+      "failure_observations": 17,
+      "prompt_tokens_max_role_framing_and_schema": 26752,
+      "provider_framing_reserve": 2048,
+      "advice_feedback_retry_prompt_tokens": 27467,
+      "completion_reserve": 65536,
+      "total_reserved_tokens": 95051,
+      "approved_context": 98304,
+      "full_source_hashes_verified": true,
+      "frozen_files_verified": 2705,
+      "payload_digest": "bd78d23f833f3106f191bb4742646d7cc025320927ba81dc4ef6c9c65f250aa3",
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "acceptance_credit": false,
+      "production_counters_changed": false
+    },
+    "real_pinned_cli_synthetic_control": {
+      "status": "passed",
+      "control_kind": "real-pinned-opencode-coordinated-anchored-patch-with-synthetic-loopback-model",
+      "evidence_directory": "diagnostics/cs25/612a2bef",
+      "stages_and_roles": [
+        [
+          "whole_recovery_1_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_retry_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_output",
+          "test_author"
+        ]
+      ],
+      "native_protocol_requests": 3,
+      "confirmed_pre_dispatch_evidence": [],
+      "consultations": 1,
+      "semantic_advice_retries": 1,
+      "output_corrections": 1,
+      "same_schema_revalidated": true,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "actual_model_quality_or_end_to_end_claim": false,
+      "scratch_disposed": true,
+      "application_or_plan_imported_into_fresh_trial": false
+    },
+    "budget_or_context_increase": false,
+    "evidence_sha256": {
+      "core-tests-complete-source.log": "1c0e1a51c97234c8929080602fcd2ed197ca055078ff08f5fd61fd75db67ef89",
+      "adapter-tests-complete-source.log": "b4d0c71e73c818c973e0c1e6d50942538106007b423b70e4e1381243ad00e181",
+      "complete-source-control-summary.json": "99d3642c54b5adf077b383492bb432dd1877fd09f236e61451bd19ecc66739d0",
+      "complete-source-cli-control-summary.json": "15e1a377f12e1a51659f8614f6a723612703f7ae2a4936c1d029ea8d6b617279"
+    }
+  },
+  "continuation6_status_at_publication": "not_started"
 }

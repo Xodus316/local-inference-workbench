@@ -13,6 +13,26 @@ from .store import digest
 POLICY='grouped-anchored-recovery-v1'
 
 
+def project_prompt_contract(inputs):
+    """Keep exact criteria and source once, leaving room for complete source and bounded advice feedback."""
+    coordinated=inputs.get('coordinated_repair',{})
+    if inputs.get('repair_policy')!=POLICY and coordinated.get('source_complete') is not True:return inputs
+    plan=inputs.get('plan')
+    if not isinstance(plan,dict):return inputs
+    from .whole_project_test_author import numbered_criteria
+    if inputs.get('numbered_acceptance_criteria')!=numbered_criteria(plan['acceptance_criteria']):
+        raise ValueError('Coordinated repair must retain every exact acceptance criterion')
+    value=dict(inputs);value['plan']={k:v for k,v in plan.items() if k in {'goal','assumptions'}}
+    previous=inputs.get('test_author_plan_projection',{})
+    value['test_author_plan_projection']={**previous,
+        'omitted_fields':sorted(set(previous.get('omitted_fields',[]))|{'acceptance_criteria','implementation_files'}),
+        'criteria_location':'numbered_acceptance_criteria',
+        'implementation_files_location':('base_suite.implementation_files' if inputs.get('repair_policy')==POLICY
+            else 'coordinated_repair.immutable_suite_metadata.implementation_files'),
+        'reason':'Exact criteria remain numbered and complete; the complete source context already declares the implementation inventory.'}
+    return value
+
+
 class CauseGroup(Record):
     cause:str=Field(min_length=1,max_length=1200)
     failure_ids:list[str]=Field(min_length=1,max_length=80)

@@ -972,6 +972,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
             if role == "test_author" and self.scoped_repairs and isinstance(inputs.get("plan"), dict):
                 inputs["plan"], inputs["test_author_plan_projection"] = public_test_author_plan(inputs["plan"])
                 inputs["numbered_acceptance_criteria"] = numbered_criteria(inputs["plan"]["acceptance_criteria"])
+                from .repair_coordinator import project_prompt_contract
+                inputs=project_prompt_contract(inputs)
             if tool_policy == INLINE_SMOKE_POLICY and isinstance(inputs.get("plan"), dict):
                 inputs["plan"], inputs["plan_projection"] = public_smoke_plan(inputs["plan"])
                 inputs = project_smoke_inputs(inputs, stage)
