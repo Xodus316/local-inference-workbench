@@ -350,5 +350,155 @@
     },
     "counter_reset_or_budget_increase": false
   },
-  "continuation4_status_at_publication": "not_started"
+  "continuation4": {
+    "status": "review_required",
+    "workflow_id": "e3c69c19-2e2e-4030-86c5-5917ce956976",
+    "source_runtime_commit": "ba7c5487f09718510d88bf7d2b257551980565de",
+    "approval_digest": "7f93ed706315ed6f6998ec109f58120d91ecbb30332e6da7dcfc07fae31bbf47",
+    "elapsed_seconds": 709.428,
+    "frozen_files_verified": 2518,
+    "checkpoints": 13,
+    "native": {
+      "qwen": {
+        "completed": 3,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owners": {
+      "qwen": {
+        "container_id": "db57aebc90a920dae5b9f8a153a7eace7b467ca4450788948623399c5afac6ec",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "no_operator_intervention": true,
+    "backend_frontend_compile": "passed_without_new_repairs",
+    "reference_candidate_smoke": "passed",
+    "shared_repair": "missing import corrected by Qwen; semantic checks and pinned Python preflight passed",
+    "shared_correction_status": "output_revalidated",
+    "independent_reference": {
+      "status": "failed",
+      "tests_run": 58,
+      "failures_and_errors": 17,
+      "passed": 41,
+      "failure_list_complete": true,
+      "failing_cases": [
+        {
+          "test": "test_api_prefix (test_config.TestConfig)",
+          "status": "error"
+        },
+        {
+          "test": "test_readme (test_config.TestConfig)",
+          "status": "error"
+        },
+        {
+          "test": "test_crud_affiliates (test_resources.TestResources)",
+          "status": "error"
+        },
+        {
+          "test": "test_crud_categories (test_resources.TestResources)",
+          "status": "error"
+        },
+        {
+          "test": "test_crud_products (test_resources.TestResources)",
+          "status": "error"
+        },
+        {
+          "test": "test_tracked_crud (test_resources.TestResources)",
+          "status": "error"
+        },
+        {
+          "test": "test_last_clicked (test_clicks.TestClicks)",
+          "status": "failed"
+        },
+        {
+          "test": "test_application_yml (test_config.TestConfig)",
+          "status": "failed"
+        },
+        {
+          "test": "test_declared_files (test_config.TestConfig)",
+          "status": "failed"
+        },
+        {
+          "test": "test_frontend_package (test_config.TestConfig)",
+          "status": "failed"
+        },
+        {
+          "test": "test_timestamp_stability (test_persist.TestPersist)",
+          "status": "failed"
+        },
+        {
+          "test": "test_timestamps (test_products.TestProducts)",
+          "status": "failed"
+        },
+        {
+          "test": "test_put_preserves (test_tracked_urls.TestTrackedUrls)",
+          "status": "failed"
+        },
+        {
+          "test": "test_logout (test_ui_auth.TestUiAuth)",
+          "status": "failed"
+        },
+        {
+          "test": "test_products_create (test_ui_crud.TestUiCrud)",
+          "status": "failed"
+        },
+        {
+          "test": "test_reports_tables (test_ui_crud.TestUiCrud)",
+          "status": "failed"
+        },
+        {
+          "test": "test_dashboard (test_ui_dashboard.TestUiDashboard)",
+          "status": "failed"
+        }
+      ],
+      "other_checks": {
+        "backend-package": "passed",
+        "browser": "unavailable",
+        "frontend-build": "passed",
+        "frontend-typecheck": "passed",
+        "frozen-test-syntax": "passed",
+        "gradle-build": "passed",
+        "mongodb-ready": "passed",
+        "python-unittest": "failed",
+        "trusted-api": "passed",
+        "trusted-api-startup": "passed",
+        "trusted-heldout": "passed",
+        "trusted-persistence": "passed",
+        "trusted-persistence-seed": "passed"
+      }
+    },
+    "terminal_agent_consultation": "completed; chose stop at exhausted independent reference-test repair budget",
+    "terminal_error": {
+      "message": "Independent test repair budget exhausted; scoped acceptance requires every test without quarantine",
+      "stage": "build_tests_quarantine"
+    },
+    "quarantine_performed": false,
+    "spent_counters": {
+      "build_tests_defect": 3,
+      "build_tests_syntax": 1,
+      "recovery_diagnosis": 7,
+      "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+      "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+      "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+      "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+      "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+      "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+      "recovery_output_correction": 3,
+      "recovery_request": 26,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "independent_candidate_review_delivery": "not_reached",
+    "operator_application_or_test_edits": false,
+    "evidence_sha256": {
+      "terminal.json": "06d34ffa0040f354ddecebbd9903c897ac2b33c63a1ed4552db67cc235604a92",
+      "outcome.json": "783f7c912602715082d745fc5af5365bcb44f5de84d282509f0aacc2d1cb28bc",
+      "operator-verification.json": "008a1cd71c7fdac4caae9c562263c535f755a5c098d36d4e71c6b265f016d269"
+    }
+  }
 }
