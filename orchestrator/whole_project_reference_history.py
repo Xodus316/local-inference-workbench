@@ -13,8 +13,8 @@ HISTORY_PROJECTION_POLICY = "reference-attempt-history-projection-v1"
 MAX_HISTORY_BYTES = 2 * 1024 * 1024
 MAX_HISTORY_RECORDS = 256
 _HASH = re.compile(r"[a-f0-9]{64}\Z")
-_CONTROL = re.compile(r"build_control_(?:[0-9]|1[0-5])\Z")
-_PATCH = re.compile(r"build_tests_defect_[1-3]_file_(?:[1-9]|1[0-5])\Z")
+_CONTROL = re.compile(r"build_control_(?:[0-9]|[1-5][0-9]|6[0-3])\Z")
+_PATCH = re.compile(r"build_tests_defect_(?:[1-9]|1[0-6])_file_(?:[1-9]|1[0-5])\Z")
 
 
 def empty_reference_history():

@@ -4,7 +4,7 @@ from unittest.mock import Mock,patch
 
 from orchestrator.repair_coordinator import check_repeat,evidence_catalog,executable_edits
 from orchestrator.reference_repair_coordinator import repair,reference_evidence
-from orchestrator.checkpoint_repair_continuation import POLICY,retained_counters
+from orchestrator.checkpoint_repair_continuation import POLICY,retained_counters,budgets
 from orchestrator.store import digest
 from test_repair_coordinator import fixture,receipt
 
@@ -43,7 +43,7 @@ class MetadataRepairRecoveryTests(unittest.TestCase):
 
     def test_corrected_metadata_reaches_unchanged_preflight_targeted_and_full_gates(self):
         flow,suite,items,good,_,history=self.context()
-        flow.bundle['whole_project_stage_continuation']={'policy':POLICY}
+        flow.bundle['whole_project_stage_continuation']={'policy':POLICY,'fresh_budgets':budgets()}
         flow.counters['recovery_output_correction']=0;flow.evidence['coordinated_repairs']=history
         def generate(stage,role,model_type,instruction,data,visible,**kw):
             if stage.endswith('_consult'):

@@ -28,6 +28,8 @@ def carry(source,source_approval,counters):
 
 def output_limit(bundle,_depth=0):
     value=bundle.get(CONTINUATION,{})
+    from .checkpoint_repair_continuation import POLICY as EPOCH,approved_budgets
+    if value.get('policy')==EPOCH:return approved_budgets(value['fresh_budgets'])['output_corrections']
     if value.get('policy') not in {POLICY,CARRY_POLICY}:return 4
     if _depth>16:raise ValueError('Repair grant ancestry exceeds the bounded workflow history')
     allowance=value.get('repair_allowance',{});base=value.get('counters',{})
@@ -67,3 +69,9 @@ def validate_floors(bundle,counters):
     if any(type(counters.get(key,0)) is not int or counters.get(key,0)<count
             for key,count in value['counters'].items()):
         raise ValueError('Fresh repair allowance cannot refund inherited costs')
+
+
+def coordinated_limit(bundle):
+    from .checkpoint_repair_continuation import POLICY as EPOCH,approved_budgets
+    value=bundle.get(CONTINUATION,{})
+    return approved_budgets(value['fresh_budgets'])['coordinated_validations'] if value.get('policy')==EPOCH else 6

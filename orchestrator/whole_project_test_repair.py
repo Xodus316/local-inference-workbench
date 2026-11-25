@@ -34,8 +34,8 @@ METHOD_PATCH_OUTPUT_TOKENS = 32768
 METHOD_PATCH_GENERATION_LIMITS = {"max_completion_tokens": METHOD_PATCH_OUTPUT_TOKENS,
     "includes_reasoning": True, "separate_reasoning_limit": None,
     "max_steps": 1, "tools": False, "auto_compaction": False}
-METHOD_PATCH_STAGE = re.compile(r"build_tests_defect_[1-3]_file_(?:[1-9]|1[0-5])\Z")
-DIAGNOSIS_STAGE = re.compile(r"build_tests_diagnose_[1-3]_file_(?:[1-9]|1[0-5])\Z")
+METHOD_PATCH_STAGE = re.compile(r"build_tests_defect_(?:[1-9]|1[0-6])_file_(?:[1-9]|1[0-5])\Z")
+DIAGNOSIS_STAGE = re.compile(r"build_tests_diagnose_(?:[1-9]|1[0-6])_file_(?:[1-9]|1[0-5])\Z")
 REFERENCE_GENERATION_LIMITS = {
     INLINE_METHOD_PATCH_POLICY: METHOD_PATCH_GENERATION_LIMITS,
     INLINE_METHOD_PATCH_POLICY_V3: METHOD_PATCH_GENERATION_LIMITS,

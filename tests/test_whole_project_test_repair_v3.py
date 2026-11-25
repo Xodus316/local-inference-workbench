@@ -173,7 +173,7 @@ class ReferenceDiagnosisWorkerTests(unittest.TestCase):
                         settings={"context": 65536, "think": True}, original={}, editable=(), system="", prompt="",
                         schema={"type": "object"}, collect=Mock(), cancel=threading.Event(),
                         deadline=time.monotonic()+20, scratch_parent=Path(directory), on_event=None, tool_policy=policy)
-        self.assertNotIn("build_tests_diagnose_4_file_1", STAGES)
+        self.assertNotIn("build_tests_diagnose_17_file_1", STAGES)
         self.assertNotIn("build_tests_diagnose_1_file_16", STAGES)
 
 

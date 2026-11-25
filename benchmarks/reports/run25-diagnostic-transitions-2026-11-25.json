@@ -1,6 +1,6 @@
 {
   "date": "2026-11-25",
-  "status": "controls_passed_before_continuation14",
+  "status": "continuation14_failed_and_audited",
   "changes": [
     "Retain all post-patch failure observations even when failed case IDs are unchanged",
     "Derive richer feedback from settled model and full-reference receipts without rewriting old records",
@@ -214,7 +214,7 @@
     "diagnostic-transition-control-summary.json": "a49bbffd89b6ad5964e3de31f9627c39954800d69094e31d9aebedaeccb5d874"
   },
   "continuation14": {
-    "status": "not_started",
+    "status": "failed",
     "application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
     "independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
     "fresh_shared_budget": {
@@ -224,6 +224,34 @@
       "coordinated_validations": 6
     },
     "previous_costs_archived": true,
-    "operator_source_changes_during_trial": false
+    "operator_source_changes_during_trial": false,
+    "run_id": "2113244b-dd50-426b-8204-dfef0189587e",
+    "elapsed_seconds": 2541.863,
+    "frozen_files_verified": 4666,
+    "checkpoints": 28,
+    "native": {
+      "qwen": {
+        "completed": 11,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owners": {
+      "qwen": {
+        "container_id": "87d04e39fb5d975d1b92e4b75c81d34403659819f8f14f1753e745219fdf38f0",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "error": {
+      "message": "Repair did not reduce failed cases without regressions; retain previous source",
+      "stage": "build_control_recovery"
+    },
+    "no_operator_intervention": true,
+    "patches_promoted": 0,
+    "remaining_reference_failures": 2,
+    "operator_verification_sha256": "2d9b3962cceccd3a9897cd5911a4a2e49897fcc196a42aa6be2024798278acd4"
   }
 }

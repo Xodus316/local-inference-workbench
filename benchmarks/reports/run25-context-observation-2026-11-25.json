@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-25",
+  "status": "controls_passed_before_continuation15",
+  "changes": [
+    "Explicit checkpoint grant supports 16 output corrections, 16 total ordinary test-defect repairs, and 16 coordinated validations while preserving legacy grants and spent costs",
+    "Expand finite repair, diagnosis and validation stages to admit the authorized boundary",
+    "Gather bounded read-only public DOM context in full original test order before reference repair; no acceptance credit",
+    "Share one source-bound observation with ordinary repair and recovery consultation; cache per accepted suite and cap observations at two",
+    "Encode empty required_capability as a native schema enum because native string length bounds are stripped"
+  ],
+  "validation": {
+    "core_tests": 694,
+    "core_passed": 686,
+    "optional_skips": 8,
+    "native_adapter_tests": 38,
+    "native_adapter_passed": 38
+  },
+  "saved_case_control": {
+    "status": "passed",
+    "source_run_id": "2113244b-dd50-426b-8204-dfef0189587e",
+    "source_checkpoint": {
+      "kind": "graph",
+      "stage": "code_build",
+      "binding": "da29f889665aa2f3bda57e2470ba27b73657746e892fd77abacd3dd0d1ceea8d",
+      "content_sha256": "6fbbe2639c24081e08eb408aaaa7ff9ab582b4a04d641345c24365f520a00584",
+      "created": 1795645099.1766536
+    },
+    "retained_application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
+    "retained_independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
+    "application_files": 79,
+    "test_files": 12,
+    "original_reference_cases": 49,
+    "fresh_budgets": {
+      "diagnoses": 16,
+      "requests": 64,
+      "output_corrections": 16,
+      "coordinated_validations": 16,
+      "test_defect_repairs": 16,
+      "context_observations": 2
+    },
+    "ordinary_compile_general_costs_retained": {
+      "build_tests_defect": 2,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "archived_source_costs": {
+      "build_tests_defect": 2,
+      "coordinated_patch": 4,
+      "recovery_diagnosis": 6,
+      "recovery_issue_230596d0b6c50f43858f22bb47322207": 1,
+      "recovery_issue_331c4226255b446084b1c89f24084972": 1,
+      "recovery_issue_3c49eed9dbd8c823cc791a7f195022d8": 1,
+      "recovery_issue_6fd550427167452efb26661ffd13646c": 1,
+      "recovery_issue_c57d8d06eb68d42bd1fcae6c5419cce5": 1,
+      "recovery_issue_eb14b840fb6dbfac87124375b712e951": 1,
+      "recovery_output_correction": 4,
+      "recovery_request": 7,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "first_dispatch_stage": "build_tests_defect_3",
+    "simulated_ordinary_exhaustion_consultation_tokens": 27508,
+    "simulated_ordinary_exhaustion_total_reserved_tokens": 95092,
+    "prompt_tokens": 26504,
+    "total_reserved_tokens": 94088,
+    "frozen_files_verified": 4666,
+    "gpu_used": false,
+    "actual_model_inference": false,
+    "acceptance_credit": false,
+    "generated_source_changes": false,
+    "replayed_settled_cpu_receipt": true
+  },
+  "observed_public_ui": {
+    "categories": {
+      "displayed_rows": 10,
+      "total_rows": 11,
+      "next_page_enabled": true
+    },
+    "tracked_urls": {
+      "displayed_rows": 10,
+      "total_rows": 12,
+      "next_page_enabled": true
+    },
+    "diagnostic_proves_acceptance": false,
+    "private_reference_source_exposed_to_models": false
+  },
+  "continuation15": {
+    "status": "not_started",
+    "fresh_budgets": {
+      "diagnoses": 16,
+      "requests": 64,
+      "output_corrections": 16,
+      "coordinated_validations": 16,
+      "test_defect_repairs": 16,
+      "context_observations": 2
+    },
+    "application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
+    "independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
+    "ordinary_repairs_already_spent": 2,
+    "ordinary_repairs_remaining": 14,
+    "models": "Pinned Qwen3.8-27B, all workflow agents via OpenCode auto compaction",
+    "no_operator_rescue": true,
+    "all_original_acceptance_gates_required": true
+  },
+  "evidence_sha256": {
+    "context_control.py": "a78e123d2547005966acb1bd1eac217257bd521340bfe223e2cb5c4ed24c90fb",
+    "context-control-summary.json": "38a131ef8365fa8f9e1eb38d30dcafd6101d907eeb2353b3bda53a1f4855fea0",
+    "core-tests-final.log": "171726a756226954fc5202f8e564d81d8dc09ea7046d88b68d1e46a7636308eb",
+    "adapter-tests.log": "1a098f30a2d0a11e431abc2b3d6bd225cd137f0eaa5ba99cbae0cc0c282550c3"
+  }
+}

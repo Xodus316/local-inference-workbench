@@ -15,8 +15,17 @@ def retained_counters(counters):
     return {k:v for k,v in counters.items() if not k.startswith('recovery_') and k!='coordinated_patch'}
 
 
-def budgets():
+def budgets(expanded=False):
+    if expanded:return {'diagnoses':16,'requests':64,'output_corrections':16,'coordinated_validations':16,
+        'test_defect_repairs':16,'context_observations':2}
     return {'diagnoses':16,'requests':64,'output_corrections':4,'coordinated_validations':6}
+
+
+def approved_budgets(value):
+    if (not isinstance(value,dict) or any(type(n) is not int for n in value.values())
+            or value not in (budgets(),budgets(True))):
+        raise ValueError('Unsupported explicit checkpoint repair allowance')
+    return value
 
 
 def accepted_suite(row):
@@ -24,7 +33,7 @@ def accepted_suite(row):
     return evidence.get('independent_draft',{}).get('suite') or row['bundle'][KEY]['independent_suite']
 
 
-def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,preflight_bytes,reference_bytes,reference_history_bytes=None):
+def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,preflight_bytes,reference_bytes,reference_history_bytes=None,fresh_repair_budgets=None):
     from .stage_continuation import validate as validate_parent,retained_suite
     from .whole_project import _stopped_opencode_result
     from .project_build import execution_settled,project_test_types
@@ -78,7 +87,7 @@ def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,prefl
         'independent_suite':suite,'independent_suite_digest':digest(suite),'retained_reference':reference,
         'coordinated_history':deepcopy(e.get('coordinated_repairs',[])),
         'source_spent_counters':counters,'source_spent_counters_digest':digest(counters),
-        'counters':retained_counters(counters),'fresh_budgets':budgets(),
+        'counters':retained_counters(counters),'fresh_budgets':deepcopy(approved_budgets(fresh_repair_budgets or budgets())),
         'prior_budget_epoch':deepcopy(e.get('budget_epoch',{})),
         'repair_attempts':out['repair_attempts'],'compile_repair_attempts':out['compile_repair_attempts'],
         'restart_scope':'shared_recovery_over_retained_independent_tests'}
@@ -101,7 +110,8 @@ def validate(value,bundle):
         'source_spent_counters','source_spent_counters_digest','counters','fresh_budgets','prior_budget_epoch',
         'repair_attempts','compile_repair_attempts','restart_scope'}
     if 'verification_rejections' in value:fields.add('verification_rejections')
-    if (value.keys()!=fields or value['policy']!=POLICY or value['fresh_budgets']!=budgets()
+    approved_budgets(value.get('fresh_budgets'))
+    if (value.keys()!=fields or value['policy']!=POLICY
             or value['restart_scope']!='shared_recovery_over_retained_independent_tests'
             or value['target_binding_digest']!=binding_digest(bundle)
             or value['source_contract_digest']!=contract_digest(bundle)
@@ -149,6 +159,7 @@ def validate(value,bundle):
 def restore(flow):
     value=flow.bundle[KEY];plan,artifact=validate(value,flow.bundle)
     flow.counters.update(value['counters'])
+    if 'test_defect_repairs' in value['fresh_budgets']:flow.limits['max_test_defect_repairs']=value['fresh_budgets']['test_defect_repairs']
     flow.output.update(repair_attempts=value['repair_attempts'],compile_repair_attempts=value['compile_repair_attempts'])
     if 'verification_rejections' in value:flow.evidence['carried_verification_rejections']=deepcopy(value['verification_rejections'])
     flow._continued_independent_suite=deepcopy(value['independent_suite'])

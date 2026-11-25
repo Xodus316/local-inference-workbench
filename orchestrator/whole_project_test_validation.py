@@ -4,6 +4,7 @@ import json
 
 from .build_coverage import python_test_names
 from .build_models import BuildTestSyntaxRepair
+from .repair_allowance import coordinated_limit
 from .store import digest
 
 
@@ -44,7 +45,7 @@ def rewrite(flow, suite, diagnostics, reason):
     def checked(raw):
         if not raw.get('edits'):raise ValueError('Generated tests require an anchored correction: '+str(diagnostics))
         check_repeat(flow.evidence.get('coordinated_repairs',[]),digest(suite.model_dump()),raw,items)
-        if flow.counters['coordinated_patch']>=6:raise ValueError('Coordinated patch validation budget exhausted')
+        if flow.counters['coordinated_patch']>=coordinated_limit(flow.bundle):raise ValueError('Coordinated patch validation budget exhausted')
         flow.counters['coordinated_patch']+=1;flow.evidence['budget_counters']=dict(flow.counters)
         index=flow.counters['coordinated_patch'];saved=flow.stage
         record={'patch_digest':digest(executable_edits(raw)),'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),

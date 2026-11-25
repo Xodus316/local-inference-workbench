@@ -369,6 +369,8 @@ def repair(recovery, *,stage,role,instruction,data,validator,ordinary=None,retai
     flow.stage=stage
     model_type=causal_patch_type(material['failures']) if direct else patch_type(material['failures'])
     if direct:instruction=instruction.replace(INSTRUCTION,DIRECT_INSTRUCTION)
+    epoch=flow.bundle.get('whole_project_stage_continuation',{})
+    if epoch.get('fresh_budgets'):material['effective_repair_capacity']=deepcopy(epoch['fresh_budgets'])
     material['failures']=tagged_evidence(material['failures'])
     material['evidence_catalog_digest']=digest(evidence_catalog(material['failures']))
     if retained is not None:
@@ -406,9 +408,9 @@ INSTRUCTION=(
     'contract. Do not skip tests, make operations optional, weaken assertions to vacuous checks, or tailor tests '
     'to private reference implementation details. Other source is read-only. The host checks affected source '
     'first, then reruns reference qualification. A patch is promoted only with fewer failed cases and no regressions. '
-    'Review post_patch_diagnostics for every recent proposal, including changed diagnostics on the same failed test IDs. They describe rejected candidate source; compare them with the retained baseline before diagnosing another correction. Account for previous_attempts. A metadata rejection before composition does not prove executable failure; correct invalid metadata while preserving otherwise appropriate code. Never repeat edits rejected by composition or execution. No budgets, models or gates may change.')
+    'Review post_patch_diagnostics for every recent proposal, including changed diagnostics on the same failed test IDs. They describe rejected candidate source; compare them with the retained baseline before diagnosing another correction. When reference_context_observation is supplied, use its public DOM evidence from full test order to test causal hypotheses; it provides no acceptance credit. A wait retry timeout is a maximum, not an unconditional sleep. Account for previous_attempts. A metadata rejection before composition does not prove executable failure; correct invalid metadata while preserving otherwise appropriate code. Never repeat edits rejected by composition or execution. No budgets, models or gates may change.')
 
 DIRECT_INSTRUCTION=INSTRUCTION.replace(
     'Group cases by actual root cause; for each cluster select its exact host-provided evidence_id values in evidence_refs and identify zero-based edit_indexes.',
     'Every edit must contain its own cause and exact host-provided evidence_id values in evidence_refs, alongside path/before/after. '
-    'Return only summary and edits. There are no separate clusters, edit IDs, or edit indexes to cross-reference.')
+    'List each evidence ID at most once per edit. Return only summary and edits. There are no separate clusters, edit IDs, or edit indexes to cross-reference.')

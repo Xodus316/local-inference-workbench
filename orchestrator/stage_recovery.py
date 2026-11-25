@@ -39,10 +39,16 @@ def validate_costs(bundle, counters):
         return
     limits = {'recovery_diagnosis': POLICY['max_diagnoses'], 'recovery_request': POLICY['max_requests']}
     if dynamic_enabled(bundle):
-        from .repair_allowance import output_limit,validate_floors
+        from .repair_allowance import output_limit,validate_floors,coordinated_limit
         limits['recovery_output_correction'] = output_limit(bundle)
         validate_floors(bundle,counters)
-        limits['coordinated_patch'] = 6  # Two ordinary author repairs plus four shared corrections.
+        limits['coordinated_patch'] = coordinated_limit(bundle)
+        from .reference_context import observation_limit
+        limits['recovery_context_observation'] = observation_limit(bundle)
+        from .checkpoint_repair_continuation import POLICY as EPOCH,KEY as CONTINUATION,approved_budgets
+        epoch=bundle.get(CONTINUATION,{})
+        if epoch.get('policy')==EPOCH and 'test_defect_repairs' in approved_budgets(epoch['fresh_budgets']):
+            limits['build_tests_defect']=epoch['fresh_budgets']['test_defect_repairs']
     for key, count in counters.items():
         if key == 'recovery_output_correction' and not dynamic_enabled(bundle) and count:
             raise ValueError('Agent output correction costs require their explicit V2 approval')
@@ -73,7 +79,7 @@ def route(stage):
         return 'smoke_authoring', 'implementer'
     if stage.startswith(('whole_self_verify', 'whole_self_repair')):
         return 'smoke_verification', 'repairer'
-    if stage.startswith(('build_control', 'build_tests_defect', 'build_tests_diagnose')):
+    if stage.startswith(('build_control', 'build_tests_defect', 'build_tests_diagnose','whole_reference_context')):
         return 'independent_qualification', 'test_author'
     if stage.startswith(('build_tests', 'build_test_preflight')):
         return 'independent_authoring', 'test_author'

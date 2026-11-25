@@ -32,6 +32,7 @@ class ActionableRecoveryAdviceTests(unittest.TestCase):
         self.assertIn('requested_changes',correct['required'])
         self.assertEqual(correct['properties']['requested_changes']['minItems'],1)
         self.assertEqual(correct['properties']['required_capability']['maxLength'],0)
+        self.assertEqual(correct['properties']['required_capability']['enum'],[''])
         self.assertIn('required_capability',branches['request_capability']['required'])
         self.assertNotIn('requested_changes',branches['stop']['required'])
         self.assertNotIn('oneOf',wire_schema(EvidenceRecoveryAdvice))

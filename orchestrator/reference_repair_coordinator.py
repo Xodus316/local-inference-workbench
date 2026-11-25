@@ -12,6 +12,7 @@ from .build_discovery import CASE_LINE
 from .build_workflow import validate_baseline
 from .project_build import execution_settled,matching_image_checks,sandbox_stage_results
 from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts,patch_type,metadata_projection,proposal_type,executable_edits,check_repeat,validate_metadata
+from .repair_allowance import coordinated_limit
 from .store import digest
 
 
@@ -118,11 +119,14 @@ def repair(flow,suite,result):
     if retained is not None and retained['base_suite_digest']!=original:
         raise ValueError('Retained repair proposal no longer matches the current test source')
     instruction=INSTRUCTION+' This is pre-freeze independent test qualification against the trusted reference. '+flow.frontend_dom_test_brief
+    from .reference_context import observe
+    context=observe(flow,suite,before)
     data={'base_suite':suite.model_dump(),'base_suite_digest':original,'scope':scope,'failures':items,
         'root_cause_hints':root_hints(items),'read_only_application_inventory':list(suite.implementation_files),
         'previous_attempts':prior_attempts(attempts,flow=flow,suite=suite),
         'verification_plan':['affected Python syntax/static checks','selected original reference cases',
             'all original reference cases with unchanged verifier','all downstream candidate/review/delivery gates']}
+    if context is not None:data['reference_context_observation']=context
 
     def checked(raw):
         if not raw.get('edits'):raise ValueError('Reference qualification needs a causal anchored repair of '+str(len(items))+' observed failed cases')
@@ -133,7 +137,7 @@ def repair(flow,suite,result):
         parsed=proposal_type(raw,items).model_validate(raw).model_dump()
         record['metadata_projection']=metadata_projection(raw,parsed)
         if retained is not None:record['retained_model_stage']=retained['source_stage'];record['migration']=retained['migration']
-        if flow.counters['coordinated_patch']>=6:raise ValueError('Coordinated patch validation budget exhausted')
+        if flow.counters['coordinated_patch']>=coordinated_limit(flow.bundle):raise ValueError('Coordinated patch validation budget exhausted')
         flow.counters['coordinated_patch']+=1
         flow.evidence['budget_counters']=dict(flow.counters)
         attempts.append(record);saved=flow.stage;index=flow.counters['coordinated_patch']

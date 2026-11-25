@@ -66,7 +66,7 @@ class EvidenceRecoveryAdvice(Record):
             value['oneOf']=[
                 {'properties':{'action':{'type':'string','enum':['correct_stage_output']},
                     'requested_changes':{'type':'array','items':{'type':'string','minLength':1},'minItems':1,'maxItems':8},
-                    'required_capability':{'type':'string','maxLength':0}},'required':['action','requested_changes']},
+                    'required_capability':{'type':'string','enum':[''],'maxLength':0}},'required':['action','requested_changes']},
                 {'properties':{'action':{'type':'string','enum':['request_capability']},
                     'required_capability':{'type':'string','minLength':1,'maxLength':600}},'required':['action','required_capability']},
                 {'properties':{'action':{'type':'string','enum':['stop']}},'required':['action']}]
@@ -122,6 +122,8 @@ def consult(recovery, stage, error, context=None):
             'failure_evidence_digest':digest(context['data'].get('failures',[])),
             'prior_rejections_digest':digest(context['data'].get('previous_attempts',[])),
             'executable_proposal_digest':digest(executable_edits(context.get('value',{})))}
+        if context['data'].get('reference_context_observation'):
+            identity['repair_revision']['context_receipt_digest']=context['data']['reference_context_observation']['receipt_digest']
     key = digest(identity)
     memo = getattr(recovery, '_consultations', {})
     if key in memo:
@@ -189,6 +191,8 @@ def consult(recovery, stage, error, context=None):
                 'previous_attempts':deepcopy(context['data'].get('previous_attempts',[])),
                 'base_suite_digest':context['data'].get('base_suite_digest'),
                 'verification_rule':'Promote only a strictly smaller failed-case set with no regressions; all original gates remain required.'}
+            for name in ('reference_context_observation','effective_repair_capacity'):
+                if name in context['data']:data['coordinated_repair'][name]=deepcopy(context['data'][name])
             base=context['data'].get('base_suite')
             if isinstance(base,dict) and isinstance(base.get('files'),list):
                 if digest(base)!=context['data'].get('base_suite_digest'):
@@ -210,7 +214,7 @@ def consult(recovery, stage, error, context=None):
                 contract_inputs={**context['data'],'base_suite':{'digest':digest(base),
                     'complete_source_location':'coordinated_repair.editable_source and read_only_support_source',
                     'metadata_location':'coordinated_repair.immutable_suite_metadata'}}
-                for key,location in [('failures','failure_observations'),('root_cause_hints','root_cause_hints'),('previous_attempts','previous_attempts')]:
+                for key,location in [('failures','failure_observations'),('root_cause_hints','root_cause_hints'),('previous_attempts','previous_attempts'),('reference_context_observation','reference_context_observation'),('effective_repair_capacity','effective_repair_capacity')]:
                     if key in contract_inputs:
                         contract_inputs[key]={'digest':digest(context['data'][key]),'location':'coordinated_repair.'+location}
                 if 'read_only_application_inventory' in contract_inputs:

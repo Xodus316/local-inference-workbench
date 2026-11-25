@@ -102,9 +102,9 @@ STAGES.update(stage.removesuffix("_select") + "_retry_select" for stage in tuple
               if stage.endswith("_select") and stage.startswith(("repair_", "whole_self_repair",
                   "build_compile_repair_", "build_repair_compile_repair_", "build_self_compile_repair_")))
 # Generated-test defect rewrites, and lower-tier repairs escalated after reaching their output cap.
-STAGES.update(f"build_tests_defect_{number}" for number in range(1, 4))
-STAGES.update(f"build_tests_defect_{number}_file_{file}" for number in range(1, 4) for file in range(1, 16))
-STAGES.update(f"build_tests_diagnose_{number}_file_{file}" for number in range(1, 4) for file in range(1, 16))
+STAGES.update(f"build_tests_defect_{number}" for number in range(1, 17))
+STAGES.update(f"build_tests_defect_{number}_file_{file}" for number in range(1, 17) for file in range(1, 16))
+STAGES.update(f"build_tests_diagnose_{number}_file_{file}" for number in range(1, 17) for file in range(1, 16))
 STAGES.update([stage + "_escalated" for stage in list(STAGES)
                if stage.startswith("repair_") or "compile_repair_" in stage])
 
@@ -114,11 +114,13 @@ STAGES.update(f'whole_recovery_{index}_select' for index in range(1, 17))
 STAGES.update(f'whole_recovery_{index}_retry_select' for index in range(1, 17))
 STAGES.update(f'whole_recovery_{index}_{operation}' for index in range(1,17) for operation in ('consult','retry_consult','output'))
 STAGES.update(f'whole_recovery_request_{index}' for index in range(1, 65))
-STAGES.update(f'whole_coordinated_{index}_{operation}' for index in range(1,7) for operation in ('targeted','evaluation'))
+STAGES.update(f'whole_coordinated_{index}_{operation}' for index in range(1,17) for operation in ('targeted','evaluation'))
 STAGES.update(stage + suffix for stage in list(STAGES)
               if stage.startswith('build_code_review_') and '_chunk_' in stage
               for suffix in ('_source_anchors', '_expanded_review'))
 STAGES.update(f'whole_source_contract_{index}' for index in range(18))
+STAGES.update(f'{prefix}_{index}' for prefix in ('build_test_preflight','build_control') for index in range(64))
+STAGES.update(f'whole_reference_context_{index}' for index in range(1,3))
 for profile in range(8):
     for attempt in range(9):
         stage = f'whole_profile_{profile}_{attempt}'
