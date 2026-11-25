@@ -33,31 +33,38 @@ def compose(flow, suite, diagnostics, raw):
 
 
 def rewrite(flow, suite, diagnostics, reason):
-    paths={d['path'] for d in diagnostics}
-    selected=[f.model_dump() for f in suite.files if f.path in paths]
-    if paths!={f['path'] for f in selected}:
-        raise ValueError('Test repair diagnostics exceed the current test inventory')
-    instruction=(reason+' Correct the diagnosed test defects and every import or helper needed by the correction. '
-        'Return complete files for exactly the named paths. Preserve all test names, assertions, coverage, '
-        'specified behavior and unaffected tests. Do not skip tests or replace checks with placeholders. '
-        'The host composes the response with unchanged files and checks syntax, undefined names, assertions '
-        'and the pinned Python preflight before accepting it.'+flow.frontend_dom_test_brief)
-    data={'files':selected,'diagnostics':deepcopy(diagnostics),
-        'read_only_support_files':[f.model_dump() for f in suite.files if f.path not in paths],
-        'max_replacement_utf8_bytes':flow.contract['test_bytes']-sum(
-            len(f.content.encode('utf8')) for f in suite.files if f.path not in paths),
-        'required_tests':[c.test_name for c in suite.coverage if c.test_file in paths]}
+    from .repair_coordinator import INSTRUCTION,compose_tests,observations,root_hints,test_scope,prior_attempts
+    items=observations(diagnostics,suite);scope=test_scope(suite,items)
+    data={'base_suite':suite.model_dump(),'base_suite_digest':digest(suite.model_dump()),
+        'scope':scope,'failures':items,'root_cause_hints':root_hints(items),
+        'previous_attempts':prior_attempts(flow.evidence.get('coordinated_repairs',[]))}
+    ordinary=None
     if flow.counters['build_tests_defect']<flow.limits['max_test_defect_repairs']:
-        stage=flow.bounded('build_tests_defect','max_test_defect_repairs')
-        raw=flow.ask(stage,'test_author',BuildTestSyntaxRepair,instruction,**data)
-    else:
-        # These are actual retained model-authored bytes, not a fabricated worker response.
-        # No ordinary attempt is reserved or refunded. A correction requires shared agent authority.
-        stage='build_tests_defect_recovery'
-        flow.stage=stage
-        raw={'files':deepcopy(selected)}
-        flow.stages[stage]={'retained_suite_digest':digest(suite.model_dump()),
-            'seed_kind':'current_model_authored_test_files','ordinary_dispatch':False,'acceptance_credit':False}
-        flow._generation_context={'stage':stage,'role':'test_author','model_type':BuildTestSyntaxRepair,
-            'instruction':instruction,'data':data,'value':deepcopy(raw),'value_digest':digest(raw)}
-    return flow.validate_generated(raw,lambda value:compose(flow,suite,diagnostics,value))
+        ordinary=flow.bounded('build_tests_defect','max_test_defect_repairs')
+    def checked(raw):
+        if not raw.get('edits'):raise ValueError('Generated tests require an anchored correction: '+str(diagnostics))
+        if any(r['patch_digest']==digest(raw['edits']) and r['base_suite_digest']==digest(suite.model_dump())
+                for r in flow.evidence.get('coordinated_repairs',[])):
+            raise ValueError('This anchored patch already failed against the same source')
+        if flow.counters['coordinated_patch']>=6:raise ValueError('Coordinated patch validation budget exhausted')
+        flow.counters['coordinated_patch']+=1;flow.evidence['budget_counters']=dict(flow.counters)
+        index=flow.counters['coordinated_patch'];saved=flow.stage
+        record={'patch_digest':digest(raw['edits']),'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),
+            'base_suite_digest':digest(suite.model_dump()),'disposition':'rolled_back'}
+        flow.evidence.setdefault('coordinated_repairs',[]).append(record)
+        try:
+            revised=compose_tests(flow,suite,items,scope,raw)
+            flow.compile_test_suite(revised)
+            record.update(disposition='promoted',candidate_suite_digest=digest(revised.model_dump()),
+                progress={'before_failed':len(items),'after_failed':0,'regressions':[]})
+            flow.evidence['independent_draft']={'suite':revised.model_dump(),'acceptance_credit':False}
+            return revised
+        except Exception as error:
+            from .build_workflow import public_error
+            record['rejection']=public_error(error)
+            raise
+        finally:
+            flow.stage=saved
+            flow.runtime.store.save_artifact(flow.state['run_id'],f'whole_coordinated_{index}_evaluation','raw',deepcopy(record))
+    return flow.recovery.repair_patch(stage='build_tests_defect_recovery',role='test_author',
+        instruction=reason+INSTRUCTION+flow.frontend_dom_test_brief,data=data,validator=checked,ordinary=ordinary)

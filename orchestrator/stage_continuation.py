@@ -11,6 +11,7 @@ KEY = 'whole_project_stage_continuation'
 POLICY = 'settled-stage-output-continuation-v1'
 SUITE_POLICY = 'settled-unfrozen-suite-continuation-v2'
 VALIDATION_POLICY = 'settled-test-validation-continuation-v3'
+REFERENCE_POLICY = 'settled-reference-repair-continuation-v4'
 _MIGRATION = {'fresh_project','backend','config_digest','whole_project_engine_digest',
     'whole_project_workers','whole_project_prompt_tokenizers','same_model_role_isolation',KEY}
 
@@ -25,6 +26,7 @@ def retained_suite(row,requests,raw):
     from .build_coverage import TestSyntaxError,correct_test_references
     from .project_build import project_test_types
     from .wire import wire_schema
+    from .repair_coordinator import CoordinatedPatch,compose_tests
     suite_type,_=project_test_types(row['bundle'])
     parent=row['bundle'][KEY]
     current=deepcopy(parent.get('independent_suite') or parent['generation']['value'])
@@ -37,7 +39,20 @@ def retained_suite(row,requests,raw):
         if stage in rejected_stages:continue  # A settled model proposal is not an accepted source transition.
         if request.get('role')!='test_author' or 'value' not in response:continue
         payload=request.get('payload',{});schema=payload.get('schema')
-        if schema==wire_schema(suite_type):
+        if schema==wire_schema(CoordinatedPatch):
+            from types import SimpleNamespace
+            from .project_test_lint import defects
+            records=[r for r in row['result']['output']['verification']['whole_project'].get('coordinated_repairs',[])
+                if r.get('proposal_digest')==digest(response['value'])]
+            if not records:raise ValueError('Anchored model proposal lacks its verification disposition')
+            if records[-1]['disposition']!='promoted':continue
+            data=json.loads(payload['messages'][1]['content'])
+            if current!=data['base_suite'] or digest(current)!=data['base_suite_digest']:
+                raise ValueError('Anchored proposal base differs from the retained accepted source')
+            flow=SimpleNamespace(suite_type=suite_type,contract=row['bundle']['build_contract'],test_defects=defects)
+            current=compose_tests(flow,suite_type.model_validate(current),data['failures'],data['scope'],response['value']).model_dump()
+            if digest(current)!=records[-1]['candidate_suite_digest']:raise ValueError('Verified anchored proposal content changed')
+        elif schema==wire_schema(suite_type):
             from .build_discovery import normalize_authored_test_paths
             current,_=normalize_authored_test_paths(response['value'])
         elif schema==wire_schema(BuildTestSyntaxRepair):
@@ -63,7 +78,7 @@ def retained_suite(row,requests,raw):
     return suite_type.model_validate(current).model_dump()
 
 
-def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes=None, test_preflight_bytes=None):
+def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes=None, test_preflight_bytes=None, reference_bytes=None):
     """Trusted host first verifies frozen files, checkpoints, native DONE and exact owner cleanup."""
     from .whole_project import WholeProjectPlan,whole_project_types,_stopped_opencode_result
     source=row['bundle'];output=row['result']['output'];evidence=output['verification']['whole_project']
@@ -129,10 +144,11 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
         else:
             from .stage_recovery import dynamic_enabled,DYNAMIC_POLICY,route
             from .project_build import execution_settled
-            if (not dynamic_enabled(target) or row['status']!='failed' or output.get('suite') is not None
+            static_findings=defects(typed)
+            if (not dynamic_enabled(target) or row['status'] not in {'failed','review_required'} or output.get('suite') is not None
                     or route(stage or '')[0] not in {'independent_authoring','independent_qualification'}
                     or evidence['budget_counters'].get('recovery_output_correction',0)>=DYNAMIC_POLICY['max_output_corrections']
-                    or not defects(typed) or not checkpoint_bytes or not test_preflight_bytes or not row.get('checkpoints')):
+                    or (not static_findings and not reference_bytes) or not checkpoint_bytes or not test_preflight_bytes or not row.get('checkpoints')):
                 raise ValueError('Retained test validation requires a settled checkpoint, static defects and shared budget')
             record=row['checkpoints'][-1];checkpoint=json.loads(checkpoint_bytes);preflight=json.loads(test_preflight_bytes)
             if (hashlib.sha256(checkpoint_bytes).hexdigest()!=record['content_sha256']
@@ -148,6 +164,13 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
                     or preflight['commands'][0].get('source_sha256')!={
                         path:hashlib.sha256(text.encode('utf8')).hexdigest() for path,text in inventory.items()}):
                 raise ValueError('Latest step checkpoint does not bind the retained test preflight and source')
+            if not static_findings:
+                from .reference_repair_coordinator import reference_evidence
+                reference=reference_evidence(source,typed,json.loads(reference_bytes))
+                if (not reference['failed'] or not any(re.fullmatch(r'build_control_\d+\.raw.json',name)
+                        and binding==hashlib.sha256(reference_bytes).hexdigest()
+                        for name,binding in checkpoint['receipts'].items())):
+                    raise ValueError('Latest checkpoint does not bind the exact failed reference qualification')
     else:
         stage='build_tests';request=requests[stage];response=raw[stage]
         if (request.get('role')!='test_author' or request.get('operation')!='generate'
@@ -166,6 +189,10 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
         value.update(policy=SUITE_POLICY,independent_suite=suite,independent_suite_digest=digest(suite))
         if call.get('status')!='not_dispatched':
             value.update(policy=VALIDATION_POLICY,source_checkpoint=deepcopy(record),retained_diagnostics=defects(typed))
+            if not static_findings:
+                value.pop('retained_diagnostics');value.update(policy=REFERENCE_POLICY,retained_reference=reference,
+                    coordinated_history=deepcopy(evidence.get('coordinated_repairs',[])))
+    if value['counters'].get('coordinated_patch',0):value['coordinated_history']=deepcopy(evidence.get('coordinated_repairs',[]))
     validate(value,target)
     return value
 
@@ -177,9 +204,11 @@ def validate(value,bundle):
     required={'policy','source_run_id','source_approval_digest','source_contract_digest','target_binding_digest',
         'plan','artifact','self_suite','counters','repair_attempts','compile_repair_attempts','generation',
         'source_receipts','closed_execution_audit'}
-    if isinstance(value,dict) and value.get('policy') in {SUITE_POLICY,VALIDATION_POLICY}:required|={'independent_suite','independent_suite_digest'}
+    if isinstance(value,dict) and value.get('policy') in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY}:required|={'independent_suite','independent_suite_digest'}
     if isinstance(value,dict) and value.get('policy')==VALIDATION_POLICY:required|={'source_checkpoint','retained_diagnostics'}
-    if (not isinstance(value,dict) or value.keys()!=required or value['policy'] not in {POLICY,SUITE_POLICY,VALIDATION_POLICY}
+    if isinstance(value,dict) and value.get('policy')==REFERENCE_POLICY:required|={'source_checkpoint','retained_reference','coordinated_history'}
+    if isinstance(value,dict) and value.get('counters',{}).get('coordinated_patch',0):required.add('coordinated_history')
+    if (not isinstance(value,dict) or value.keys()!=required or value['policy'] not in {POLICY,SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY}
             or {'fresh_project','whole_project_seed','whole_project_checkpoint','whole_project_initial_compile_recovery'}.intersection(bundle)
             or value['target_binding_digest']!=binding_digest(bundle)
             or value['source_contract_digest']!=contract_digest(bundle)):
@@ -204,21 +233,36 @@ def validate(value,bundle):
         raise ValueError('Retained generation differs from its original author/schema contract')
     for key in ('source_approval_digest','source_contract_digest','closed_execution_audit'):
         if not re.fullmatch('[a-f0-9]{64}',value[key]):raise ValueError('Invalid continuation evidence digest')
-    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY}:
+    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY}:
         suite=suite_type.model_validate(value['independent_suite'])
         if (digest(suite.model_dump())!=value['independent_suite_digest']
                 or set(suite.implementation_files)!=set(plan.implementation_files)):
             raise ValueError('Retained unfrozen suite inventory or digest changed')
-    if value['policy']==VALIDATION_POLICY:
+    if value['policy'] in {VALIDATION_POLICY,REFERENCE_POLICY}:
         from .project_test_lint import defects
         from .stage_recovery import dynamic_enabled,DYNAMIC_POLICY
         record=value['source_checkpoint']
         if (not dynamic_enabled(bundle) or value['counters'].get('recovery_output_correction',0)>=DYNAMIC_POLICY['max_output_corrections']
-                or not defects(suite) or defects(suite)!=value['retained_diagnostics']
+                or (value['policy']==VALIDATION_POLICY and (not defects(suite) or defects(suite)!=value['retained_diagnostics']))
                 or not isinstance(record,dict) or record.keys()!={'kind','stage','binding','content_sha256','created'}
                 or record['kind'] not in {'graph','native','sandbox'}
                 or not all(re.fullmatch('[a-f0-9]{64}',record[k]) for k in ('binding','content_sha256'))):
             raise ValueError('Retained test validation checkpoint, diagnostics or shared budget changed')
+        if value['policy']==REFERENCE_POLICY:
+            from .reference_repair_coordinator import inventory
+            reference=value['retained_reference'];cases=inventory(suite)
+            if (defects(suite) or reference.keys()!={'failed','tests_run','receipt_digest','failures'}
+                    or reference['tests_run']!=len(cases) or not reference['failed']
+                    or len(reference['failed'])!=len(set(reference['failed'])) or not set(reference['failed'])<=cases.keys()
+                    or {x['case'] for x in reference['failures']}!=set(reference['failed'])
+                    or any({k:item[k] for k in ('id','path','test_name')}!=cases[item['case']] for item in reference['failures'])
+                    or not re.fullmatch('[a-f0-9]{64}',reference['receipt_digest'])):
+                raise ValueError('Retained reference qualification differs from the exact current test inventory')
+    if 'coordinated_history' in value:
+        history=value['coordinated_history']
+        if (not isinstance(history,list) or len(history)!=value['counters'].get('coordinated_patch',0)
+                or any(r.get('disposition') not in {'promoted','rolled_back'} or r.get('patch_digest')!=digest(r.get('edits')) for r in history)):
+            raise ValueError('Retained repair history does not account for each spent proposal validation')
     return plan,artifact
 
 
@@ -229,6 +273,7 @@ def restore(flow):
     flow.evidence.update(budget_counters=dict(flow.counters),stage_continuation={
         'source_run_id':value['source_run_id'],'source_approval_digest':value['source_approval_digest'],
         'closed_execution_audit':value['closed_execution_audit'],'acceptance_credit':False})
-    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY}:flow._continued_independent_suite=deepcopy(value['independent_suite'])
+    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY,REFERENCE_POLICY}:flow._continued_independent_suite=deepcopy(value['independent_suite'])
     else:flow._continued_generation=deepcopy(value['generation'])
+    if 'coordinated_history' in value:flow.evidence['coordinated_repairs']=deepcopy(value['coordinated_history'])
     return plan,artifact

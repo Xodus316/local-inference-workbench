@@ -384,6 +384,10 @@ class WholeProjectBuildRun(ProjectBuildRun):
         return self.evidence["reference_attempt_history"]
 
     def repair_reference_failures(self, suite, problems, result):
+        from .stage_recovery import dynamic_enabled
+        if self.scoped_repairs and getattr(self,'recovery',None) is not None and dynamic_enabled(self.bundle):
+            from .reference_repair_coordinator import repair
+            return repair(self,suite,result)
         if self.scoped_repairs:
             self._reference_observations = {}
             controls = self.output["verification"].get("controls", [])
@@ -401,6 +405,14 @@ class WholeProjectBuildRun(ProjectBuildRun):
                     self.evidence["reference_attempt_history"] = history_with_record(self._reference_history(), record)
                     self._reference_observations[problem["path"]] = record
         return super().repair_reference_failures(suite, problems, result)
+
+    def control(self, suite):
+        completed=getattr(self,'_coordinator_reference',None)
+        if completed is not None and completed['suite_digest']==digest(suite.model_dump()):
+            self._coordinator_reference=None
+            self.stage=completed['stage']
+            return completed['receipt']
+        return super().control(suite)
 
     def bounded(self, label, limit):
         try:

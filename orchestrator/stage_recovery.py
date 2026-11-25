@@ -38,7 +38,9 @@ def validate_costs(bundle, counters):
     if not enabled(bundle):
         return
     limits = {'recovery_diagnosis': POLICY['max_diagnoses'], 'recovery_request': POLICY['max_requests']}
-    if dynamic_enabled(bundle):limits['recovery_output_correction'] = DYNAMIC_POLICY['max_output_corrections']
+    if dynamic_enabled(bundle):
+        limits['recovery_output_correction'] = DYNAMIC_POLICY['max_output_corrections']
+        limits['coordinated_patch'] = 6  # Two ordinary author repairs plus four shared corrections.
     for key, count in counters.items():
         if key == 'recovery_output_correction' and not dynamic_enabled(bundle) and count:
             raise ValueError('Agent output correction costs require their explicit V2 approval')
@@ -239,6 +241,12 @@ class StageRecovery:
         if not dynamic_enabled(self.flow.bundle):return validator(value)
         from .agent_recovery import validate_output
         return validate_output(self,value,validator,context)
+
+    def repair_patch(self, **capability):
+        """Every gate can supply its scope and verifier to the same bounded repair capability."""
+        if not dynamic_enabled(self.flow.bundle):raise ValueError('Coordinated repair requires dynamic recovery approval')
+        from .repair_coordinator import repair
+        return repair(self,**capability)
 
     def diagnose(self, artifact, suite, receipt, *, checkpoint=None, profile=None):
         flow, failed_stage = self.flow, self.flow.stage

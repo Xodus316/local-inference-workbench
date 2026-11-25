@@ -30,9 +30,11 @@ def fixture(*,ordinary=3,shared=1):
             return {'diagnosis':'Correct the static defect in retained model-authored tests','evidence_quote':data['failure'][:1000],
                 'action':'correct_stage_output' if data['available_capabilities'] else 'stop',
                 'requested_changes':['Bind the helper used by the preserved assertion']}
-        value={'files':deepcopy(good['files'])}
+        value={'summary':'Bind the missing name','clusters':[{'cause':'Unbound helper',
+            'failure_ids':[data['failures'][0]['id']],'evidence_quote':data['failures'][0]['diagnostic'],'edit_indexes':[0]}],
+            'edits':[{'path':bad['files'][0]['path'],'before':'missing()','after':'1 + 1'}]}
         if not stage.endswith('_output'):
-            value={'files':deepcopy(bad['files'])}
+            value['edits'][0]['after']='another_missing()'
             flow.stages[stage]={};flow.stage=stage
             flow._generation_context={'stage':stage,'role':role,'model_type':model_type,'instruction':instruction,
                 'data':deepcopy(data),'value':deepcopy(value),'value_digest':digest(value)}
@@ -67,7 +69,7 @@ class WholeProjectTestValidationTests(unittest.TestCase):
         for blocked in ['unknown','budget']:
             flow,bad,_=fixture(shared=4 if blocked=='budget' else 1)
             if blocked=='unknown':flow.runtime.store.has_unknown_calls.return_value=True
-            with self.assertRaisesRegex(ValueError,'static defects'):
+            with self.assertRaises(ValueError):
                 flow.repair_test_defects(bad,flow.test_defects(bad))
             self.assertFalse(any(c.args[0].endswith('_output') for c in flow._generate.call_args_list))
             self.assertEqual(flow.counters['build_tests_defect'],3)

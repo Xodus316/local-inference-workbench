@@ -108,6 +108,14 @@ def consult(recovery, stage, error, context=None):
             data['dispatch_proof']={'not_dispatched':True,'original_output_available':False,
                 'recovery_scope':'Produce the original schema-bound output through the approved recovery capability; no model, budget or gate changes.'}
     if context is not None:
+        if context['data'].get('repair_policy')=='grouped-anchored-recovery-v1':
+            data['coordinated_repair']={
+                'input_kind':'host_anchored_patch_request; no initial model patch is claimed',
+                'failure_observations':excerpt(context['data'].get('failures',[]),24000),
+                'scope':context['data'].get('scope',[]),
+                'root_cause_hints':excerpt(context['data'].get('root_cause_hints',[]),6000),
+                'base_suite_digest':context['data'].get('base_suite_digest'),
+                'verification_rule':'Promote only a strictly smaller failed-case set with no regressions; all original gates remain required.'}
         data.update(expected_schema=excerpt(context['model_type'].model_json_schema()),
                     rejected_output=excerpt(context['value']),
                     original_stage_contract={

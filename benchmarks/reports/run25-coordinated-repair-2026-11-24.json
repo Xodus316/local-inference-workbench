@@ -1,0 +1,164 @@
+{
+  "date": "2026-11-24",
+  "source_run_id": "e3c69c19-2e2e-4030-86c5-5917ce956976",
+  "source_status": "review_required",
+  "source_audit_sha256": "008a1cd71c7fdac4caae9c562263c535f755a5c098d36d4e71c6b265f016d269",
+  "changes": {
+    "shared_gate_capability": "StageRecovery.repair_patch",
+    "gate_role_controls": [
+      "planning",
+      "implementation",
+      "smoke qualification",
+      "independent qualification",
+      "compile repair",
+      "verification profile",
+      "review"
+    ],
+    "anchored_patch": {
+      "unique_anchors": true,
+      "simultaneous_nonoverlapping_edits": true,
+      "passing_test_methods_protected": true,
+      "test_classes_coverage_commands_preserved": true,
+      "local_helper_import_dependencies": true,
+      "max_edits": 32,
+      "max_edit_utf8_bytes": 32768
+    },
+    "root_cause_groups": {
+      "observed_case_ids_required": true,
+      "literal_evidence_quote_required": true,
+      "each_edit_must_have_a_causal_group": true,
+      "separate_bounded_failure_projection": true,
+      "reference_source_and_api_logs_excluded": true
+    },
+    "progress": {
+      "affected_static_then_targeted_then_original_full_reference": true,
+      "strict_failure_reduction": true,
+      "no_new_failures": true,
+      "same_case_population": true,
+      "rollback_on_rejection": true,
+      "edit_and_source_based_repeat_guard": true,
+      "identical_completed_full_receipt_reused": true
+    },
+    "budget_reset_or_increase": false,
+    "reference_continuation_policy": "settled-reference-repair-continuation-v4"
+  },
+  "retained": {
+    "application_files": 79,
+    "independent_test_files": 14,
+    "reference_tests": 58,
+    "reference_failures": 17,
+    "spent_counters": {
+      "build_tests_defect": 3,
+      "build_tests_syntax": 1,
+      "recovery_diagnosis": 7,
+      "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+      "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+      "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+      "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+      "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+      "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+      "recovery_output_correction": 3,
+      "recovery_request": 26,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "shared_corrections_remaining": 1,
+    "acceptance_credit": false
+  },
+  "validation": {
+    "core": {
+      "total": 648,
+      "passed": 640,
+      "optional_skips": 8
+    },
+    "native_adapter": {
+      "total": 38,
+      "passed": 38
+    },
+    "real_pinned_cpu_control": {
+      "status": "passed",
+      "control_kind": "saved-checkpoint-and-real-pinned-cpu-targeted-diagnostic",
+      "source_run_id": "e3c69c19-2e2e-4030-86c5-5917ce956976",
+      "source_checkpoint": {
+        "kind": "graph",
+        "stage": "code_build",
+        "binding": "c14d4a8e868d33935071ef28cde158413a7d3cc81ec6ed4395311f792aed626c",
+        "content_sha256": "87815ce2811baf1457b11598d7c5fb1c8245f8f5808927ace8a5d7dce4244f1d",
+        "created": 1795572489.9090772
+      },
+      "application_files": 79,
+      "test_files": 14,
+      "original_reference_tests": 58,
+      "original_reference_failures": 17,
+      "preserved_counters": {
+        "build_tests_defect": 3,
+        "build_tests_syntax": 1,
+        "recovery_diagnosis": 7,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+        "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+        "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+        "recovery_output_correction": 3,
+        "recovery_request": 26,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "shared_corrections_remaining": 1,
+      "targeted_case": "test_auth.TestAuth.test_login",
+      "targeted_proof": {
+        "failed": [],
+        "tests_run": 1,
+        "receipt_digest": "0d4f90e2a1944c3eb4e09bf30c97d9940210cf8f30b61d8ba9bebfe15703b5d8",
+        "failures": []
+      },
+      "evidence_directory": "diagnostics/cp25/70b3cac7",
+      "frozen_files_verified": 2518,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "acceptance_credit": false,
+      "test_or_application_changes": false,
+      "fixture_patch_imported": false
+    },
+    "real_pinned_cli_synthetic_control": {
+      "status": "passed",
+      "control_kind": "real-pinned-opencode-coordinated-anchored-patch-with-synthetic-loopback-model",
+      "evidence_directory": "diagnostics/cr25/4a1e2019",
+      "stages_and_roles": [
+        [
+          "whole_recovery_1_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_retry_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_output",
+          "test_author"
+        ]
+      ],
+      "native_protocol_requests": 3,
+      "confirmed_pre_dispatch_evidence": [],
+      "consultations": 1,
+      "semantic_advice_retries": 1,
+      "output_corrections": 1,
+      "same_schema_revalidated": true,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "actual_model_quality_or_end_to_end_claim": false,
+      "scratch_disposed": true,
+      "application_or_plan_imported_into_fresh_trial": false
+    },
+    "evidence_sha256": {
+      "core-tests-final-admission.log": "cf61607f63a0ceb3ed5b62ae72732351de267e893cebee0f7e4539a3a6577b84",
+      "adapter-tests-final.log": "3342d34f615997aa80122300f0ef62657230d6c84ec58afe719d8e448f5fcb00",
+      "cpu-probe-control-summary.json": "63eb59f260d2298719875bdb8ff4548dcabc983ba973e3fc21f4398fec23504f",
+      "coordinator-cli-control-summary.json": "18afb0f0389353f2fd53ed89e93dcbe397cb6470ec57a692b1d102d8a5e57ed8"
+    }
+  },
+  "continuation5_status_at_publication": "not_started"
+}

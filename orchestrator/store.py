@@ -114,6 +114,7 @@ STAGES.update(f'whole_recovery_{index}_select' for index in range(1, 17))
 STAGES.update(f'whole_recovery_{index}_retry_select' for index in range(1, 17))
 STAGES.update(f'whole_recovery_{index}_{operation}' for index in range(1,17) for operation in ('consult','retry_consult','output'))
 STAGES.update(f'whole_recovery_request_{index}' for index in range(1, 65))
+STAGES.update(f'whole_coordinated_{index}_{operation}' for index in range(1,7) for operation in ('targeted','evaluation'))
 STAGES.update(stage + suffix for stage in list(STAGES)
               if stage.startswith('build_code_review_') and '_chunk_' in stage
               for suffix in ('_source_anchors', '_expanded_review'))
