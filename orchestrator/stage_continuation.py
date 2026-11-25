@@ -31,7 +31,7 @@ def retained_suite(row,requests,raw):
     from .repair_coordinator import CoordinatedPatch,compose_tests,patch_type,causal_patch_type
     suite_type,_=project_test_types(row['bundle'])
     parent=row['bundle'][KEY]
-    current=deepcopy(parent.get('independent_suite') or parent['generation']['value'])
+    current=deepcopy(parent.get('independent_suite') or (parent.get('generation') or {}).get('value') or raw['build_tests']['value'])
     pending=parent.get('pending_proposal')
     history=row['result']['output']['verification']['whole_project'].get('coordinated_repairs',[])
     if pending is not None:
@@ -240,6 +240,8 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
 
 
 def validate(value,bundle):
+    from .checkpoint_repair_continuation import POLICY as REPAIR_EPOCH,validate as validate_epoch
+    if isinstance(value,dict) and value.get('policy')==REPAIR_EPOCH:return validate_epoch(value,bundle)
     from .independent_stage_restart import POLICY as RESTART_POLICY,validate as validate_restart
     if isinstance(value,dict) and value.get('policy')==RESTART_POLICY:return validate_restart(value,bundle)
     from .whole_project import WholeProjectPlan,whole_project_types
@@ -327,6 +329,8 @@ def validate(value,bundle):
 
 def restore(flow):
     value=flow.bundle[KEY]
+    from .checkpoint_repair_continuation import POLICY as REPAIR_EPOCH,restore as restore_epoch
+    if value.get('policy')==REPAIR_EPOCH:return restore_epoch(flow)
     from .independent_stage_restart import POLICY as RESTART_POLICY,restore as restore_restart
     if value.get('policy')==RESTART_POLICY:return restore_restart(flow)
     plan,artifact=validate(value,flow.bundle)

@@ -257,7 +257,7 @@ def prior_attempts(attempts,*,flow=None,suite=None):
     result=[];recent=attempts[-4:]
     carried={r['patch_digest']:r['feedback'] for r in getattr(flow,'evidence',{}).get('carried_verification_rejections',[])} if flow is not None else {}
     for index,record in enumerate(recent):
-        value={k:record[k] for k in ('patch_digest','base_suite_digest','disposition','progress','rejection') if k in record}
+        value={k:record[k] for k in ('patch_digest','base_suite_digest','disposition','progress','rejection','validation_phase') if k in record}
         if index==len(recent)-1:
             value['patch_excerpt']=excerpt(record.get('edits',[]),2000)
             details=record.get('validation_feedback') or carried.get(record['patch_digest'])
@@ -272,7 +272,7 @@ def prior_attempts(attempts,*,flow=None,suite=None):
     return result
 
 
-def compose_tests(flow,suite,items,scope,raw):
+def validate_metadata(raw,items):
     direct='clusters' not in raw
     referenced=any('evidence_refs' in group for group in raw.get('clusters',[]))
     patch=(causal_patch_type(items) if direct else patch_type(items) if referenced else CoordinatedPatch).model_validate(raw)
@@ -293,6 +293,37 @@ def compose_tests(flow,suite,items,scope,raw):
         for edit in patch.edits:
             if len(set(edit.evidence_refs))!=len(edit.evidence_refs):raise ValueError('An edit repeats an evidence reference')
     elif set(edit_claims)!=set(range(len(patch.edits))):raise ValueError('Every patch edit requires a causal failure group')
+    return patch
+
+
+def metadata_only_rejection(record,items):
+    """Recognize host-recorded pre-composition failures; unknown legacy phases stay blocked."""
+    if record.get('disposition')!='rolled_back' or any(k in record for k in ('progress','candidate_suite_digest','reference_receipt_digest')):
+        return False
+    if record.get('validation_phase') is not None:
+        return record['validation_phase']=='metadata'
+    # Legacy direct proposals retain their complete per-edit metadata. Reproduce
+    # the exact host rejection rather than inferring its phase from prose alone.
+    edits=record.get('edits',[])
+    if not edits or any('evidence_refs' not in e or 'cause' not in e for e in edits):return False
+    try:validate_metadata({'summary':'Historical metadata replay','edits':edits},items)
+    except ValueError as error:return str(error)==record.get('rejection')
+    return False
+
+
+def check_repeat(attempts,base_digest,raw,items):
+    matches=[r for r in attempts if r['patch_digest']==digest(executable_edits(raw)) and r['base_suite_digest']==base_digest]
+    if not matches:return
+    if any(not metadata_only_rejection(r,items) for r in matches):
+        raise ValueError('This patch already failed against the same source; consult with new evidence')
+    # A metadata-only failure has established nothing about executable behavior.
+    # Require fully valid current metadata; changing prose or resubmitting the
+    # same invalid references cannot turn this into an unbounded retry.
+    validate_metadata(raw,items)
+
+
+def compose_tests(flow,suite,items,scope,raw):
+    patch=validate_metadata(raw,items)
     replacements=_materialize_text_edits(suite.files,scope,patch)
     changed={f.path:f for f in replacements}
     revised=flow.suite_type.model_validate({**suite.model_dump(),'files':[changed.get(f.path,f).model_dump() for f in suite.files]})
@@ -325,7 +356,8 @@ def repair(recovery, *,stage,role,instruction,data,validator,ordinary=None,retai
     if blocked:=barrier(flow,''):
         raise ValueError(blocked)
     from .independent_stage_restart import POLICY as RESTART_POLICY
-    direct=flow.bundle.get('whole_project_stage_continuation',{}).get('policy')==RESTART_POLICY
+    from .checkpoint_repair_continuation import POLICY as REPAIR_EPOCH
+    direct=flow.bundle.get('whole_project_stage_continuation',{}).get('policy') in {RESTART_POLICY,REPAIR_EPOCH}
     material={**deepcopy(data),'repair_policy':DIRECT_POLICY if direct else POLICY,'proposal_kind':'anchored_edits',
         'ordinary_attempts_are_not_refunded':True}
     flow.stage=stage
@@ -368,7 +400,7 @@ INSTRUCTION=(
     'contract. Do not skip tests, make operations optional, weaken assertions to vacuous checks, or tailor tests '
     'to private reference implementation details. Other source is read-only. The host checks affected source '
     'first, then reruns reference qualification. A patch is promoted only with fewer failed cases and no regressions. '
-    'Account for previous_attempts; do not repeat an ineffective patch. No budgets, models or gates may change.')
+    'Account for previous_attempts. A metadata rejection before composition does not prove executable failure; correct invalid metadata while preserving otherwise appropriate code. Never repeat edits rejected by composition or execution. No budgets, models or gates may change.')
 
 DIRECT_INSTRUCTION=INSTRUCTION.replace(
     'Group cases by actual root cause; for each cluster select its exact host-provided evidence_id values in evidence_refs and identify zero-based edit_indexes.',

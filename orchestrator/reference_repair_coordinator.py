@@ -11,7 +11,7 @@ from .build_coverage import python_test_names
 from .build_discovery import CASE_LINE
 from .build_workflow import validate_baseline
 from .project_build import execution_settled,matching_image_checks,sandbox_stage_results
-from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts,patch_type,metadata_projection,proposal_type,executable_edits
+from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts,patch_type,metadata_projection,proposal_type,executable_edits,check_repeat,validate_metadata
 from .store import digest
 
 
@@ -127,10 +127,9 @@ def repair(flow,suite,result):
     def checked(raw):
         if not raw.get('edits'):raise ValueError('Reference qualification needs a causal anchored repair of '+str(len(items))+' observed failed cases')
         patch_digest=digest(executable_edits(raw))
-        if any(r['patch_digest']==patch_digest and r['base_suite_digest']==original for r in attempts):
-            raise ValueError('This patch already failed against the same source; consult with new evidence')
+        check_repeat(attempts,original,raw,items)
         record={'patch_digest':patch_digest,'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),
-            'base_suite_digest':original,'disposition':'rolled_back'}
+            'base_suite_digest':original,'disposition':'rolled_back','validation_phase':'metadata'}
         parsed=proposal_type(raw,items).model_validate(raw).model_dump()
         record['metadata_projection']=metadata_projection(raw,parsed)
         if retained is not None:record['retained_model_stage']=retained['source_stage'];record['migration']=retained['migration']
@@ -139,12 +138,17 @@ def repair(flow,suite,result):
         flow.evidence['budget_counters']=dict(flow.counters)
         attempts.append(record);saved=flow.stage;index=flow.counters['coordinated_patch']
         try:
+            validate_metadata(raw,items)
+            record['validation_phase']='composition'
             candidate=compose_tests(flow,suite,items,scope,raw)
+            record['validation_phase']='preflight'
             flow.compile_test_suite(candidate)
             affected_cases=sorted(set(before['failed'])|{x['case'] for x in items})
+            record['validation_phase']='targeted'
             affected,_=targeted(flow,candidate,affected_cases,index)
             if not set(affected['failed'])<set(before['failed']):
                 raise ValueError('Affected checks show no progress; retain previous source')
+            record['validation_phase']='full_reference'
             full=flow.control(candidate)
             after=reference_evidence(flow.bundle,candidate,full)
             try:improvement=progress(before,after)

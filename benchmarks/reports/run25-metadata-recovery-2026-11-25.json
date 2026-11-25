@@ -1,0 +1,161 @@
+{
+  "date": "2026-11-25",
+  "status": "controls_passed_before_continuation",
+  "root_cause": "Executable-repeat hashing preceded metadata validation and treated a pre-composition metadata rejection as a failed executable patch.",
+  "changes": [
+    "Common phase-aware repeat guard for static and reference repairs",
+    "Revalidate corrected metadata while blocking substantive and unknown legacy repeats",
+    "Exact legacy metadata rejection replay without mutating history",
+    "Explicit shared repair epoch over checkpoint-bound retained application and accepted tests"
+  ],
+  "saved_case_control": {
+    "status": "passed",
+    "source_run_id": "c427b8c0-469c-4238-a486-687fd9992769",
+    "source_checkpoint": {
+      "kind": "graph",
+      "stage": "code_build",
+      "binding": "e24d14f40aefee461c30eebdad888b729e3e3a6b4071fe4e20a8aaf8b244492a",
+      "content_sha256": "21684c28383f91aeb06f7b59950df974a98a657ee4f9122aa6e6eb19e7f9c101",
+      "created": 1795634643.226623
+    },
+    "retained_application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
+    "retained_independent_suite_digest": "96eea30789577f8c65611a49f64c4662d8d33660647bf038c3014e7c9a3af64a",
+    "application_files": 79,
+    "test_files": 12,
+    "reference_cases": 49,
+    "remaining_reference_failures": 3,
+    "source_spent_counters_archived": {
+      "build_tests_defect": 2,
+      "coordinated_patch": 5,
+      "recovery_diagnosis": 6,
+      "recovery_issue_2818fb3b8f1714fabb9c2e7401fd91a5": 1,
+      "recovery_issue_887b594a8901f79cd98ac76ee7d58040": 1,
+      "recovery_issue_89a5ceb09ee2c683978964fde99f83b1": 1,
+      "recovery_issue_8bb60e1c0d1ab1ade9c2f307722bd437": 1,
+      "recovery_issue_b7df9ff5bc84b574e94f1c60fd376357": 1,
+      "recovery_issue_c0e70eabdee0b8772f1aa7b83e7f65d7": 1,
+      "recovery_output_correction": 4,
+      "recovery_request": 9,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "fresh_shared_budget": {
+      "diagnoses": 16,
+      "requests": 64,
+      "output_corrections": 4,
+      "coordinated_validations": 6
+    },
+    "ordinary_compile_and_general_costs_retained": {
+      "build_tests_defect": 2,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "retained_prior_budget_epoch": {
+      "archived_stage_counters": {
+        "build_tests_defect": 3,
+        "build_tests_syntax": 1,
+        "coordinated_patch": 4,
+        "recovery_diagnosis": 16,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+        "recovery_issue_230596d0b6c50f43858f22bb47322207": 2,
+        "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_issue_6fff79082c029dcdd19e00e7d4e60a87": 2,
+        "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+        "recovery_issue_9fe0ed0530997a1bede0f88bf5524751": 1,
+        "recovery_issue_a4bccbaeed61d63c4dee3103a9f8f833": 1,
+        "recovery_issue_a92b5a06cda982c2d136d119ec2cfc8c": 1,
+        "recovery_issue_bf18f9133be7e4a9233ed2c2cb1d7f43": 1,
+        "recovery_issue_e688f5a01f31e3c5c09456bab8486765": 1,
+        "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+        "recovery_output_correction": 7,
+        "recovery_request": 41
+      },
+      "costs_refunded": false,
+      "fresh_budgets": {
+        "coordinated_validations": 6,
+        "diagnoses": 16,
+        "general_repairs": 8,
+        "output_corrections": 4,
+        "requests": 64,
+        "test_coverage_repairs": 2,
+        "test_defect_repairs": 2,
+        "test_fixture_repairs": 2,
+        "test_syntax_repairs": 2
+      },
+      "policy": "independent-verification-stage-restart-v8",
+      "retained_counters": {
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "source_spent_counters": {
+        "build_tests_defect": 3,
+        "build_tests_syntax": 1,
+        "coordinated_patch": 4,
+        "recovery_diagnosis": 16,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+        "recovery_issue_230596d0b6c50f43858f22bb47322207": 2,
+        "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_issue_6fff79082c029dcdd19e00e7d4e60a87": 2,
+        "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+        "recovery_issue_9fe0ed0530997a1bede0f88bf5524751": 1,
+        "recovery_issue_a4bccbaeed61d63c4dee3103a9f8f833": 1,
+        "recovery_issue_a92b5a06cda982c2d136d119ec2cfc8c": 1,
+        "recovery_issue_bf18f9133be7e4a9233ed2c2cb1d7f43": 1,
+        "recovery_issue_e688f5a01f31e3c5c09456bab8486765": 1,
+        "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+        "recovery_output_correction": 7,
+        "recovery_request": 41,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      }
+    },
+    "metadata_correction_passes_repeat_and_composition": true,
+    "invalid_duplicate_metadata_rejected": true,
+    "code_edit_digest": "9738055de923594a9a7260f8cea03a3e3435be41aecaf95fa662cba86deb98b3",
+    "frozen_hashes_verified": 3661,
+    "actual_model_inference": false,
+    "gpu_used": false,
+    "sandbox_reference_execution": false,
+    "consultation_prompt_tokens": 24317,
+    "total_reserved_tokens": 91901,
+    "completion_reserve": 65536,
+    "framing_reserve": 2048,
+    "approved_context": 98304,
+    "restored_test_suite_unchanged": true,
+    "acceptance_credit": false
+  },
+  "validation": {
+    "core_tests": 679,
+    "core_passed": 671,
+    "optional_skips": 8,
+    "native_adapter_tests": 38,
+    "native_adapter_passed": 38,
+    "initial_core_attempt": "One temporary Git fixture init error under host-injected configuration; final full run isolated injected Git configuration."
+  },
+  "validation_sha256": {
+    "core-tests.log": "2a569ebe6882c274b20114a4ac48b2ae9c4b544de5897f71b02b368c57a6fb79",
+    "core-tests-final.log": "76556519d17aa6b173c1ae9ac7570dcd6c11d105e7cde6a33989a4f053ad9beb",
+    "adapter-tests.log": "aff0da15d2b9e1c3820931e0510f5605524e0edfdc278fdec36de3100efeca7c",
+    "metadata-control-summary.json": "17761d3e6bfaed1e4c5c6c88ca7bb479618ec1e038b9a9377739e4b4962eafe9"
+  },
+  "continuation11": {
+    "status": "not_started",
+    "fresh_shared_budget": {
+      "diagnoses": 16,
+      "requests": 64,
+      "output_corrections": 4,
+      "coordinated_validations": 6
+    },
+    "application_and_accepted_tests_preserved": true,
+    "new_independent_authorship": false,
+    "no_intervention_after_launch": true
+  }
+}

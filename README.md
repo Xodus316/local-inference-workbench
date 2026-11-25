@@ -69,6 +69,8 @@ The [Run 25 tool progress investigation](docs/worker-progress-recovery-2026-11-2
 
 The [November 24 development summary](docs/development-summary-2026-11-24.md) covers Run 24, Run 25's continuations and the fresh independent-stage restart. Reference failures fell from 12 to 3 out of 49 cases before a requested pause. The [November 25 resume outcome](docs/run25-stage-restart-2026-11-24.md) records saved-state recovery after reboot and a terminal repair-repeat rejection; the application is preserved and end-to-end verification remains incomplete.
 
+The [metadata repair investigation](docs/metadata-repair-recovery-2026-11-25.md) distinguishes metadata rejection from executable failure, preserves the repeat guard for substantive failures, and prepares a checkpoint continuation with an explicitly renewed shared repair epoch.
+
 Workflows support [durable pause and resume](docs/workflow-pause.md). **Pause after current operation** saves the current operation's result and acknowledges **paused** before you shut down. Reopen the same data directory after restarting and choose **Resume saved run** to reuse completed receipts and continue under the same approval.
 
 The service listens on loopback. The default state directory is `~/.local-inference-workbench`; use `--data` to choose another directory or `--port` to choose another listener. Model responses, submitted source excerpts and conversation history are stored locally. Use the service under your own operating-system account. Other local programs able to access the listener have access to the workflow API.
