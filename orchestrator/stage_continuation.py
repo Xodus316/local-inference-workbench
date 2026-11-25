@@ -29,8 +29,12 @@ def retained_suite(row,requests,raw):
     parent=row['bundle'][KEY]
     current=deepcopy(parent.get('independent_suite') or parent['generation']['value'])
     revisions=[{f['path']:f['content'] for f in current['files']}]
+    rejected_stages={f"whole_recovery_{r['agent_consultation']['index']}_output"
+        for r in (row['result']['output'].get('recovery') or {}).get('requests',[])
+        if r.get('status')=='output_correction_rejected' and r.get('agent_consultation')}
     for call in row['calls']:
         stage=call['stage'];request=requests[stage];response=raw[stage]
+        if stage in rejected_stages:continue  # A settled model proposal is not an accepted source transition.
         if request.get('role')!='test_author' or 'value' not in response:continue
         payload=request.get('payload',{});schema=payload.get('schema')
         if schema==wire_schema(suite_type):

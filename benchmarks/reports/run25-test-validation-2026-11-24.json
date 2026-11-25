@@ -184,5 +184,171 @@
       "loop-cli-control-summary.json": "cb032781f44dbdb0b12906d480d38933743a6dda940b194d9c40e93b2e142278"
     }
   },
-  "continuation3_status_at_publication": "not_started"
+  "continuation3": {
+    "status": "failed",
+    "workflow_id": "7d47c581-e0c6-4c49-a7b7-f4946565d7dc",
+    "source_runtime_commit": "b1f3513e9d198360ea2bf8b9bb970188b17ab296",
+    "approval_digest": "62562f0efe2e366ceec1aed944a443f7c7a0344a4bac7dd5e47e66fc5ddf0ef3",
+    "elapsed_seconds": 993.949,
+    "frozen_files_verified": 2338,
+    "checkpoints": 11,
+    "native": {
+      "qwen": {
+        "completed": 4,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owners": {
+      "qwen": {
+        "container_id": "88631921e35fcf1f9e4a8949af4a1910e9a6882dd5938f3d6192190dfdfa5625",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "no_operator_intervention": true,
+    "backend_frontend_compile_and_reference_candidate_smoke": "passed",
+    "shared_consultation": "authorized missing import correction after one length-format retry",
+    "correction": "rejected due to syntax-invalid file content",
+    "syntax_reconsultation": "identified defect but omitted required requested_changes; semantic advice rejection did not enter feedback retry",
+    "terminal_error": {
+      "message": "Generated Python test file has invalid syntax: tests/test_ui_auth.py",
+      "stage": "build_tests_defect_recovery"
+    },
+    "spent_shared_corrections": 2,
+    "shared_corrections_remaining": 2,
+    "independent_reference_review_delivery": "not_reached",
+    "evidence_sha256": {
+      "terminal.json": "d4a5a350a1c079febf3a60e71c1043d6e1017a8a33665908ff80faaa3d8bfeee",
+      "outcome.json": "a93b1b85b210798e5cb8e556a67d5b16d58aa1e073a4901d72e8cebb064b2b0e",
+      "operator-verification.json": "24d9a4a471c54b5f7de1126cb9c4ebb8debb7d96411d766531d6b2d1926b9ffb"
+    }
+  },
+  "advice_validation_followup": {
+    "changes": [
+      "Validate advice evidence, capability availability and required executable changes inside the existing single retry adapter",
+      "Include exact parser diagnostics in syntax consultations",
+      "Preserve explicitly rejected source proposals as evidence without committing them to the retained valid suite"
+    ],
+    "core": {
+      "total": 640,
+      "passed": 632,
+      "optional_skips": 8
+    },
+    "native_adapter": {
+      "total": 38,
+      "passed": 38
+    },
+    "saved_checkpoint_fixture_control": {
+      "status": "passed",
+      "control_kind": "actual-saved-checkpoint-with-fixture-agent-correction-and-stubbed-pinned-preflight",
+      "source_run_id": "7d47c581-e0c6-4c49-a7b7-f4946565d7dc",
+      "latest_checkpoint": {
+        "kind": "graph",
+        "stage": "code_build",
+        "binding": "1d3320370a98b70e52fcab6168a0538ddc7de84811511caad92f6ecc9736d328",
+        "content_sha256": "737ff5d9b1b6d3afbdf117b664a5269a9012270ec0a81aaa886afbdd6f0d4b29",
+        "created": 1795571389.9944096
+      },
+      "retained_test_suite_digest": "7ed490e719835fe0659eccaf081c97946b49a5e8a9c9e97e7157803b12e58cd5",
+      "application_files": 79,
+      "retained_test_files": 14,
+      "retained_static_defects": 4,
+      "preserved_counters": {
+        "build_tests_defect": 3,
+        "build_tests_syntax": 1,
+        "recovery_diagnosis": 5,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_0f1041887d560791d192d03d28dd7729": 1,
+        "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+        "recovery_output_correction": 2,
+        "recovery_request": 23,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "new_counters": {
+        "build_tests_defect": 3,
+        "build_tests_syntax": 1,
+        "recovery_diagnosis": 6,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+        "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+        "recovery_output_correction": 3,
+        "recovery_request": 24,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "stages": [
+        "whole_recovery_6_consult",
+        "whole_recovery_6_output"
+      ],
+      "ordinary_attempts_not_refunded_or_redispatched": true,
+      "frozen_files_verified": 2338,
+      "original_terminal_unchanged": true,
+      "fixture_output_imported_into_continuation": false,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "application_execution": false,
+      "acceptance_claim": false
+    },
+    "real_pinned_cli_synthetic_control": {
+      "status": "passed",
+      "control_kind": "real-pinned-opencode-semantic-advice-feedback-with-synthetic-loopback-model",
+      "evidence_directory": "diagnostics/av25/9ff23309",
+      "stages_and_roles": [
+        [
+          "build_tests_future",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_retry_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_output",
+          "test_author"
+        ]
+      ],
+      "native_protocol_requests": 3,
+      "confirmed_pre_dispatch_evidence": [
+        {
+          "stage": "build_tests_future",
+          "type": "ValueError",
+          "message": "Unsupported role/stage/tool-policy combination",
+          "not_dispatched": true,
+          "proof": null,
+          "cleanup": null
+        }
+      ],
+      "consultations": 1,
+      "semantic_advice_retries": 1,
+      "output_corrections": 1,
+      "same_schema_revalidated": true,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "actual_model_quality_or_end_to_end_claim": false,
+      "scratch_disposed": true,
+      "application_or_plan_imported_into_fresh_trial": false
+    },
+    "evidence_sha256": {
+      "core-tests-advice-final.log": "82006bfc16cd31d4998b15d433992cb0e68c2fc37c9c4e05a0aa2d9768df4ae6",
+      "adapter-tests-advice-final.log": "05346d28b641568454694805fcebf318c1d1caa467deac5643be075903696f2b",
+      "saved-checkpoint-control-summary.json": "d080e4f30d64563c2fba9bb802a7d7e8036f298a096571a7eac3819b497096fb",
+      "advice-cli-control-summary.json": "74311285c1bc6336fc7e4eadfce61bea3c1fc54d1dc67de3c52c34c66c9227e4"
+    },
+    "counter_reset_or_budget_increase": false
+  },
+  "continuation4_status_at_publication": "not_started"
 }

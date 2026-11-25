@@ -102,6 +102,8 @@ def consult(recovery, stage, error, context=None):
             if Path(frame.filename).parent == Path(__file__).parent]
         from .worker_progress import OpenCodeProgressError
         if isinstance(error,OpenCodeProgressError):data['worker_progress']=dict(error.proof)
+        from .build_coverage import TestSyntaxError
+        if isinstance(error,TestSyntaxError):data['parser_diagnostics']=deepcopy(error.diagnostics)
         if getattr(error,'not_dispatched',False) is True:
             data['dispatch_proof']={'not_dispatched':True,'original_output_available':False,
                 'recovery_scope':'Produce the original schema-bound output through the approved recovery capability; no model, budget or gate changes.'}
@@ -117,6 +119,17 @@ def consult(recovery, stage, error, context=None):
                             'or other immutable artifacts. The same validator must accept the correction.'})
     saved_stage = flow.stage
     recovery._consulting = True
+    def checked_advice(raw):
+        advice=RecoveryAdvice.model_validate(raw)
+        if advice.evidence_quote not in message:
+            raise ValueError('Recovery agent did not quote the retained failure')
+        if advice.action=='correct_stage_output':
+            if not capabilities:raise ValueError('Recovery agent requested an unavailable output correction')
+            if not advice.requested_changes or any(not change.strip() for change in advice.requested_changes):
+                raise ValueError('correct_stage_output requires a nonempty requested_changes list describing the executable correction')
+        if advice.action=='request_capability' and not advice.required_capability.strip():
+            raise ValueError('Recovery agent did not describe the missing capability')
+        return advice
     try:
         raw, consultation_stage, _ = flow._repair_decision(f'whole_recovery_{index}_consult', RecoveryAdvice,
             'The orchestrator has no successful handler for this failure. Diagnose the retained evidence '
@@ -125,14 +138,8 @@ def consult(recovery, stage, error, context=None):
             'Otherwise request the missing capability with actionable requirements, or stop if the approved '
             'budget cannot permit recovery. Excerpts explicitly marked incomplete are not complete source. '
             'Do not invent evidence, execute commands, modify runtime code, change models/budgets or waive gates.',
-            data, role=role, tool_policy=INLINE_RECOVERY_POLICY)
-        advice = RecoveryAdvice.model_validate(raw)
-        if advice.evidence_quote not in message:
-            raise ValueError('Recovery agent did not quote the retained failure')
-        if advice.action == 'correct_stage_output' and (not capabilities or not advice.requested_changes):
-            raise ValueError('Recovery agent requested an unavailable output correction')
-        if advice.action == 'request_capability' and not advice.required_capability.strip():
-            raise ValueError('Recovery agent did not describe the missing capability')
+            data, role=role, tool_policy=INLINE_RECOVERY_POLICY,validator=checked_advice)
+        advice = checked_advice(raw)
         request = recovery.request(stage, role, advice.action,
             evidence={'error':message, 'advice':advice.model_dump()},
             status='authorized' if advice.action in capabilities else 'blocked', reason=advice.diagnosis)

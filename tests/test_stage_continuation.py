@@ -43,6 +43,20 @@ def fixture():
 
 
 class StageContinuationTests(unittest.TestCase):
+    def test_rejected_model_proposal_is_retained_as_evidence_without_replacing_the_last_valid_source(self):
+        from orchestrator.build_models import BuildTestSyntaxRepair
+        row,_,_,_=fixture();good=suite_value();bad=deepcopy(good['files']);bad[0]['content']='class Broken(:\n'
+        row['bundle'][KEY]={'independent_suite':good,'generation':{'value':good}}
+        row['result']['output']['recovery']={'requests':[{'status':'output_correction_rejected',
+            'agent_consultation':{'index':1}}]}
+        stage='whole_recovery_1_output';row['calls']=[{'stage':stage}]
+        requests={stage:{'role':'test_author','payload':{'schema':wire_schema(BuildTestSyntaxRepair),
+            'messages':[{}, {'content':json.dumps({'files':good['files']})}]}}}
+        raw={stage:{'value':{'files':bad}}}
+        self.assertEqual(retained_suite(row,requests,raw)['files'],good['files'])
+        row['result']['output']['recovery']['requests']=[]
+        self.assertEqual(retained_suite(row,requests,raw)['files'],bad)
+
     def test_replay_tracks_rejected_scoped_proposals_without_losing_the_original_repair_base(self):
         from orchestrator.build_models import BuildTestSyntaxRepair
         row,_,_,b=fixture();good=suite_value();first=deepcopy(good['files']);second=deepcopy(first)

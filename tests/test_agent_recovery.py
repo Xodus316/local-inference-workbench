@@ -43,6 +43,32 @@ def fixture(stage='whole_self_tests_retry',role='implementer',raw=None,corrected
 
 
 class AgentRecoveryTests(unittest.TestCase):
+    def test_semantically_incomplete_advice_gets_the_same_single_validation_feedback_retry(self):
+        flow,raw=fixture()
+        original=flow._generate.side_effect;seen=[]
+        def generate(stage,*args,**kw):
+            if stage=='whole_recovery_1_consult':
+                data=args[3]
+                return {'diagnosis':'The failure needs an output correction','evidence_quote':data['failure'],
+                    'action':'correct_stage_output','requested_changes':[]}
+            if stage=='whole_recovery_1_retry_consult':
+                seen.append(args[3]['previous_decision_rejection'])
+            return original(stage,*args,**kw)
+        flow._generate.side_effect=generate
+        self.assertEqual(flow.validate_generated(raw,Output.model_validate).count,3)
+        self.assertIn('nonempty requested_changes',seen[0]['failure'])
+        self.assertEqual([c.args[0] for c in flow._generate.call_args_list],
+            ['whole_recovery_1_consult','whole_recovery_1_retry_consult','whole_recovery_1_output'])
+        self.assertEqual(flow.counters['recovery_diagnosis'],1)
+        self.assertEqual(flow.counters['recovery_output_correction'],1)
+
+    def test_syntax_consultation_includes_exact_parser_diagnostics(self):
+        from orchestrator.build_coverage import TestSyntaxError
+        flow,_=fixture('build_tests_defect_recovery','test_author')
+        diagnostics=[{'path':'tests/test_ui.py','line':91,'message':'unterminated string literal'}]
+        flow.recovery.consult(flow.stage,TestSyntaxError(diagnostics),flow._generation_context)
+        self.assertEqual(flow._generate.call_args.args[4]['parser_diagnostics'],diagnostics)
+
     def test_confirmed_pre_dispatch_failure_can_consult_for_original_output_without_retrying_the_bad_stage(self):
         for proved in (True,False):
             flow,_=fixture();flow.bundle['generation']={r:{'context':98304} for r in ['implementer','repairer']}

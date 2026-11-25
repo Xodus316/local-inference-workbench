@@ -672,10 +672,15 @@ class WholeProjectBuildRun(ProjectBuildRun):
                                            diagnosis=selection.diagnosis.model_dump())
         return paths, {**evidence, "diagnosis": selection.diagnosis.model_dump()}
 
-    def _repair_decision(self, stage, model_type, instruction, data, *, role='repairer', tool_policy=INLINE_SELECTION_POLICY):
+    def _repair_decision(self, stage, model_type, instruction, data, *, role='repairer', tool_policy=INLINE_SELECTION_POLICY, validator=None):
         """One clean retry total for a settled output limit or malformed agent advice."""
+        def checked(raw):
+            if validator is not None:
+                try:validator(raw)
+                except ValueError as error:raise AgentOutputValidationError(raw,error) from error
+            return raw
         try:
-            raw = self._generate(stage, role, model_type, instruction, data, {}, tool_policy=tool_policy)
+            raw = checked(self._generate(stage, role, model_type, instruction, data, {}, tool_policy=tool_policy))
             return raw, stage, False
         except AgentOutputValidationError as error:
             if tool_policy != INLINE_RECOVERY_POLICY or not stage.endswith('_consult') or stage.endswith('_retry_consult'):
@@ -688,7 +693,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 'instruction':'Correct only this advice under the same response schema. Supply requested_changes '
                     'for correct_stage_output and leave required_capability empty when no new capability is needed. '
                     'Respect every field length limit. No further retry is available.'}}
-            raw = self._generate(retry_stage,role,model_type,instruction,retry_data,{},tool_policy=tool_policy)
+            raw = checked(self._generate(retry_stage,role,model_type,instruction,retry_data,{},tool_policy=tool_policy))
             return raw,retry_stage,True
         except OpenCodeSettledResponseError as error:
             proof = error.proof
@@ -710,7 +715,7 @@ class WholeProjectBuildRun(ProjectBuildRun):
                 source = trim_selection_source(source)
             retry_data = {**data, "current_source": source,
                 "previous_selection_rejection": "Completed at output limit; no selection was accepted. Return a compact final decision."}
-            raw = self._generate(retry_stage, role, model_type, instruction, retry_data, {}, tool_policy=tool_policy)
+            raw = checked(self._generate(retry_stage, role, model_type, instruction, retry_data, {}, tool_policy=tool_policy))
             return raw, retry_stage, True
 
     def repair_selected(self, stage, artifact, suite, plan, problem, feedback, *,
