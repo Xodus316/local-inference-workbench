@@ -1,6 +1,6 @@
 {
   "date": "2026-11-25",
-  "status": "controls_passed_before_continuation12",
+  "status": "continuation12_terminal_failed_audited",
   "changes": [
     "Active advice schema has disjoint action branches with required executable change list for correction",
     "Correct-stage advice requires empty required_capability; request-capability requires nonblank description",
@@ -170,7 +170,7 @@
     "action-control-summary.json": "48a0407bcaef46df465e98a48ab5d4eed09a3ec65924c4df22d79b7bae76a292"
   },
   "continuation12": {
-    "status": "not_started",
+    "status": "failed",
     "application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
     "independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
     "fresh_shared_budget": {
@@ -180,6 +180,108 @@
       "coordinated_validations": 6
     },
     "previous_costs_archived": true,
-    "operator_source_changes_during_trial": false
+    "operator_source_changes_during_trial": false,
+    "run_id": "08954305-be87-461d-8acb-5d85c4c806b4",
+    "elapsed_seconds": 903.992,
+    "reference_cases": 49,
+    "remaining_reference_failures": 2,
+    "patches_dispatched": 0,
+    "application_and_test_source_unchanged": true,
+    "failure": "Native advice omitted common diagnosis/evidence fields; no proposal was accepted.",
+    "audit": {
+      "status": "failed",
+      "run_id": "08954305-be87-461d-8acb-5d85c4c806b4",
+      "elapsed_seconds": 903.992,
+      "frozen_files_verified": 4195,
+      "checkpoints": [
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_1_2",
+          "content_sha256": "389a25ef7c8f766362ff03195287ea299c9147394dd9c0682676648408b2696f"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_2_1",
+          "content_sha256": "273a4984deb223512fea97d9b87e73227668f055d34298f2176b6b3f67f3dbdd"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_0",
+          "content_sha256": "a516aa96edbfb26e7f4d16b22b01892bd9822d98594c7708d52d3e4e5994f9a5"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_0",
+          "content_sha256": "0aee2d49ce5f4da52506b3a225d71d8f40b18581e6404f893ea0c644be108b24"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_self_verify_3",
+          "content_sha256": "814486bac336b54a9e62728f3b29777ad67c1bab2e8b2ff85eda4060731fb02d"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_1",
+          "content_sha256": "7d445ca19b8db6a249f3c1e5e47f7ad342fba586d4c035a3a2fc5a078fe1ff5e"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_1",
+          "content_sha256": "65c1402e8e31552c3537ef6c3751e40c648c7577334bf21d22d8353e081850c7"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_1_consult",
+          "content_sha256": "a1ef6ab67a19cf1cbc88806eb9b36f4e4136a0662e56d4020d19a24d30b5e4ed"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_1_retry_consult",
+          "content_sha256": "cd09770717161882f67148c0c616e326c89e9bede244fa931887d6cf9420357d"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_2_consult",
+          "content_sha256": "8da40e42697be9f1aca2eef241116d70a523c2df14d763bd0baff6f430de6abf"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_2_retry_consult",
+          "content_sha256": "001eb9612955859bab13b9a078dac988117c597fa36984eaa10ddea7f71266ee"
+        },
+        {
+          "kind": "graph",
+          "stage": "code_build",
+          "content_sha256": "1105e04f5f628b562bb8f4f27c91426fc43f9f56969bbd1ab8cc98fb30e85811"
+        }
+      ],
+      "native": {
+        "qwen": {
+          "completed": 4,
+          "compactions": 0,
+          "other_outcomes": []
+        }
+      },
+      "owners": {
+        "qwen": {
+          "container_id": "1adf24c53579746040eae34f963c24fab0307c02ae06f97729ee57b642a53fb4",
+          "ownership_verified": true,
+          "stopped": true,
+          "transport_drained": true,
+          "bridge_closed": true
+        }
+      },
+      "no_operator_intervention": true,
+      "continuation_of": "0eeb994c-e751-403d-b9b6-bdddd0019b18",
+      "error": {
+        "message": "Reference qualification needs a causal anchored repair of 2 observed failed cases",
+        "stage": "build_control_recovery"
+      },
+      "evidence_sha256": {
+        "terminal.json": "8c6428f494b86a31e720446274ad1885d8a0295b208e7112fc1a883375eec538",
+        "outcome.json": "445b983607bece1d28244dd837dbc084b14cab56b88a792589817526a33ec53a"
+      }
+    },
+    "independent_candidate_review_delivery": "not_reached"
   }
 }

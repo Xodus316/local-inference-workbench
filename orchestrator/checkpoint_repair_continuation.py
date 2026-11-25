@@ -19,6 +19,11 @@ def budgets():
     return {'diagnoses':16,'requests':64,'output_corrections':4,'coordinated_validations':6}
 
 
+def accepted_suite(row):
+    evidence=row['result']['output']['verification']['whole_project']
+    return evidence.get('independent_draft',{}).get('suite') or row['bundle'][KEY]['independent_suite']
+
+
 def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,preflight_bytes,reference_bytes):
     from .stage_continuation import validate as validate_parent,retained_suite
     from .whole_project import _stopped_opencode_result
@@ -44,7 +49,7 @@ def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,prefl
     for key in ('model','context','thinking','model_manifest_sha256','backend_identity','sampling'):
         if source['backend'].get(key)!=target['backend'].get(key):raise ValueError('Repair continuation cannot change models')
     suite=retained_suite(row,requests,raw)
-    if suite!=e['independent_draft']['suite']:raise ValueError('Accepted test source does not match completed promotion receipts')
+    if suite!=accepted_suite(row):raise ValueError('Accepted test source does not match completed promotion receipts')
     record=row['checkpoints'][-1];cp=json.loads(checkpoint_bytes);pre=json.loads(preflight_bytes)
     cp_output=cp.get('state',{}).get('output') or cp.get('state',{}).get('update',{}).get('code_build',{}).get('output',{})
     if (hashlib.sha256(checkpoint_bytes).hexdigest()!=record['content_sha256']

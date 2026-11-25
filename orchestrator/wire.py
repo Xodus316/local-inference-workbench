@@ -34,4 +34,16 @@ def wire_schema(model):
             result['oneOf'] = [convert(branch) for branch in node['oneOf']]
         return result
 
-    return convert(original)
+    result = convert(original)
+    if conditional_actions and 'oneOf' in result:
+        # Some structured decoders select a branch without merging sibling
+        # root constraints. Each branch must be a complete response schema.
+        branches = result.pop('oneOf')
+        complete = []
+        for branch in branches:
+            value = copy.deepcopy(result)
+            value['properties'].update(branch.get('properties', {}))
+            value['required'] = sorted(set(value.get('required', [])) | set(branch.get('required', [])))
+            complete.append(value)
+        return {'type': 'object', 'oneOf': complete}
+    return result
