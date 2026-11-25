@@ -173,16 +173,13 @@ def consult(recovery, stage, error, context=None):
                         'correction_scope':'Correct the rejected generated output under this original contract. '
                             'A validator rejection does not authorize changing retained inputs, coverage mappings '
                             'or other immutable artifacts. The same validator must accept the correction.'})
-    referenced = context is not None and context['data'].get('repair_policy')=='grouped-anchored-recovery-v2'
     evidence_ref='F'+digest(message)[:12]
-    model_type=advice_type(evidence_ref) if referenced else RecoveryAdvice
-    if referenced:data['failure_evidence_id']=evidence_ref
+    model_type=advice_type(evidence_ref)
+    data['failure_evidence_id']=evidence_ref
     saved_stage = flow.stage
     recovery._consulting = True
     def checked_advice(raw):
         advice=model_type.model_validate(raw)
-        if not referenced and advice.evidence_quote not in message:
-            raise ValueError('Recovery agent did not quote the retained failure')
         if advice.action=='correct_stage_output':
             if not capabilities:raise ValueError('Recovery agent requested an unavailable output correction')
             if not advice.requested_changes or any(not change.strip() for change in advice.requested_changes):
@@ -193,8 +190,7 @@ def consult(recovery, stage, error, context=None):
     try:
         raw, consultation_stage, _ = flow._repair_decision(f'whole_recovery_{index}_consult', model_type,
             'The orchestrator has no successful handler for this failure. Diagnose the retained evidence '+
-            ('and choose a next action. Select the exact failure_evidence_id in evidence_ref. ' if referenced else
-             'and choose a next action. Quote the failure exactly. ')+
+            'and choose a next action. Select the exact failure_evidence_id in evidence_ref. '+
             'Use correct_stage_output only when it '
             'is an available host capability; specify minimal corrections preserving all immutable contracts. '
             'Otherwise request the missing capability with actionable requirements, or stop if the approved '

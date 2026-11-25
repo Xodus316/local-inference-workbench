@@ -144,3 +144,22 @@ class EvidenceRecoveryTests(unittest.TestCase):
         self.assertEqual(returned,value);flow._opencode.assert_called_once()
         self.assertEqual(flow.stages[stage]['metadata_projection']['fields'][0]['characters_before'],1235)
         self.assertEqual(flow.counters['recovery_output_correction'],0)
+
+    def test_terminal_advisor_uses_bound_evidence_and_caps_narrative_without_retry(self):
+        from test_agent_recovery import fixture as agent_fixture
+        from orchestrator.whole_project import WholeProjectBuildRun
+        flow,_=agent_fixture('delivery_export');flow.bundle['generation']={'repairer':{'context':98304}}
+        flow.model_inputs=lambda data:data;flow.counters['recovery_output_correction']=4
+        def dispatch(stage,role,operation,visible,**kw):
+            flow.stages[stage]={}
+            data=json.loads(kw['payload']['messages'][1]['content'])
+            return {'value':{'diagnosis':'d'*1700,'required_capability':'r'*783,'action':'request_capability',
+                'evidence_ref':data['failure_evidence_id']}}
+        flow._opencode=Mock(side_effect=dispatch)
+        flow._generate=lambda *a,**kw:WholeProjectBuildRun._generate(flow,*a,**kw)
+        result=flow.recovery.terminal('delivery_export','Actual retained failure')
+        self.assertEqual(result['agent_consultation']['advice']['action'],'request_capability')
+        self.assertEqual(len(result['agent_consultation']['advice']['required_capability']),600)
+        flow._opencode.assert_called_once();self.assertEqual(flow.counters['recovery_output_correction'],4)
+        self.assertNotEqual(flow.stages['whole_recovery_1_consult']['metadata_projection']['raw_digest'],
+            flow.stages['whole_recovery_1_consult']['metadata_projection']['normalized_digest'])

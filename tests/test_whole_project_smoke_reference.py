@@ -86,7 +86,7 @@ class SmokeReferenceTests(unittest.TestCase):
                             self.assertIn('unaffected test methods unchanged',contract['instruction']['json_excerpt'])
                             self.assertNotIn('REFERENCE SOURCE',str(data))
                             return {'diagnosis':'The generated source violates the retained suite contract',
-                                'evidence_quote':data['failure'], 'action':'correct_stage_output',
+                                'evidence_ref':data['failure_evidence_id'], 'action':'correct_stage_output',
                                 'requested_changes':['Return complete source, keeping original test identities and unaffected methods']}
                         if stage.endswith('_output'):
                             self.assertEqual(role,'implementer')

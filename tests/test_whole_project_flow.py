@@ -287,7 +287,7 @@ class WholeProjectFlowTests(unittest.TestCase):
                     value['value']={'summary':'A malformed edit response','edits':[
                         {'path':'tests/test_self.py','before':'anchor absent from diagnosed source','after':fixed}]}
                 elif stage.endswith('_consult'):
-                    value['value']={'diagnosis':'The exact edit anchor is absent','evidence_quote':data['failure'],
+                    value['value']={'diagnosis':'The exact edit anchor is absent','evidence_ref':data['failure_evidence_id'],
                         'action':'correct_stage_output','requested_changes':['Use an exact source anchor']}
                 elif stage.endswith('_output'):
                     value['value']={'summary':'Correct the exact anchor','edits':[

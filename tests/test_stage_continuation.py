@@ -172,7 +172,7 @@ class StageContinuationTests(unittest.TestCase):
         def generate(stage,*a,**kw):
             if stage.endswith('_consult'):
                 return {'diagnosis':'The rejected response listed unapproved application paths',
-                    'evidence_quote':'Independent tests changed the approved implementation path inventory',
+                    'evidence_ref':'F'+digest('Independent tests changed the approved implementation path inventory')[:12],
                     'action':'correct_stage_output','requested_changes':['Copy the original application inventory exactly']}
             return suite_value()
         flow._generate=Mock(side_effect=generate)

@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 from pydantic import Field
 
-from orchestrator.agent_recovery import INLINE_RECOVERY_POLICY,RecoveryAdvice,AgentOutputValidationError,excerpt
+from orchestrator.agent_recovery import INLINE_RECOVERY_POLICY,RecoveryAdvice,EvidenceRecoveryAdvice,AgentOutputValidationError,excerpt
 from orchestrator.schemas import Record
 from orchestrator.stage_recovery import (KEY,POLICY,DYNAMIC_POLICY,StageRecovery,dynamic_enabled,
     enabled,validate_costs)
@@ -33,7 +33,7 @@ def fixture(stage='whole_self_tests_retry',role='implementer',raw=None,corrected
     def generate(stage,role,model_type,instruction,data,visible,**options):
         assert options['tool_policy']==INLINE_RECOVERY_POLICY and visible=={}
         if stage.endswith('_consult'):
-            return {'diagnosis':'The output violates its retained validator','evidence_quote':data['failure'][:1000],
+            return {'diagnosis':'The output violates its retained validator','evidence_ref':data['failure_evidence_id'],
                 'action':'correct_stage_output' if data['available_capabilities'] else 'request_capability',
                 'requested_changes':['Correct only the count field'],
                 'required_capability':'' if data['available_capabilities'] else 'A bounded adapter for the failed host operation'}
@@ -49,7 +49,7 @@ class AgentRecoveryTests(unittest.TestCase):
         def generate(stage,*args,**kw):
             if stage=='whole_recovery_1_consult':
                 data=args[3]
-                return {'diagnosis':'The failure needs an output correction','evidence_quote':data['failure'],
+                return {'diagnosis':'The failure needs an output correction','evidence_ref':data['failure_evidence_id'],
                     'action':'correct_stage_output','requested_changes':[]}
             if stage=='whole_recovery_1_retry_consult':
                 seen.append(args[3]['previous_decision_rejection'])
@@ -80,7 +80,7 @@ class AgentRecoveryTests(unittest.TestCase):
                 if stage=='whole_self_tests_retry':raise error
                 if stage.endswith('_consult'):
                     return {'value':{'diagnosis':'No original inference was dispatched; return the approved output through recovery',
-                        'evidence_quote':str(error),'action':'correct_stage_output',
+                        'evidence_ref':'F'+digest(str(error))[:12],'action':'correct_stage_output',
                         'requested_changes':['Produce the original schema-bound output']}}
                 return {'value':{'count':3}}
             flow._opencode=Mock(side_effect=dispatch)
@@ -106,7 +106,7 @@ class AgentRecoveryTests(unittest.TestCase):
                 if stage=='whole_self_tests_retry':raise error
                 if stage.endswith('_consult'):
                     return {'value':{'diagnosis':'A settled worker repeated exploration instead of returning output',
-                        'evidence_quote':str(error),'action':'correct_stage_output',
+                        'evidence_ref':'F'+digest(str(error))[:12],'action':'correct_stage_output',
                         'requested_changes':['Return the original response directly from supplied evidence']}}
                 return {'value':{'count':3}}
             flow._opencode=Mock(side_effect=dispatch)
@@ -143,7 +143,7 @@ class AgentRecoveryTests(unittest.TestCase):
                 flow._generate.assert_called_once()
                 call=flow._generate.call_args
                 self.assertEqual(call.args[0],'whole_recovery_1_consult')
-                self.assertIs(call.args[2],RecoveryAdvice)
+                self.assertTrue(issubclass(call.args[2],EvidenceRecoveryAdvice))
                 self.assertNotIn('PRIVATE_REFERENCE',str(call.args[4]))
                 self.assertEqual(request['agent_consultation']['advice']['action'],'request_capability')
                 self.assertIn(call.args[0],STAGES)
@@ -240,7 +240,7 @@ class AgentRecoveryTests(unittest.TestCase):
             flow,_=fixture(stage)
             error=OpenCodeSettledResponseError('structured-output-limit',{'completed_requests':1,
                 'scratch_cleanup_confirmed':True,'native_receipts_digest':'a'*64,'session_id':'settled'})
-            flow._generate.side_effect=[error,{'diagnosis':'A host adapter is needed','evidence_quote':'failure',
+            flow._generate.side_effect=[error,{'diagnosis':'A host adapter is needed','evidence_ref':'F'+digest('failure')[:12],
                 'action':'request_capability','required_capability':'A bounded log-reader capability'}]
             result=flow.recovery.terminal(stage,'failure')
             self.assertEqual(flow._generate.call_count,2)
@@ -256,7 +256,7 @@ class AgentRecoveryTests(unittest.TestCase):
         except ValueError as error:bad=AgentOutputValidationError(malformed,error)
         limit=OpenCodeSettledResponseError('structured-output-limit',{'completed_requests':1,
             'scratch_cleanup_confirmed':True,'native_receipts_digest':'a'*64,'session_id':'settled'})
-        good={'diagnosis':'The host needs an adapter','evidence_quote':'failure','action':'request_capability',
+        good={'diagnosis':'The host needs an adapter','evidence_ref':'F'+digest('failure')[:12],'action':'request_capability',
             'required_capability':'A bounded host adapter'}
         for first,second in [(bad,good),(bad,bad),(bad,limit),(limit,bad)]:
             flow,_=fixture();flow._generate.side_effect=[first,second]

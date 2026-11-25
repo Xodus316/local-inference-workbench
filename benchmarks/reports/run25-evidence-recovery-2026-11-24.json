@@ -1,23 +1,23 @@
 {
   "date": "2026-11-24",
   "source_run_id": "dc399293-f3bf-4a6e-bf25-2a6dbc7016b4",
-  "status": "implementation_validated_continuation_not_started",
+  "status": "terminal_failed_audited_common_advice_followup_verified",
   "root_causes": [
     "Narrative summary limit rejected a complete proposal before semantic source validation",
     "Legacy copied evidence quote expanded beyond the literal supplied diagnostic",
     "No approved route existed to evaluate the completed paid-for proposal after all shared corrections were spent"
   ],
   "changes": [
-    "Bound host evidence IDs for coordinated patches and consultations",
+    "Bound host evidence IDs for coordinated patches and all dynamic recovery consultations",
     "Audited deterministic normalization of explicitly non-executable narrative only",
     "Checkpoint-bound evaluation of completed proposal without model redispatch or counter refund",
     "Immutable coverage metadata projection with verified checkpoint replay"
   ],
   "validation": {
-    "core_tests": 658,
+    "core_tests": 659,
     "native_adapter_tests": 38,
     "native_adapter_passed": 38,
-    "core_passed": 650,
+    "core_passed": 651,
     "optional_skips": 8
   },
   "saved_proposal_control": {
@@ -77,8 +77,216 @@
     "frozen_files_verified": 2880
   },
   "continuation7": {
-    "status": "not_started",
+    "status": "failed",
+    "run_id": "33454b77-32bc-4ca5-9322-7d3781f180e5",
+    "runtime_commit": "873444a3b4fc6e39be10e74c71aeec2d190b56d3",
+    "manifest_sha256": "627221abf5b8439245967629a6c9c6663e376d76f8801cb69ea54e0b3cec2a52",
+    "approval_digest": "34cb847b69a07b689850b3ff95f564046ca86296f96bafdb837c7e974194eed3",
+    "elapsed_seconds": 593.621,
     "operator_intervention": false,
-    "model_repair_budget_increased": false
+    "compile_and_smoke": "passed",
+    "independent_reference": {
+      "tests": 58,
+      "passed": 41,
+      "failed_or_errors": 17,
+      "before_any_proposal_promotion": true
+    },
+    "retained_proposal": {
+      "producer_redispatched": false,
+      "executable_edits": 19,
+      "executables_unchanged_from_original_response": true,
+      "summary_and_evidence_migration": "accepted_for_evaluation",
+      "disposition": "rolled_back",
+      "rejection": {
+        "message": "Anchored repair has static defects: [{'path': 'tests/test_config.py', 'line': 40, 'names': ['test_api_prefix'], 'code': 'undefined_name', 'message': \"test_api_prefix reads undefined name 'tok'; the test raises NameError for every implementation\"}]",
+        "stage": "build_control_recovery"
+      },
+      "targeted_probe_reached": false,
+      "full_reference_on_proposal_reached": false,
+      "candidate_qualification_reached": false,
+      "review_or_delivery_reached": false
+    },
+    "spent_counters": {
+      "build_tests_defect": 3,
+      "build_tests_syntax": 1,
+      "coordinated_patch": 1,
+      "recovery_diagnosis": 11,
+      "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+      "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+      "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+      "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+      "recovery_issue_6fff79082c029dcdd19e00e7d4e60a87": 1,
+      "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+      "recovery_issue_a92b5a06cda982c2d136d119ec2cfc8c": 1,
+      "recovery_issue_bf18f9133be7e4a9233ed2c2cb1d7f43": 1,
+      "recovery_issue_e688f5a01f31e3c5c09456bab8486765": 1,
+      "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+      "recovery_output_correction": 4,
+      "recovery_request": 33,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "repair_model_budget_increased": false,
+    "shared_output_corrections_spent": 4,
+    "frozen_files_verified": 3069,
+    "checkpoints_verified": 10,
+    "native": {
+      "qwen": {
+        "completed": 2,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owned_backend_closed": true,
+    "audit": {
+      "status": "failed",
+      "run_id": "33454b77-32bc-4ca5-9322-7d3781f180e5",
+      "elapsed_seconds": 593.621,
+      "frozen_files_verified": 3069,
+      "checkpoints": [
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_1_2",
+          "content_sha256": "8288a6b935ef9e52f96d58b324290b7fa057dd2c3d1814e7f8cd44c0b18df516"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_2_1",
+          "content_sha256": "b9b0a5d55559bbc41ca0a44fb5fb8d7521ac0b58b22b17ec3c5c5014c710d426"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_0",
+          "content_sha256": "8860fe8c7ccd356fe810d80dc08bb9aceb7e4ab0206ab7df94c17fd8fb84bb88"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_0",
+          "content_sha256": "6cca6bc88b594d67229d5ac72b4dd327e6dde722577f925319f94a132767bfb2"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_self_verify_3",
+          "content_sha256": "6eb4e2855afd4ad4e6bff0f7fe67f3eaaa5096ccbf52403a8b1edc51adbf8a6d"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_1",
+          "content_sha256": "eb2dd7cc76a930413504296354a9e416f182c14d6ca0317d3e9bb72a12fae3f3"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_1",
+          "content_sha256": "72cd3af5f63f24dc1b2fc43febf25464ca0057ef75dad216196ca00b2f5d8389"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_11_consult",
+          "content_sha256": "2024af5063904c14e041874a31febb9b9e79c8710b389637d33636013d6e42b8"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_11_retry_consult",
+          "content_sha256": "897fe019fd7a5b6b00f03807bbf11f7de4f29b9066b14fe4c9f578875e8a3b78"
+        },
+        {
+          "kind": "graph",
+          "stage": "code_build",
+          "content_sha256": "0c2b33787f9488fa69e5a2e346c1abdd7202277b95ee168f8b714254de476e65"
+        }
+      ],
+      "native": {
+        "qwen": {
+          "completed": 2,
+          "compactions": 0,
+          "other_outcomes": []
+        }
+      },
+      "owners": {
+        "qwen": {
+          "container_id": "b596d9a5bd7068df8377e828941330666088f6562f87539165786ca9890f1e65",
+          "ownership_verified": true,
+          "stopped": true,
+          "transport_drained": true,
+          "bridge_closed": true
+        }
+      },
+      "no_operator_intervention": true,
+      "continuation_of": "dc399293-f3bf-4a6e-bf25-2a6dbc7016b4",
+      "error": {
+        "message": "Anchored repair has static defects: [{'path': 'tests/test_config.py', 'line': 40, 'names': ['test_api_prefix'], 'code': 'undefined_name', 'message': \"test_api_prefix reads undefined name 'tok'; the test raises NameError for every implementation\"}]",
+        "stage": "build_control_recovery"
+      },
+      "evidence_sha256": {
+        "terminal.json": "18e9ab75ef0cb54c3835c7ac9c834a3870c671296b9307d33944cd6c15113c0c",
+        "outcome.json": "95254b7777e8ab1b7fb619d8ea8a8760b580c6736b7ecb990c723f36eb4dd591"
+      }
+    },
+    "terminal_advice": {
+      "schema": "legacy",
+      "first_capability_characters": 783,
+      "retry_capability_characters": 694,
+      "status": "both rejected by 600-character schema limit",
+      "remained_terminal": true
+    },
+    "prelaunch_core_tests": {
+      "run": 658,
+      "passed": 650,
+      "optional_skips": 8
+    }
+  },
+  "post_terminal_common_advice_fix": {
+    "scope": "Every dynamic consultation, including terminal/context-free failures",
+    "model_inference_after_terminal": false,
+    "source_run_unchanged": true,
+    "saved_advice_control": {
+      "source_run_id": "33454b77-32bc-4ca5-9322-7d3781f180e5",
+      "status": "passed",
+      "rows": [
+        {
+          "stage": "whole_recovery_11_consult",
+          "request_digest": "de621a66437f667926b87b61dd2e7dc1cf87a15b1f27c3fc8831381e14656ad4",
+          "raw_receipt_digest": "34184a444e31fbd5999fc7bd3652a56b5c452d29e9fd1ce39d7c999e42eea8d8",
+          "literal_legacy_quote_matched": true,
+          "legacy_quote_digest": "594e70a9223da0488760db1419299214cf6788d52ce434c1eed776c6b33a36b5",
+          "host_failure_digest": "594e70a9223da0488760db1419299214cf6788d52ce434c1eed776c6b33a36b5",
+          "raw_capability_characters": 783,
+          "normalized_capability_characters": 600,
+          "action": "request_capability",
+          "executable_change": false,
+          "raw_response_preserved": true,
+          "schema_valid": true
+        },
+        {
+          "stage": "whole_recovery_11_retry_consult",
+          "request_digest": "0f415acd2a3908e636ca43ceed4b25d4c8142569b72a2724545c046da50b0fbd",
+          "raw_receipt_digest": "926f34ccc393ba1c3afc75af7d8b2ffb05a22942cf9874f3f87de4627f6bdd48",
+          "literal_legacy_quote_matched": true,
+          "legacy_quote_digest": "594e70a9223da0488760db1419299214cf6788d52ce434c1eed776c6b33a36b5",
+          "host_failure_digest": "594e70a9223da0488760db1419299214cf6788d52ce434c1eed776c6b33a36b5",
+          "raw_capability_characters": 694,
+          "normalized_capability_characters": 600,
+          "action": "request_capability",
+          "executable_change": false,
+          "raw_response_preserved": true,
+          "schema_valid": true
+        }
+      ],
+      "actual_model_inference": false,
+      "gpu_used": false,
+      "production_counters_changed": false,
+      "acceptance_credit": false,
+      "source_terminal_changed": false,
+      "scope": "All dynamic recovery consultations, including terminal and context-free failures"
+    },
+    "validation": {
+      "core_tests": 659,
+      "passed": 651,
+      "optional_skips": 8,
+      "saved_terminal_advice_replay": "both passed",
+      "new_gpu_trial": false
+    },
+    "new_continuation_started": false
   }
 }
