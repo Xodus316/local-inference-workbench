@@ -28,7 +28,7 @@ def retained_suite(row,requests,raw):
     from .build_coverage import TestSyntaxError,correct_test_references
     from .project_build import project_test_types
     from .wire import wire_schema
-    from .repair_coordinator import CoordinatedPatch,compose_tests,patch_type
+    from .repair_coordinator import CoordinatedPatch,compose_tests,patch_type,causal_patch_type
     suite_type,_=project_test_types(row['bundle'])
     parent=row['bundle'][KEY]
     current=deepcopy(parent.get('independent_suite') or parent['generation']['value'])
@@ -55,7 +55,8 @@ def retained_suite(row,requests,raw):
         messages=payload.get('messages',[])
         data=json.loads(messages[1]['content']) if len(messages)==2 else {}
         bound_schema=wire_schema(patch_type(data['failures'])) if data.get('failures') else None
-        if schema==wire_schema(CoordinatedPatch) or (bound_schema is not None and schema==bound_schema):
+        direct_schema=wire_schema(causal_patch_type(data['failures'])) if data.get('failures') else None
+        if schema==wire_schema(CoordinatedPatch) or (bound_schema is not None and schema==bound_schema) or (direct_schema is not None and schema==direct_schema):
             from types import SimpleNamespace
             from .project_test_lint import defects
             records=[r for r in row['result']['output']['verification']['whole_project'].get('coordinated_repairs',[])
@@ -239,6 +240,8 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
 
 
 def validate(value,bundle):
+    from .independent_stage_restart import POLICY as RESTART_POLICY,validate as validate_restart
+    if isinstance(value,dict) and value.get('policy')==RESTART_POLICY:return validate_restart(value,bundle)
     from .whole_project import WholeProjectPlan,whole_project_types
     from .project_build import project_test_types
     from .wire import wire_schema
@@ -314,15 +317,19 @@ def validate(value,bundle):
         from .reference_repair_feedback import validate as validate_feedback
         validate_feedback(value['verification_rejections'],value,suite)
     if 'coordinated_history' in value:
+        from .repair_coordinator import executable_edits
         history=value['coordinated_history']
         if (not isinstance(history,list) or len(history)!=value['counters'].get('coordinated_patch',0)
-                or any(r.get('disposition') not in {'promoted','rolled_back'} or r.get('patch_digest')!=digest(r.get('edits')) for r in history)):
+                or any(r.get('disposition') not in {'promoted','rolled_back'} or r.get('patch_digest')!=digest(executable_edits(r.get('edits',[]))) for r in history)):
             raise ValueError('Retained repair history does not account for each spent proposal validation')
     return plan,artifact
 
 
 def restore(flow):
-    value=flow.bundle[KEY];plan,artifact=validate(value,flow.bundle)
+    value=flow.bundle[KEY]
+    from .independent_stage_restart import POLICY as RESTART_POLICY,restore as restore_restart
+    if value.get('policy')==RESTART_POLICY:return restore_restart(flow)
+    plan,artifact=validate(value,flow.bundle)
     flow.counters.update(value['counters'])
     flow.output.update(repair_attempts=value['repair_attempts'],compile_repair_attempts=value['compile_repair_attempts'])
     flow.evidence.update(budget_counters=dict(flow.counters),stage_continuation={

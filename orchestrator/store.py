@@ -118,6 +118,7 @@ STAGES.update(f'whole_coordinated_{index}_{operation}' for index in range(1,7) f
 STAGES.update(stage + suffix for stage in list(STAGES)
               if stage.startswith('build_code_review_') and '_chunk_' in stage
               for suffix in ('_source_anchors', '_expanded_review'))
+STAGES.update(f'whole_source_contract_{index}' for index in range(18))
 for profile in range(8):
     for attempt in range(9):
         stage = f'whole_profile_{profile}_{attempt}'

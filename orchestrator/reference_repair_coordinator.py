@@ -11,7 +11,7 @@ from .build_coverage import python_test_names
 from .build_discovery import CASE_LINE
 from .build_workflow import validate_baseline
 from .project_build import execution_settled,matching_image_checks,sandbox_stage_results
-from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts,patch_type,metadata_projection
+from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts,patch_type,metadata_projection,proposal_type,executable_edits
 from .store import digest
 
 
@@ -126,12 +126,12 @@ def repair(flow,suite,result):
 
     def checked(raw):
         if not raw.get('edits'):raise ValueError('Reference qualification needs a causal anchored repair of '+str(len(items))+' observed failed cases')
-        patch_digest=digest(raw['edits'])
+        patch_digest=digest(executable_edits(raw))
         if any(r['patch_digest']==patch_digest and r['base_suite_digest']==original for r in attempts):
             raise ValueError('This patch already failed against the same source; consult with new evidence')
         record={'patch_digest':patch_digest,'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),
             'base_suite_digest':original,'disposition':'rolled_back'}
-        parsed=patch_type(items).model_validate(raw).model_dump()
+        parsed=proposal_type(raw,items).model_validate(raw).model_dump()
         record['metadata_projection']=metadata_projection(raw,parsed)
         if retained is not None:record['retained_model_stage']=retained['source_stage'];record['migration']=retained['migration']
         if flow.counters['coordinated_patch']>=6:raise ValueError('Coordinated patch validation budget exhausted')

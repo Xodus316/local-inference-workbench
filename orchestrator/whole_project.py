@@ -1042,8 +1042,8 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if agent_recovery:
             try:
                 parsed=model_type.model_validate(value).model_dump()
-                from .repair_coordinator import EvidencePatch,metadata_projection
-                if issubclass(model_type,EvidencePatch):
+                from .repair_coordinator import EvidencePatch,CausalPatch,metadata_projection
+                if issubclass(model_type,(EvidencePatch,CausalPatch)):
                     self.stages[stage]['metadata_projection']=metadata_projection(value,parsed)
                 elif getattr(model_type,'__name__','')=='BoundRecoveryAdvice' and value!=parsed:
                     self.stages[stage]['metadata_projection']={'raw_digest':digest(value),'normalized_digest':digest(parsed),
@@ -1352,6 +1352,17 @@ class WholeProjectBuildRun(ProjectBuildRun):
             "The application source is read-only. Workbench will execute your suite."
         )
         data = {"implementation_files": paths}
+        from .candidate_source_contract import KEY as SOURCE_CONTRACT,validate as validate_source_contract
+        if validate_source_contract(self.bundle):
+            from .test_time_contract import public_utility
+            data.update(host_candidate_source_contract=self.bundle[SOURCE_CONTRACT],
+                public_timestamp_test_utility=public_utility(),
+                independent_qualification_scope='Author runtime/API/DOM tests from the exact numbered criteria. '
+                    'The host separately requires candidate README development steps, environment configuration, Vite major, '
+                    'and database-only Compose checks. Do not infer reference internal source layout or inspect reference files. '
+                    'Do not put candidate-only packaging/source-spelling assertions in the reference-qualified Python suite; '
+                    'do not replace them with conditional skips. Navigation may use links or buttons; use required routes '
+                    'and observable behavior rather than assuming a particular HTML tag. Planner assumptions are implementation choices.')
         source = {file.path: file.content for file in artifact.files}
         options = {}
         if self.scoped_repairs:
@@ -1461,6 +1472,17 @@ class WholeProjectBuildRun(ProjectBuildRun):
         brief = (self.test_brief + " This is an independent acceptance suite for the specification. "
                  "The approved implementation file inventory is supplied; return it unchanged.")
         data = {"implementation_files": paths}
+        from .candidate_source_contract import KEY as SOURCE_CONTRACT,validate as validate_source_contract
+        if validate_source_contract(self.bundle):
+            from .test_time_contract import public_utility
+            data.update(host_candidate_source_contract=self.bundle[SOURCE_CONTRACT],
+                public_timestamp_test_utility=public_utility(),
+                independent_qualification_scope='Author runtime/API/DOM tests from the exact numbered criteria. '
+                    'The host separately requires candidate README development steps, environment configuration, Vite major, '
+                    'and database-only Compose checks. Do not infer reference internal source layout or inspect reference files. '
+                    'Do not put candidate-only packaging/source-spelling assertions in the reference-qualified Python suite; '
+                    'do not replace them with conditional skips. Navigation may use links or buttons; use required routes '
+                    'and observable behavior rather than assuming a particular HTML tag. Planner assumptions are implementation choices.')
         reference_draft = (self.bundle.get("whole_project_seed") or {}).get("independent_reference_draft")
         if reference_draft is not None:
             if not self.scoped_repairs or digest(reference_draft["suite"]) != reference_draft["suite_digest"]:

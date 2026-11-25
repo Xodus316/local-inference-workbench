@@ -49,7 +49,8 @@ def replay(flow,suite,record):
     """Recover precise feedback for an old rolled-back patch without accepting or executing it."""
     if record.get('base_suite_digest')!=digest(suite.model_dump()) or record.get('disposition')!='rolled_back':return None
     try:
-        edits=[RepairTextEdit.model_validate(e) for e in record['edits']]
+        from .repair_coordinator import executable_edits
+        edits=[RepairTextEdit.model_validate(e) for e in executable_edits(record)]
         changed={f.path:f for f in _materialize_text_edits(suite.files,sorted({e.path for e in edits}),SimpleNamespace(edits=edits))}
         proposed=flow.suite_type.model_validate({**suite.model_dump(),
             'files':[changed.get(f.path,f).model_dump() for f in suite.files]})

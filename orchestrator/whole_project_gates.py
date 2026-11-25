@@ -121,6 +121,9 @@ def candidate_gates(flow, artifact, suite, baseline):
     if not execution_settled(baseline) or not validate_baseline(baseline, suite):
         return artifact
     independent_stage = flow.stage
+    from .candidate_source_contract import gate as source_gate
+    checked=source_gate(flow,artifact,suite)
+    if checked is not artifact:return checked
     checked = supplemental(flow, artifact, suite)
     if checked is not artifact:
         return checked
@@ -135,5 +138,8 @@ def final_gates(flow, artifact):
     if flow.bundle.get('whole_project_gate_policy') != POLICY:
         return True, artifact
     suite = flow.suite_type.model_validate(flow.output['suite'])
+    from .candidate_source_contract import gate as source_gate
+    checked=source_gate(flow,artifact,suite)
+    if checked is not artifact:return False,checked
     checked = profiles(flow, artifact, suite, 'final')
     return checked is artifact, checked

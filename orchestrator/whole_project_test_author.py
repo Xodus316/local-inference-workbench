@@ -106,13 +106,18 @@ AUTHOR_GUIDANCE = (
     "alone. Do not assume a fixture's absolute position in shared results. Describe only operations your test "
     "actually performs: an ordinary create/read-back or timestamp assertion does not prove an API restart. "
     "If a pinned trusted-persistence check is supplied, its restart receipt is separate evidence; do not claim "
-    "that your authored test restarted the API or proved more than the declared check establishes."
+    "that your authored test restarted the API or proved more than the declared check establishes. "
+    "Use public contract criteria rather than implementation assumptions. ISO-8601 fractional widths and UTC "
+    "designator spelling vary; parse portably on Python 3.10 and compare at millisecond precision using integer "
+    "arithmetic. Do not rely on a fixed short sleep, exact timestamp string spelling, or unconditional "
+    "datetime.fromisoformat on variable-width fractions. A bounded changed-write observation must still "
+    "fail if the timestamp never advances, moves backwards, or the write/status/payload is wrong."
 )
 
 
 def public_test_author_plan(plan):
     projected = {key: value for key, value in plan.items()
-                 if key in {"goal", "acceptance_criteria", "assumptions", "implementation_files"}}
+                 if key in {"goal", "acceptance_criteria", "implementation_files"}}
     return projected, {
         "policy": "whole-public-contract-test-author-v1", "plan_digest": digest(plan),
         "omitted_fields": sorted(plan.keys() - projected.keys()),

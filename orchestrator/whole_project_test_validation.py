@@ -33,7 +33,7 @@ def compose(flow, suite, diagnostics, raw):
 
 
 def rewrite(flow, suite, diagnostics, reason):
-    from .repair_coordinator import INSTRUCTION,compose_tests,observations,root_hints,test_scope,prior_attempts,patch_type,metadata_projection
+    from .repair_coordinator import INSTRUCTION,compose_tests,observations,root_hints,test_scope,prior_attempts,patch_type,metadata_projection,proposal_type,executable_edits
     items=observations(diagnostics,suite);scope=test_scope(suite,items)
     data={'base_suite':suite.model_dump(),'base_suite_digest':digest(suite.model_dump()),
         'scope':scope,'failures':items,'root_cause_hints':root_hints(items),
@@ -43,15 +43,15 @@ def rewrite(flow, suite, diagnostics, reason):
         ordinary=flow.bounded('build_tests_defect','max_test_defect_repairs')
     def checked(raw):
         if not raw.get('edits'):raise ValueError('Generated tests require an anchored correction: '+str(diagnostics))
-        if any(r['patch_digest']==digest(raw['edits']) and r['base_suite_digest']==digest(suite.model_dump())
+        if any(r['patch_digest']==digest(executable_edits(raw)) and r['base_suite_digest']==digest(suite.model_dump())
                 for r in flow.evidence.get('coordinated_repairs',[])):
             raise ValueError('This anchored patch already failed against the same source')
         if flow.counters['coordinated_patch']>=6:raise ValueError('Coordinated patch validation budget exhausted')
         flow.counters['coordinated_patch']+=1;flow.evidence['budget_counters']=dict(flow.counters)
         index=flow.counters['coordinated_patch'];saved=flow.stage
-        record={'patch_digest':digest(raw['edits']),'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),
+        record={'patch_digest':digest(executable_edits(raw)),'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),
             'base_suite_digest':digest(suite.model_dump()),'disposition':'rolled_back'}
-        record['metadata_projection']=metadata_projection(raw,patch_type(items).model_validate(raw).model_dump())
+        record['metadata_projection']=metadata_projection(raw,proposal_type(raw,items).model_validate(raw).model_dump())
         flow.evidence.setdefault('coordinated_repairs',[]).append(record)
         try:
             revised=compose_tests(flow,suite,items,scope,raw)

@@ -5,7 +5,7 @@ import json
 import re
 from types import SimpleNamespace
 
-from .repair_coordinator import compose_tests
+from .repair_coordinator import compose_tests,executable_edits
 from .project_test_lint import defects
 from .store import digest
 
@@ -46,7 +46,7 @@ def pack(row,requests,raw,suite,before,receipt_bytes,checkpoint):
         if len(proposals)!=1:raise ValueError('Rejected verification proposal lacks one exact settled producer receipt')
         stage=proposals[0];request=requests[stage];value=raw[stage]['value']
         data=json.loads(request['payload']['messages'][1]['content'])
-        if (data.get('base_suite_digest')!=digest(suite.model_dump()) or digest(value['edits'])!=record['patch_digest']):
+        if (data.get('base_suite_digest')!=digest(suite.model_dump()) or digest(executable_edits(value))!=record['patch_digest']):
             raise ValueError('Rejected verification proposal base or executable edits changed')
         candidate=compose_tests(flow,suite,data['failures'],data['scope'],value)
         matches=[]

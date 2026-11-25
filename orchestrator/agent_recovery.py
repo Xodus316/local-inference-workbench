@@ -85,12 +85,13 @@ def consult(recovery, stage, error, context=None):
     flow = recovery.flow
     message = public_error(error) if isinstance(error, Exception) else str(error)
     message = message[:1600]
+    from .repair_coordinator import executable_edits
     identity={'stage':stage,'error':message}
-    if context is not None and context['data'].get('repair_policy')=='grouped-anchored-recovery-v2':
+    if context is not None and context['data'].get('repair_policy') in {'grouped-anchored-recovery-v2','per-edit-evidence-recovery-v3'}:
         identity['repair_revision']={'base_suite_digest':context['data'].get('base_suite_digest'),
             'failure_evidence_digest':digest(context['data'].get('failures',[])),
             'prior_rejections_digest':digest(context['data'].get('previous_attempts',[])),
-            'executable_proposal_digest':digest(context.get('value',{}).get('edits',[]))}
+            'executable_proposal_digest':digest(executable_edits(context.get('value',{})))}
     key = digest(identity)
     memo = getattr(recovery, '_consultations', {})
     if key in memo:
@@ -149,7 +150,7 @@ def consult(recovery, stage, error, context=None):
                 'recovery_scope':'Produce the original schema-bound output through the approved recovery capability; no model, budget or gate changes.'}
     if context is not None:
         contract_inputs=context['data']
-        if context['data'].get('repair_policy') in {'grouped-anchored-recovery-v1','grouped-anchored-recovery-v2'}:
+        if context['data'].get('repair_policy') in {'grouped-anchored-recovery-v1','grouped-anchored-recovery-v2','per-edit-evidence-recovery-v3'}:
             data['coordinated_repair']={
                 'input_kind':'host_anchored_patch_request; no initial model patch is claimed',
                 'failure_observations':excerpt(context['data'].get('failures',[]),24000),
@@ -195,9 +196,9 @@ def consult(recovery, stage, error, context=None):
                         'correction_scope':'Correct the rejected generated output under this original contract. '
                             'A validator rejection does not authorize changing retained inputs, coverage mappings '
                             'or other immutable artifacts. The same validator must accept the correction.'})
-        if context['data'].get('repair_policy')=='grouped-anchored-recovery-v2' and context['value'].get('edits'):
+        if context['data'].get('repair_policy') in {'grouped-anchored-recovery-v2','per-edit-evidence-recovery-v3'} and context['value'].get('edits'):
             data['rejected_output']={'host_retained':True,'digest':digest(context['value']),
-                'executable_edits_digest':digest(context['value']['edits']),
+                'executable_edits_digest':digest(executable_edits(context['value'])),
                 'replacement_base':'Original base_suite; the rejected proposal was never applied.'}
     evidence_ref='F'+digest(message)[:12]
     model_type=advice_type(evidence_ref)
@@ -258,7 +259,7 @@ def validate_output(recovery, value, validator, context):
                 from .build_workflow import public_error
                 pending.update(status='output_correction_rejected', rejection=public_error(error), acceptance_credit=False)
             if context is None or context['value_digest'] != digest(value):raise
-            if context['data'].get('repair_policy')=='grouped-anchored-recovery-v2' and isinstance(context['data'].get('base_suite'),dict):
+            if context['data'].get('repair_policy') in {'grouped-anchored-recovery-v2','per-edit-evidence-recovery-v3'} and isinstance(context['data'].get('base_suite'),dict):
                 from .repair_coordinator import prior_attempts
                 suite=flow.suite_type.model_validate(context['data']['base_suite'])
                 context['data']['previous_attempts']=prior_attempts(flow.evidence.get('coordinated_repairs',[]),flow=flow,suite=suite)

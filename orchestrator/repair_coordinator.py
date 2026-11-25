@@ -14,7 +14,8 @@ from .store import digest
 
 LEGACY_POLICY='grouped-anchored-recovery-v1'
 POLICY='grouped-anchored-recovery-v2'
-SUPPORTED_POLICIES={LEGACY_POLICY,POLICY}
+DIRECT_POLICY='per-edit-evidence-recovery-v3'
+SUPPORTED_POLICIES={LEGACY_POLICY,POLICY,DIRECT_POLICY}
 
 
 def project_prompt_contract(inputs):
@@ -26,15 +27,15 @@ def project_prompt_contract(inputs):
     from .whole_project_test_author import numbered_criteria
     if inputs.get('numbered_acceptance_criteria')!=numbered_criteria(plan['acceptance_criteria']):
         raise ValueError('Coordinated repair must retain every exact acceptance criterion')
-    value=dict(inputs);value['plan']={k:v for k,v in plan.items() if k in {'goal','assumptions'}}
+    value=dict(inputs);value['plan']={k:v for k,v in plan.items() if k in {'goal'}}
     previous=inputs.get('test_author_plan_projection',{})
     value['test_author_plan_projection']={**previous,
-        'omitted_fields':sorted(set(previous.get('omitted_fields',[]))|{'acceptance_criteria','implementation_files'}),
+        'omitted_fields':sorted(set(previous.get('omitted_fields',[]))|{'acceptance_criteria','implementation_files','assumptions'}),
         'criteria_location':'numbered_acceptance_criteria',
         'implementation_files_location':('base_suite.implementation_files' if inputs.get('repair_policy') in SUPPORTED_POLICIES
             else 'coordinated_repair.immutable_suite_metadata.implementation_files'),
         'reason':'Exact criteria remain numbered and complete; the complete source context already declares the implementation inventory.'}
-    if inputs.get('repair_policy')==POLICY and isinstance(inputs.get('base_suite'),dict):
+    if inputs.get('repair_policy') in {POLICY,DIRECT_POLICY} and isinstance(inputs.get('base_suite'),dict):
         base=inputs['base_suite'];projected=deepcopy(base)
         if isinstance(base.get('coverage'),list):
             projected['coverage']={'host_retained':True,'digest':digest(base['coverage']),'entries':len(base['coverage']),'editable':False}
@@ -42,7 +43,7 @@ def project_prompt_contract(inputs):
             value['base_suite_projection']={'original_digest':digest(base),'source_complete':True,
                 'omitted_metadata':['coverage'],'reason':'Host retains the exact immutable coverage map; proposals contain no coverage edits.'}
     rejected=value.get('rejected_output')
-    if inputs.get('repair_policy')==POLICY and isinstance(rejected,dict) and rejected.get('edits'):
+    if inputs.get('repair_policy') in {POLICY,DIRECT_POLICY} and isinstance(rejected,dict) and rejected.get('edits'):
         value['rejected_output']={'host_retained':True,'digest':digest(rejected),
             'executable_edits_digest':digest(rejected['edits']),
             'replacement_base':'Return a complete new proposal against base_suite; the rejected draft was never applied.'}
@@ -98,6 +99,48 @@ class EvidencePatch(CoordinatedPatch):
     def narrative(cls,value):return project_narrative(value,cls.narrative_fields)
 
 
+class CausalEdit(RepairTextEdit):
+    cause:str=Field(min_length=1,max_length=1200)
+    evidence_refs:list[str]=Field(min_length=1,max_length=80)
+
+    @model_validator(mode='before')
+    @classmethod
+    def narrative(cls,value):return project_narrative(value,{'cause':1200})
+
+
+class CausalPatch(Record):
+    summary:str=Field(min_length=1,max_length=1200)
+    edits:list[CausalEdit]=Field(min_length=1,max_length=32)
+
+    @model_validator(mode='before')
+    @classmethod
+    def narrative(cls,value):return project_narrative(value,{'summary':1200})
+
+    @model_validator(mode='after')
+    def bounded(self):
+        return CoordinatedPatch.bounded(self)
+
+
+@lru_cache(maxsize=32)
+def _causal_patch_type(refs):
+    edit=create_model('BoundCausalEdit',__base__=CausalEdit,
+        evidence_refs=(list[Literal[refs]],Field(min_length=1,max_length=80)))
+    return create_model('BoundCausalPatch',__base__=CausalPatch,
+        edits=(list[edit],Field(min_length=1,max_length=32)))
+
+
+def causal_patch_type(items):return _causal_patch_type(tuple(sorted(evidence_catalog(items))))
+
+
+def proposal_type(raw,items):
+    return causal_patch_type(items) if 'clusters' not in raw else patch_type(items)
+
+
+def executable_edits(raw):
+    edits=raw.get('edits',[]) if isinstance(raw,dict) else raw
+    return [{k:edit[k] for k in ('path','before','after')} for edit in edits]
+
+
 def evidence_catalog(items):
     catalog={}
     for item in items:
@@ -130,9 +173,13 @@ def metadata_projection(raw,normalized):
             (f'clusters.{i}.cause',a.get('cause'),b.get('cause')) for i,(a,b) in enumerate(zip(raw.get('clusters',[]),normalized.get('clusters',[])))]]:
         if before!=after:changes.append({'path':path,'before_digest':digest(before),'after_digest':digest(after),
             'characters_before':len(before),'characters_after':len(after)})
-    if raw.get('edits')!=normalized.get('edits'):raise ValueError('Narrative normalization may not change executable edits')
+    for i,(before,after) in enumerate(zip(raw.get('edits',[]),normalized.get('edits',[]))):
+        if before.get('cause')!=after.get('cause'):
+            changes.append({'path':f'edits.{i}.cause','before_digest':digest(before.get('cause')),'after_digest':digest(after.get('cause'))})
+        if before.get('evidence_refs')!=after.get('evidence_refs'):raise ValueError('Narrative normalization may not change evidence selections')
+    if executable_edits(raw)!=executable_edits(normalized):raise ValueError('Narrative normalization may not change executable edits')
     return {'policy':'non-executable-narrative-projection-v1','raw_digest':digest(raw),
-        'normalized_digest':digest(normalized),'fields':changes,'executable_edits_digest':digest(raw.get('edits'))}
+        'normalized_digest':digest(normalized),'fields':changes,'executable_edits_digest':digest(executable_edits(raw))}
 
 
 def migrate_legacy_proposal(raw,items):
@@ -226,11 +273,12 @@ def prior_attempts(attempts,*,flow=None,suite=None):
 
 
 def compose_tests(flow,suite,items,scope,raw):
+    direct='clusters' not in raw
     referenced=any('evidence_refs' in group for group in raw.get('clusters',[]))
-    patch=(patch_type(items) if referenced else CoordinatedPatch).model_validate(raw)
+    patch=(causal_patch_type(items) if direct else patch_type(items) if referenced else CoordinatedPatch).model_validate(raw)
     catalog=evidence_catalog(items)
     by_id={item['id']:item for item in items};claimed=set();edit_claims=[]
-    for cluster in patch.clusters:
+    for cluster in ([] if direct else patch.clusters):
         failure_ids=([catalog[key]['failure_id'] for key in cluster.evidence_refs] if referenced else cluster.failure_ids)
         if (len(set(failure_ids))!=len(failure_ids) or not set(failure_ids)<=by_id.keys()
                 or claimed.intersection(failure_ids)):
@@ -241,7 +289,10 @@ def compose_tests(flow,suite,items,scope,raw):
         if any(type(i) is not int or not 0<=i<len(patch.edits) for i in cluster.edit_indexes):
             raise ValueError('Root-cause group cites an absent patch edit')
         claimed.update(failure_ids);edit_claims.extend(cluster.edit_indexes)
-    if set(edit_claims)!=set(range(len(patch.edits))):raise ValueError('Every patch edit requires a causal failure group')
+    if direct:
+        for edit in patch.edits:
+            if len(set(edit.evidence_refs))!=len(edit.evidence_refs):raise ValueError('An edit repeats an evidence reference')
+    elif set(edit_claims)!=set(range(len(patch.edits))):raise ValueError('Every patch edit requires a causal failure group')
     replacements=_materialize_text_edits(suite.files,scope,patch)
     changed={f.path:f for f in replacements}
     revised=flow.suite_type.model_validate({**suite.model_dump(),'files':[changed.get(f.path,f).model_dump() for f in suite.files]})
@@ -273,10 +324,13 @@ def repair(recovery, *,stage,role,instruction,data,validator,ordinary=None,retai
     from .agent_recovery import barrier
     if blocked:=barrier(flow,''):
         raise ValueError(blocked)
-    material={**deepcopy(data),'repair_policy':POLICY,'proposal_kind':'anchored_edits',
+    from .independent_stage_restart import POLICY as RESTART_POLICY
+    direct=flow.bundle.get('whole_project_stage_continuation',{}).get('policy')==RESTART_POLICY
+    material={**deepcopy(data),'repair_policy':DIRECT_POLICY if direct else POLICY,'proposal_kind':'anchored_edits',
         'ordinary_attempts_are_not_refunded':True}
     flow.stage=stage
-    model_type=patch_type(material['failures'])
+    model_type=causal_patch_type(material['failures']) if direct else patch_type(material['failures'])
+    if direct:instruction=instruction.replace(INSTRUCTION,DIRECT_INSTRUCTION)
     material['failures']=tagged_evidence(material['failures'])
     material['evidence_catalog_digest']=digest(evidence_catalog(material['failures']))
     if retained is not None:
@@ -315,3 +369,8 @@ INSTRUCTION=(
     'to private reference implementation details. Other source is read-only. The host checks affected source '
     'first, then reruns reference qualification. A patch is promoted only with fewer failed cases and no regressions. '
     'Account for previous_attempts; do not repeat an ineffective patch. No budgets, models or gates may change.')
+
+DIRECT_INSTRUCTION=INSTRUCTION.replace(
+    'Group cases by actual root cause; for each cluster select its exact host-provided evidence_id values in evidence_refs and identify zero-based edit_indexes.',
+    'Every edit must contain its own cause and exact host-provided evidence_id values in evidence_refs, alongside path/before/after. '
+    'Return only summary and edits. There are no separate clusters, edit IDs, or edit indexes to cross-reference.')

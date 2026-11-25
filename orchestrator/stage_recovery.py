@@ -53,6 +53,8 @@ def validate_costs(bundle, counters):
 
 def route(stage):
     """Every stage has an owner, including failures outside model execution."""
+    if stage.startswith('whole_source_contract'):
+        return 'candidate_verification','repairer'
     if stage.startswith('delivery'):
         return 'delivery', 'operator'
     if 'code_review' in stage:
