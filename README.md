@@ -67,6 +67,8 @@ The [November 24 reference recovery investigation](docs/reference-recovery-2026-
 
 The [Run 25 tool progress investigation](docs/worker-progress-recovery-2026-11-24.md) adds agent consultation for settled repeated-tool loops, prevents empty-worktree exploration and preserves completed work for an explicitly approved continuation.
 
+The [November 24 development summary](docs/development-summary-2026-11-24.md) covers Run 24, Run 25's continuations and the fresh independent-stage restart. The latest attempt is paused at checkpoint 28 with its application preserved; reference failures fell from 12 to 3 out of 49 cases, and end-to-end verification remains incomplete.
+
 Workflows support [durable pause and resume](docs/workflow-pause.md). **Pause after current operation** saves the current operation's result and acknowledges **paused** before you shut down. Reopen the same data directory after restarting and choose **Resume saved run** to reuse completed receipts and continue under the same approval.
 
 The service listens on loopback. The default state directory is `~/.local-inference-workbench`; use `--data` to choose another directory or `--port` to choose another listener. Model responses, submitted source excerpts and conversation history are stored locally. Use the service under your own operating-system account. Other local programs able to access the listener have access to the workflow API.
@@ -107,7 +109,7 @@ The evidence does not establish that these are the best models for every role. T
 
 ## Development
 
-The [November 21 development summary](docs/development-summary-2026-11-21.md) records the latest fresh-run outcomes, shared recovery changes, selector accounting, all-role OpenCode compaction and the user-requested Run 17 cancellation. No new fresh end-to-end completion is claimed. Reusable [HyperQwen/OpenCode role bindings](examples/hyperqwen/README.md) and their CPU-only tests are included as an optional integration example.
+The [November 21 development summary](docs/development-summary-2026-11-21.md) records that day's fresh-run outcomes, shared recovery changes, selector accounting, all-role OpenCode compaction and the user-requested Run 17 cancellation. No new fresh end-to-end completion is claimed. Reusable [HyperQwen/OpenCode role bindings](examples/hyperqwen/README.md) and their CPU-only tests are included as an optional integration example.
 
 From the checkout, install the package and run `python -m unittest discover -s tests -v`. The offline suite exercises the workflow boundaries with deterministic model responses. A real generation requires the relevant local models. The runtime lives in `orchestrator/`; `graph.py` defines routing, `runtime.py` handles approvals and execution, `store.py` owns the durable journal, and `chat/` implements the interactive path.
 

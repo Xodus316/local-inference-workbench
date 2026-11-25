@@ -1,6 +1,6 @@
 {
   "date": "2026-11-24",
-  "status": "restart_controls_passed_before_launch",
+  "status": "stage_restart10_paused_at_user_request_audited",
   "audit": {
     "source_run_id": "7f5480dc-dea5-4a8f-ad15-786a071bb0e9",
     "failed_reference_cases": 18,
@@ -162,7 +162,7 @@
     "native_adapter_passed": 38
   },
   "stage_restart10": {
-    "status": "not_started",
+    "status": "paused",
     "application_checkpoint_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
     "fresh_independent_tests": true,
     "fresh_budgets": {
@@ -176,6 +176,114 @@
       "test_defect_repairs": 2,
       "test_fixture_repairs": 2
     },
-    "operator_intervention_after_launch": false
+    "run_id": "c427b8c0-469c-4238-a486-687fd9992769",
+    "runtime_commit": "0c4caaef671b56e0ed42a781e210e5fc24a8c463",
+    "elapsed_active_session_seconds": 3000.357,
+    "checkpoint_count": 28,
+    "latest_checkpoint": {
+      "kind": "native",
+      "stage": "whole_recovery_4_consult",
+      "content_sha256": "60ce13d174d6ad99b59a3ce1ec601410b3fbab1c53143a709a63f3db8e825593"
+    },
+    "application_checkpoint_preserved": true,
+    "compiler_and_reference_candidate_smoke": "passed",
+    "independent_suite": {
+      "files": 12,
+      "source_utf8_bytes_at_authorship": 34020,
+      "coverage_rows_at_authorship": 51,
+      "public_criteria": 12,
+      "executed_cases": 49,
+      "reference_failure_progression": [
+        12,
+        6,
+        3
+      ],
+      "same_case_population": true,
+      "promoted_shared_repairs": 2,
+      "regressions_on_promoted_repairs": [],
+      "remaining_failed_cases": [
+        "test_frontend_crud.TestFrontendCrud.test_categories_slug",
+        "test_frontend_crud.TestFrontendCrud.test_tracked_urls_click",
+        "test_resources.TestResources.test_product_invalid_400"
+      ],
+      "qualified": false
+    },
+    "repair_rejections": [
+      {
+        "kind": "ordinary",
+        "reason": "Text repair anchor is missing in tests/helpers.py"
+      },
+      {
+        "kind": "shared",
+        "reason": "An edit repeats an evidence reference"
+      }
+    ],
+    "active_counters": {
+      "build_tests_defect": 2,
+      "coordinated_patch": 5,
+      "recovery_diagnosis": 4,
+      "recovery_issue_2818fb3b8f1714fabb9c2e7401fd91a5": 1,
+      "recovery_issue_887b594a8901f79cd98ac76ee7d58040": 1,
+      "recovery_issue_8bb60e1c0d1ab1ade9c2f307722bd437": 1,
+      "recovery_issue_b7df9ff5bc84b574e94f1c60fd376357": 1,
+      "recovery_output_correction": 3,
+      "recovery_request": 5,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "spent_budget_summary": {
+      "diagnoses": {
+        "spent": 4,
+        "limit": 16
+      },
+      "shared_output_corrections": {
+        "spent": 3,
+        "limit": 4
+      },
+      "coordinated_validations": {
+        "spent": 5,
+        "limit": 6
+      },
+      "requests": {
+        "spent": 5,
+        "limit": 64
+      },
+      "ordinary_defect_repairs": {
+        "spent": 2,
+        "limit": 2
+      }
+    },
+    "historical_stage_costs_archived": true,
+    "operator_source_repairs_after_launch": false,
+    "operator_control_action": "user_requested_checkpoint_pause",
+    "unattended_until_explicit_pause": true,
+    "pause_acknowledged": true,
+    "pause_approval_bound": true,
+    "post_reboot_resume_performed": false,
+    "frozen_runtime_unchanged": true,
+    "frozen_files_verified": 3661,
+    "settled_request_receipts_verified": 28,
+    "sandbox_lifecycle_cleanups_verified": 17,
+    "native": {
+      "qwen": {
+        "completed": 11,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owned_backend_closed": true,
+    "owner_pid_zero_verified": true,
+    "transport_drained": true,
+    "bridge_closed": true,
+    "launcher_exit_code": 0,
+    "independent_candidate_review_delivery": "not_reached",
+    "mandatory_candidate_source_gate_live": "not_reached; CPU control passed",
+    "end_to_end_success": false,
+    "evidence_sha256": {
+      "terminal.json": "53b1d0ad4f3f2fe644cb917c32ce11e2a1cae094e2ab6ed6f91ea7acbaa13027",
+      "outcome.json": "b80615885445f18053b566ed9bcb0606163b1c60756fcaea6b6f630854a6183c",
+      "pause-verification.json": "17d677a54040360f820cb84440178ab0c496c8596f76155f7a337f7021e41cbd"
+    }
   }
 }
