@@ -155,46 +155,53 @@ def validate_output(recovery, value, validator, context):
     """Correct arbitrary schema/semantic failures through the same validator."""
     from .stage_recovery import DYNAMIC_POLICY
     flow = recovery.flow
-    try:
-        return validator(value)
-    except Exception as error:
-        if context is None or context['value_digest'] != digest(value):raise
-        proof = consult(recovery, context['stage'], error, context)
-        if proof is None or proof['advice']['action'] != 'correct_stage_output':raise
-        attempted = getattr(recovery, '_output_attempts', set())
-        recovery._output_attempts = attempted
-        if (proof['request_id'] in attempted or flow.counters['recovery_output_correction']
-                >= DYNAMIC_POLICY['max_output_corrections']):raise
-        attempted.add(proof['request_id'])
-        flow.counters['recovery_output_correction'] += 1
-        flow.evidence['budget_counters'] = dict(flow.counters)
-        flow.runtime.store.snapshot_result(flow.state['run_id'], {'output':flow.output, 'stages':flow.stages})
-        saved_stage = flow.stage
-        authority = {'stage':f"whole_recovery_{proof['index']}_output", 'role':context['role'],
-                     'schema_digest':digest(context['model_type'].model_json_schema())}
-        previous_authority = getattr(flow,'_agent_output_authority',None)
-        flow._agent_output_authority = authority
+    attempted = getattr(recovery, '_output_attempts', set())
+    recovery._output_attempts = attempted
+    pending = None
+    while True:
         try:
-            corrected = flow._generate(f"whole_recovery_{proof['index']}_output", context['role'],
-                context['model_type'], context['instruction'] +
-                ' Correct the rejected output using the retained validation failure and agent advice. '
-                'Preserve the original scope and contract. The host will repeat the same validator; '
-                'no gate or budget can be waived.',
-                {**deepcopy(context['data']), 'rejected_output':value,
-                 'validation_failure':str(error)[:1600], 'agent_advice':proof['advice']},
-                {}, tool_policy=INLINE_RECOVERY_POLICY)
-            result = validator(corrected)
+            result = validator(value)
+        except Exception as error:
+            if pending is not None:
+                from .build_workflow import public_error
+                pending.update(status='output_correction_rejected', rejection=public_error(error), acceptance_credit=False)
+            if context is None or context['value_digest'] != digest(value):raise
+            proof = consult(recovery, context['stage'], error, context)
+            if proof is None or proof['advice']['action'] != 'correct_stage_output':raise
+            if (proof['request_id'] in attempted or flow.counters['recovery_output_correction']
+                    >= DYNAMIC_POLICY['max_output_corrections']):raise
+            attempted.add(proof['request_id'])
+            flow.counters['recovery_output_correction'] += 1
+            flow.evidence['budget_counters'] = dict(flow.counters)
+            flow.runtime.store.snapshot_result(flow.state['run_id'], {'output':flow.output, 'stages':flow.stages})
+            saved_stage = flow.stage
+            authority = {'stage':f"whole_recovery_{proof['index']}_output", 'role':context['role'],
+                         'schema_digest':digest(context['model_type'].model_json_schema())}
+            previous_authority = getattr(flow,'_agent_output_authority',None)
+            flow._agent_output_authority = authority
+            request = next(r for r in recovery.requests if r['id']==proof['request_id'])
+            try:
+                corrected = flow._generate(f"whole_recovery_{proof['index']}_output", context['role'],
+                    context['model_type'], context['instruction'] +
+                    ' Correct the rejected output using the retained validation failure and agent advice. '
+                    'Preserve the original scope and contract. The host will repeat the same validator; '
+                    'no gate or budget can be waived.',
+                    {**deepcopy(context['data']), 'rejected_output':value,
+                     'validation_failure':str(error)[:1600], 'agent_advice':proof['advice']},
+                    {}, tool_policy=INLINE_RECOVERY_POLICY)
+            except Exception as failure:
+                from .build_workflow import public_error
+                request.update(status='output_correction_rejected', rejection=public_error(failure), acceptance_credit=False)
+                raise  # Never retry unknown execution or recursively repair an agent's malformed response.
+            finally:
+                flow.stage = saved_stage
+                flow._generation_context = context
+                flow._agent_output_authority = previous_authority
             context.update(value=deepcopy(corrected), value_digest=digest(corrected))
-            request = next(r for r in recovery.requests if r['id']==proof['request_id'])
-            request.update(status='output_revalidated', corrected_output_digest=digest(corrected),
-                           acceptance_credit=False)
+            value, pending = corrected, request
+            # A distinct rejection can use remaining shared budget. Memoized advice cannot
+            # execute twice, and every new consultation checks physical settlement again.
+        else:
+            if pending is not None:
+                pending.update(status='output_revalidated', corrected_output_digest=digest(value), acceptance_credit=False)
             return result
-        except Exception as failure:
-            from .build_workflow import public_error
-            request = next(r for r in recovery.requests if r['id']==proof['request_id'])
-            request.update(status='output_correction_rejected', rejection=public_error(failure), acceptance_credit=False)
-            raise
-        finally:
-            flow.stage = saved_stage
-            flow._generation_context = context
-            flow._agent_output_authority = previous_authority

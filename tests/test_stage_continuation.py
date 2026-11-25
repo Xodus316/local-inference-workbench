@@ -3,11 +3,12 @@ from copy import deepcopy
 from types import SimpleNamespace
 from uuid import uuid4
 import json
+import hashlib
 import unittest
 from unittest.mock import Mock
 
 from orchestrator.project_build import ProjectTestSuite
-from orchestrator.stage_continuation import KEY,SUITE_POLICY,pack,restore,validate
+from orchestrator.stage_continuation import KEY,SUITE_POLICY,VALIDATION_POLICY,pack,restore,validate,retained_suite
 from orchestrator.stage_recovery import KEY as RECOVERY,DYNAMIC_POLICY,StageRecovery
 from orchestrator.store import digest
 from orchestrator.whole_project import WholeProjectBuildRun
@@ -42,6 +43,69 @@ def fixture():
 
 
 class StageContinuationTests(unittest.TestCase):
+    def test_replay_tracks_rejected_scoped_proposals_without_losing_the_original_repair_base(self):
+        from orchestrator.build_models import BuildTestSyntaxRepair
+        row,_,_,b=fixture();good=suite_value();first=deepcopy(good['files']);second=deepcopy(first)
+        first[0]['content']=first[0]['content'].replace('1 + 1','missing()')
+        second[0]['content']=second[0]['content'].replace('1 + 1','another_missing()')
+        row['bundle'][KEY]={'independent_suite':good,'generation':{'value':good}}
+        requests={};raw={};row['calls']=[]
+        for stage,proposal,rejected in [('build_tests_defect_1',first,None),
+                ('whole_recovery_1_output',second,first),('whole_recovery_2_output',good['files'],second)]:
+            data={'files':good['files']}
+            if rejected is not None:data['rejected_output']={'files':rejected}
+            requests[stage]={'role':'test_author','payload':{'schema':wire_schema(BuildTestSyntaxRepair),
+                'messages':[{'role':'system','content':'Repair'},{'role':'user','content':json.dumps(data)}]}}
+            raw[stage]={'value':{'files':proposal}};row['calls'].append({'stage':stage})
+        self.assertEqual(retained_suite(row,requests,raw)['files'],good['files'])
+        data=json.loads(requests['whole_recovery_2_output']['payload']['messages'][1]['content'])
+        data['rejected_output']['files']=first
+        requests['whole_recovery_2_output']['payload']['messages'][1]['content']=json.dumps(data)
+        with self.assertRaises(ValueError):retained_suite(row,requests,raw)
+
+    def test_latest_step_checkpoint_can_retain_static_rejection_for_shared_recovery(self):
+        row,requests,raw,b=fixture()
+        row['bundle']['whole_project_engine_digest']={'engine.py':'e'*64};b['whole_project_engine_digest']={'engine.py':'e'*64}
+        row['digest']=digest(row['bundle']);row['approval']['digest']=row['digest']
+        parent=pack(row,requests,raw,b,closed_execution_audit='a'*64)
+        child=deepcopy(row);child['bundle'][KEY]=parent;child['digest']=digest(child['bundle'])
+        child['approval']['digest']=child['digest'];child['id']=str(uuid4());child['status']='failed'
+        weak=suite_value();weak['files'][0]['content']=weak['files'][0]['content'].replace('1 + 1','missing()')
+        requests={'whole_recovery_1_output':{'operation':'generate','role':'test_author','payload':{
+            'schema':wire_schema(ProjectTestSuite)}}}
+        raw={'whole_recovery_1_output':{**deepcopy(raw['build_tests']),'value':deepcopy(weak)}}
+        child['calls']=[{'stage':'whole_recovery_1_output','status':'terminal'}]
+        child['result']['output']['error']={'stage':'build_test_preflight_2','message':'build_tests_defect repair budget exhausted'}
+        child['result']['output']['verification']['whole_project']['budget_counters']['build_tests_defect']=3
+        preflight={'status':'passed','commands':[{'exit_code':0,'cleanup_confirmed':True,
+            'source_sha256':{f['path']:hashlib.sha256(f['content'].encode()).hexdigest() for f in weak['files']}}]}
+        pb=json.dumps(preflight).encode()
+        checkpoint={'policy':'workflow-step-checkpoint-v1','run_id':child['id'],'approval_digest':child['digest'],
+            'engine_digest':digest(b['whole_project_engine_digest']),'kind':'graph','stage':'code_build','binding':'b'*64,
+            'receipts':{'build_test_preflight_2.raw.json':hashlib.sha256(pb).hexdigest()}}
+        cb=json.dumps(checkpoint).encode()
+        child['checkpoints']=[{'kind':'graph','stage':'code_build','binding':'b'*64,
+            'content_sha256':hashlib.sha256(cb).hexdigest(),'created':1.0}]
+        kwargs={'closed_execution_audit':'c'*64,'checkpoint_bytes':cb,'test_preflight_bytes':pb}
+        value=pack(child,requests,raw,b,**kwargs)
+        self.assertEqual(value['policy'],VALIDATION_POLICY)
+        self.assertEqual(value['independent_suite']['files'],weak['files'])
+        self.assertEqual(value['counters']['build_tests_defect'],3)
+        self.assertEqual(value['source_checkpoint'],child['checkpoints'][-1])
+        for change in ['checkpoint','receipt','source','budget','accepted','diagnostics']:
+            altered=deepcopy(child);args=dict(kwargs)
+            if change=='checkpoint':args['checkpoint_bytes']=cb+b' '
+            if change=='receipt':args['test_preflight_bytes']=pb+b' '
+            if change=='source':raw['whole_recovery_1_output']['value']['files'][0]['content']+='\n# altered\n'
+            if change=='budget':altered['result']['output']['verification']['whole_project']['budget_counters']['recovery_output_correction']=4
+            if change=='accepted':altered['result']['output']['suite']=weak
+            if change=='diagnostics':
+                v=deepcopy(value);v['retained_diagnostics']=[]
+                with self.assertRaises(ValueError):validate(v,{**b,KEY:v})
+                continue
+            with self.subTest(change=change),self.assertRaises(ValueError):pack(altered,requests,raw,b,**args)
+            raw['whole_recovery_1_output']['value']=deepcopy(weak)
+
     def test_chained_continuation_retains_corrected_tests_and_spent_non_dispatch_attempt(self):
         from orchestrator.build_models import BuildTestSyntaxRepair
         from orchestrator.project_test_lint import defects

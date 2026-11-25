@@ -98,8 +98,11 @@ class SmokeReferenceTests(unittest.TestCase):
                     workflow._generate=Mock(side_effect=generate)
                     result=validate_smoke_reference(workflow,candidate,suite())
                     self.assertEqual(workflow.counters['whole_self_reference_repair'],2)
-                    self.assertEqual(workflow.counters['recovery_output_correction'],1)
-                    self.assertEqual(workflow._generate.call_count,3)
+                    corrections=workflow.counters['recovery_output_correction']
+                    self.assertIn(corrections,(1,2) if corrected=='...' else (1,))
+                    self.assertEqual(workflow._generate.call_count,1+2*corrections)
+                    failures=[c.args[4]['failure'] for c in workflow._generate.call_args_list if c.args[0].endswith('_consult')]
+                    self.assertEqual(len(failures),len(set(failures)))
                     if corrected == '...':
                         self.assertIsNone(result)
                         self.assertEqual(workflow.control.call_count,1)

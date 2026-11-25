@@ -147,9 +147,27 @@ class AgentRecoveryTests(unittest.TestCase):
     def test_same_validator_rejects_bad_agent_correction_without_an_infinite_retry(self):
         flow,raw=fixture(corrected={'count':0})
         with self.assertRaises(ValueError):flow.validate_generated(raw,Output.model_validate)
-        self.assertEqual(flow._generate.call_count,2)
+        self.assertEqual(flow._generate.call_count,4)
         self.assertEqual(flow.recovery.requests[-1]['status'],'output_correction_rejected')
-        self.assertEqual(flow.counters['recovery_output_correction'],1)
+        self.assertEqual(flow.counters['recovery_output_correction'],2)
+
+    def test_distinct_rejections_can_use_remaining_shared_budget_but_never_exceed_it(self):
+        for shared,success in [(1,True),(3,False)]:
+            flow,raw=fixture(raw={'count':0});flow.counters['recovery_output_correction']=shared
+            corrected=iter([{'count':1},{'count':2}])
+            original=flow._generate.side_effect
+            def generate(stage,*a,**kw):
+                if stage.endswith('_consult'):return original(stage,*a,**kw)
+                return next(corrected)
+            flow._generate.side_effect=generate
+            def validator(value):
+                if value['count']!=2:raise ValueError('Remaining defect at value '+str(value['count']))
+                return value
+            if success:self.assertEqual(flow.validate_generated(raw,validator),{'count':2})
+            else:
+                with self.assertRaises(ValueError):flow.validate_generated(raw,validator)
+            self.assertLessEqual(flow.counters['recovery_output_correction'],4)
+            self.assertEqual(sum(c.args[0].endswith('_output') for c in flow._generate.call_args_list),2 if success else 1)
 
     def test_consultant_receives_bounded_original_contract_and_rejected_output(self):
         flow,raw=fixture()

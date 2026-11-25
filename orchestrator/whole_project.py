@@ -1038,6 +1038,13 @@ class WholeProjectBuildRun(ProjectBuildRun):
         if recovery is None:return validator(value)
         return recovery.validate_output(value, validator, getattr(self,'_generation_context',None))
 
+    def rewrite_tests(self, suite, diagnostics, reason):
+        from .stage_recovery import dynamic_enabled
+        if not self.scoped_repairs or not dynamic_enabled(self.bundle):
+            return super().rewrite_tests(suite,diagnostics,reason)
+        from .whole_project_test_validation import rewrite
+        return rewrite(self,suite,diagnostics,reason)
+
     def ask(self, stage, role, model_type, instruction, **data):
         if getattr(self, 'recovery', None) is not None:
             self.recovery.dispatch(stage, role, data)

@@ -1,5 +1,6 @@
 """Continue a settled semantic-output failure without replaying application generation."""
 from copy import deepcopy
+import hashlib
 import json
 import re
 
@@ -9,6 +10,7 @@ from .whole_project_checkpoint import binding_digest,validate_checkpoint
 KEY = 'whole_project_stage_continuation'
 POLICY = 'settled-stage-output-continuation-v1'
 SUITE_POLICY = 'settled-unfrozen-suite-continuation-v2'
+VALIDATION_POLICY = 'settled-test-validation-continuation-v3'
 _MIGRATION = {'fresh_project','backend','config_digest','whole_project_engine_digest',
     'whole_project_workers','whole_project_prompt_tokenizers','same_model_role_isolation',KEY}
 
@@ -26,6 +28,7 @@ def retained_suite(row,requests,raw):
     suite_type,_=project_test_types(row['bundle'])
     parent=row['bundle'][KEY]
     current=deepcopy(parent.get('independent_suite') or parent['generation']['value'])
+    revisions=[{f['path']:f['content'] for f in current['files']}]
     for call in row['calls']:
         stage=call['stage'];request=requests[stage];response=raw[stage]
         if request.get('role')!='test_author' or 'value' not in response:continue
@@ -37,7 +40,14 @@ def retained_suite(row,requests,raw):
             data=json.loads(payload['messages'][1]['content']);selected={f['path']:f['content'] for f in data['files']}
             prior={f['path']:f['content'] for f in current['files']}
             replacements=BuildTestSyntaxRepair.model_validate(response['value']).files
-            if (any(prior.get(path)!=content for path,content in selected.items())
+            same_base=all(prior.get(path)==content for path,content in selected.items())
+            rejected=(data.get('rejected_output') or {}).get('files',[])
+            rejected_files={f['path']:f['content'] for f in rejected}
+            continued_correction=(re.fullmatch(r'whole_recovery_[1-9]\d*_output',stage)
+                and len(rejected_files)==len(rejected) and rejected_files.keys()==selected.keys()
+                and all(prior.get(path)==content for path,content in rejected_files.items())
+                and any(all(revision.get(path)==content for path,content in selected.items()) for revision in revisions))
+            if ((not same_base and not continued_correction)
                     or {f.path for f in replacements}!=selected.keys() or len(replacements)!=len(selected)):
                 raise ValueError('Retained test file transition differs from its journaled scope')
             changed={f.path:f.model_dump() for f in replacements}
@@ -45,10 +55,11 @@ def retained_suite(row,requests,raw):
         else:continue
         try:current=correct_test_references(suite_type.model_validate(current),qualify_classes=True)[0].model_dump()
         except TestSyntaxError:pass  # A later completed syntax response must fix it.
+        revisions.append({f['path']:f['content'] for f in current['files']})
     return suite_type.model_validate(current).model_dump()
 
 
-def pack(row, requests, raw, target, *, closed_execution_audit):
+def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes=None, test_preflight_bytes=None):
     """Trusted host first verifies frozen files, checkpoints, native DONE and exact owner cleanup."""
     from .whole_project import WholeProjectPlan,whole_project_types,_stopped_opencode_result
     source=row['bundle'];output=row['result']['output'];evidence=output['verification']['whole_project']
@@ -100,18 +111,39 @@ def pack(row, requests, raw, target, *, closed_execution_audit):
         raise ValueError('Continuation requires a reference-qualified smoke suite and passing candidate')
     if KEY in source:
         stage=(output.get('error') or {}).get('stage');call=next((c for c in row['calls'] if c['stage']==stage),{})
-        if (call.get('status')!='not_dispatched' or not re.fullmatch(r'build_tests_defect_[1-9]\d*',stage or '')
-                or requests[stage].get('role')!='test_author'):
-            raise ValueError('Chained suite continuation requires a known non-dispatched test repair')
         generation=deepcopy(source[KEY]['generation'])
         suite=retained_suite(row,requests,raw)
-        data=json.loads(requests[stage]['payload']['messages'][1]['content'])
         from .project_test_lint import defects
         from .project_build import project_test_types
         typed=project_test_types(source)[0].model_validate(suite);inventory={f.path:f.content for f in typed.files}
-        if (defects(typed)!=data.get('diagnostics')
-                or any(inventory.get(f['path'])!=f['content'] for f in data['files'])):
-            raise ValueError('Reconstructed suite does not reproduce the pending repair evidence')
+        if (call.get('status')=='not_dispatched' and re.fullmatch(r'build_tests_defect_[1-9]\d*',stage or '')
+                and requests[stage].get('role')=='test_author'):
+            data=json.loads(requests[stage]['payload']['messages'][1]['content'])
+            if (defects(typed)!=data.get('diagnostics')
+                    or any(inventory.get(f['path'])!=f['content'] for f in data['files'])):
+                raise ValueError('Reconstructed suite does not reproduce the pending repair evidence')
+        else:
+            from .stage_recovery import dynamic_enabled,DYNAMIC_POLICY,route
+            from .project_build import execution_settled
+            if (not dynamic_enabled(target) or row['status']!='failed' or output.get('suite') is not None
+                    or route(stage or '')[0] not in {'independent_authoring','independent_qualification'}
+                    or evidence['budget_counters'].get('recovery_output_correction',0)>=DYNAMIC_POLICY['max_output_corrections']
+                    or not defects(typed) or not checkpoint_bytes or not test_preflight_bytes or not row.get('checkpoints')):
+                raise ValueError('Retained test validation requires a settled checkpoint, static defects and shared budget')
+            record=row['checkpoints'][-1];checkpoint=json.loads(checkpoint_bytes);preflight=json.loads(test_preflight_bytes)
+            if (hashlib.sha256(checkpoint_bytes).hexdigest()!=record['content_sha256']
+                    or checkpoint.get('policy')!='workflow-step-checkpoint-v1'
+                    or checkpoint.get('run_id')!=row['id'] or checkpoint.get('approval_digest')!=row['digest']
+                    or checkpoint.get('engine_digest')!=digest(source['whole_project_engine_digest'])
+                    or any(checkpoint.get(k)!=record[k] for k in ('kind','stage','binding'))
+                    or not any(re.fullmatch(r'build_test_preflight_\d+\.raw.json',name)
+                        and binding==hashlib.sha256(test_preflight_bytes).hexdigest()
+                        for name,binding in checkpoint.get('receipts',{}).items())
+                    or not execution_settled(preflight) or preflight.get('status')!='passed'
+                    or len(preflight.get('commands',[]))!=1
+                    or preflight['commands'][0].get('source_sha256')!={
+                        path:hashlib.sha256(text.encode('utf8')).hexdigest() for path,text in inventory.items()}):
+                raise ValueError('Latest step checkpoint does not bind the retained test preflight and source')
     else:
         stage='build_tests';request=requests[stage];response=raw[stage]
         if (request.get('role')!='test_author' or request.get('operation')!='generate'
@@ -128,6 +160,8 @@ def pack(row, requests, raw, target, *, closed_execution_audit):
         'source_receipts':receipts,'closed_execution_audit':closed_execution_audit}
     if KEY in source:
         value.update(policy=SUITE_POLICY,independent_suite=suite,independent_suite_digest=digest(suite))
+        if call.get('status')!='not_dispatched':
+            value.update(policy=VALIDATION_POLICY,source_checkpoint=deepcopy(record),retained_diagnostics=defects(typed))
     validate(value,target)
     return value
 
@@ -139,8 +173,9 @@ def validate(value,bundle):
     required={'policy','source_run_id','source_approval_digest','source_contract_digest','target_binding_digest',
         'plan','artifact','self_suite','counters','repair_attempts','compile_repair_attempts','generation',
         'source_receipts','closed_execution_audit'}
-    if isinstance(value,dict) and value.get('policy')==SUITE_POLICY:required|={'independent_suite','independent_suite_digest'}
-    if (not isinstance(value,dict) or value.keys()!=required or value['policy'] not in {POLICY,SUITE_POLICY}
+    if isinstance(value,dict) and value.get('policy') in {SUITE_POLICY,VALIDATION_POLICY}:required|={'independent_suite','independent_suite_digest'}
+    if isinstance(value,dict) and value.get('policy')==VALIDATION_POLICY:required|={'source_checkpoint','retained_diagnostics'}
+    if (not isinstance(value,dict) or value.keys()!=required or value['policy'] not in {POLICY,SUITE_POLICY,VALIDATION_POLICY}
             or {'fresh_project','whole_project_seed','whole_project_checkpoint','whole_project_initial_compile_recovery'}.intersection(bundle)
             or value['target_binding_digest']!=binding_digest(bundle)
             or value['source_contract_digest']!=contract_digest(bundle)):
@@ -165,11 +200,21 @@ def validate(value,bundle):
         raise ValueError('Retained generation differs from its original author/schema contract')
     for key in ('source_approval_digest','source_contract_digest','closed_execution_audit'):
         if not re.fullmatch('[a-f0-9]{64}',value[key]):raise ValueError('Invalid continuation evidence digest')
-    if value['policy']==SUITE_POLICY:
+    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY}:
         suite=suite_type.model_validate(value['independent_suite'])
         if (digest(suite.model_dump())!=value['independent_suite_digest']
                 or set(suite.implementation_files)!=set(plan.implementation_files)):
             raise ValueError('Retained unfrozen suite inventory or digest changed')
+    if value['policy']==VALIDATION_POLICY:
+        from .project_test_lint import defects
+        from .stage_recovery import dynamic_enabled,DYNAMIC_POLICY
+        record=value['source_checkpoint']
+        if (not dynamic_enabled(bundle) or value['counters'].get('recovery_output_correction',0)>=DYNAMIC_POLICY['max_output_corrections']
+                or not defects(suite) or defects(suite)!=value['retained_diagnostics']
+                or not isinstance(record,dict) or record.keys()!={'kind','stage','binding','content_sha256','created'}
+                or record['kind'] not in {'graph','native','sandbox'}
+                or not all(re.fullmatch('[a-f0-9]{64}',record[k]) for k in ('binding','content_sha256'))):
+            raise ValueError('Retained test validation checkpoint, diagnostics or shared budget changed')
     return plan,artifact
 
 
@@ -180,6 +225,6 @@ def restore(flow):
     flow.evidence.update(budget_counters=dict(flow.counters),stage_continuation={
         'source_run_id':value['source_run_id'],'source_approval_digest':value['source_approval_digest'],
         'closed_execution_audit':value['closed_execution_audit'],'acceptance_credit':False})
-    if value['policy']==SUITE_POLICY:flow._continued_independent_suite=deepcopy(value['independent_suite'])
+    if value['policy'] in {SUITE_POLICY,VALIDATION_POLICY}:flow._continued_independent_suite=deepcopy(value['independent_suite'])
     else:flow._continued_generation=deepcopy(value['generation'])
     return plan,artifact

@@ -1,0 +1,188 @@
+{
+  "date": "2026-11-24",
+  "source_trial": "Run25 continuation2",
+  "source_run_id": "c22e4eea-59b9-46be-9d28-be8f6a4e8f89",
+  "source_status": "failed",
+  "root_cause": "Static test-repair validation happened after the response schema validator, so ordinary-budget exhaustion reached terminal consultation without an executable shared correction context.",
+  "changes": {
+    "scoped_test_repair_composes_before_acceptance": true,
+    "checks": [
+      "exact replacement paths",
+      "total source bytes",
+      "preserved test names",
+      "Python syntax",
+      "undefined names and missing assertions",
+      "pinned Python preflight"
+    ],
+    "ordinary_exhaustion_can_seed_shared_agent_correction": true,
+    "retained_seed_is_current_model_authored_source": true,
+    "original_and_downstream_gates_required": true,
+    "read_only_helper_context": true,
+    "distinct_semantic_rejections_can_use_existing_shared_pool": true,
+    "memoized_advice_cannot_execute_twice": true,
+    "unknown_execution_or_malformed_agent_response_cannot_retry": true,
+    "counter_reset_or_budget_increase": false
+  },
+  "checkpoint_continuation": {
+    "policy": "settled-test-validation-continuation-v3",
+    "latest_source_checkpoint": {
+      "kind": "graph",
+      "stage": "code_build",
+      "binding": "79d1b22848282ef0c596df2a9ebd71ed00fc9534d956c4462d6c12723225a506",
+      "content_sha256": "6813b9f6fe4c8643afade61ada2bbb324b433e9b2e8ee9a1dff59995085c12f1",
+      "created": 1795565213.5576231
+    },
+    "retained_test_suite_digest": "7ed490e719835fe0659eccaf081c97946b49a5e8a9c9e97e7157803b12e58cd5",
+    "application_files": 79,
+    "test_files": 14,
+    "static_findings": 4,
+    "preserved_counters": {
+      "build_tests_defect": 3,
+      "build_tests_syntax": 1,
+      "recovery_diagnosis": 3,
+      "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+      "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+      "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+      "recovery_output_correction": 1,
+      "recovery_request": 20,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "shared_corrections_remaining": 3,
+    "acceptance_credit": false,
+    "source_test_checkpoint_receipt_and_exact_file_hashes_bound": true
+  },
+  "validation": {
+    "core": {
+      "total": 637,
+      "passed": 629,
+      "optional_skips": 8
+    },
+    "native_adapter": {
+      "total": 38,
+      "passed": 38
+    },
+    "saved_checkpoint_fixture_control": {
+      "status": "passed",
+      "control_kind": "actual-saved-checkpoint-with-fixture-agent-correction-and-stubbed-pinned-preflight",
+      "source_run_id": "c22e4eea-59b9-46be-9d28-be8f6a4e8f89",
+      "latest_checkpoint": {
+        "kind": "graph",
+        "stage": "code_build",
+        "binding": "79d1b22848282ef0c596df2a9ebd71ed00fc9534d956c4462d6c12723225a506",
+        "content_sha256": "6813b9f6fe4c8643afade61ada2bbb324b433e9b2e8ee9a1dff59995085c12f1",
+        "created": 1795565213.5576231
+      },
+      "retained_test_suite_digest": "7ed490e719835fe0659eccaf081c97946b49a5e8a9c9e97e7157803b12e58cd5",
+      "application_files": 79,
+      "retained_test_files": 14,
+      "retained_static_defects": 4,
+      "preserved_counters": {
+        "build_tests_defect": 3,
+        "build_tests_syntax": 1,
+        "recovery_diagnosis": 3,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_output_correction": 1,
+        "recovery_request": 20,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "new_counters": {
+        "build_tests_defect": 3,
+        "build_tests_syntax": 1,
+        "recovery_diagnosis": 4,
+        "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+        "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+        "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+        "recovery_output_correction": 2,
+        "recovery_request": 21,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3,
+        "recovery_issue_0f1041887d560791d192d03d28dd7729": 1
+      },
+      "stages": [
+        "whole_recovery_4_consult",
+        "whole_recovery_4_output"
+      ],
+      "ordinary_attempts_not_refunded_or_redispatched": true,
+      "frozen_files_verified": 2165,
+      "original_terminal_unchanged": true,
+      "fixture_output_imported_into_continuation": false,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "application_execution": false,
+      "acceptance_claim": false
+    },
+    "real_pinned_cli_synthetic_control": {
+      "status": "passed",
+      "control_kind": "real-pinned-opencode-and-native-bridge-with-synthetic-loopback-model",
+      "evidence_directory": "diagnostics/tv25/04c76ca0",
+      "stages_and_roles": [
+        [
+          "build_tests",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_consult",
+          "test_author"
+        ],
+        [
+          "whole_recovery_1_output",
+          "test_author"
+        ]
+      ],
+      "native_protocol_requests": 10,
+      "stalled_worker_evidence": [
+        {
+          "stage": "build_tests",
+          "type": "OpenCodeProgressError",
+          "message": "OpenCode made no authorized source progress: repeated tool result",
+          "proof": {
+            "policy": "tool-result-progress-v1",
+            "max_identical_results": 8,
+            "max_results_without_progress": 32,
+            "novel_completed_results_are_progress": true,
+            "tool": "glob",
+            "status": "completed",
+            "result_digest": "7fecc587ffe610e7ae9873890494f05a8e52c6d7a4adb342277f0f89ed696a6f",
+            "identical_results": 8,
+            "results_without_progress": 7,
+            "tool_input": {
+              "sha256": "69d6e1527e4619068bedea40dad927f661315486029121a8169bf7b88a79f822",
+              "complete": true,
+              "json_excerpt": "{\"pattern\": \"**/*\"}"
+            },
+            "tool_result": {
+              "sha256": "ce61749cafb63181a1d743b10cac4dc2fd0eb20186a5024e458dc0f590801d8a",
+              "complete": true,
+              "json_excerpt": "\"E:\\\\Documents\\\\ChatGPT\\\\hitl\\\\commerce-catalog-recreation\\\\diagnostics\\\\tv25\\\\04c76ca0\\\\oc-67f21251a70f\\\\candidate\\\\probe.txt\""
+            },
+            "source_progress": false,
+            "compaction_resets_guard": false
+          },
+          "cleanup": true
+        }
+      ],
+      "consultations": 1,
+      "output_corrections": 1,
+      "same_schema_revalidated": true,
+      "gpu_used": false,
+      "actual_model_inference": false,
+      "actual_model_quality_or_end_to_end_claim": false,
+      "scratch_disposed": true,
+      "application_or_plan_imported_into_fresh_trial": false
+    },
+    "evidence_sha256": {
+      "core-tests-final.log": "dec329e05fffdbf58aeca57aaf566d3d7870d185bb92d34cfe5d6ae1a4c1b211",
+      "adapter-tests.log": "06bc0de46ab2124dcda44b0091c1e0a4abb5a720e57f9637b2b7eed86a9394f7",
+      "saved-checkpoint-control-summary.json": "d33e361b54ac9a499cacf7ec7ee7db873206861cad72b0d79ea8f06299516034",
+      "loop-cli-control-summary.json": "cb032781f44dbdb0b12906d480d38933743a6dda940b194d9c40e93b2e142278"
+    }
+  },
+  "continuation3_status_at_publication": "not_started"
+}
