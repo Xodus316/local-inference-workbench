@@ -1,6 +1,6 @@
 {
   "date": "2026-11-24",
-  "status": "stage_restart10_paused_at_user_request_audited",
+  "status": "stage_restart10_resumed_terminal_failed_audited",
   "audit": {
     "source_run_id": "7f5480dc-dea5-4a8f-ad15-786a071bb0e9",
     "failed_reference_cases": 18,
@@ -162,7 +162,7 @@
     "native_adapter_passed": 38
   },
   "stage_restart10": {
-    "status": "paused",
+    "status": "failed",
     "application_checkpoint_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
     "fresh_independent_tests": true,
     "fresh_budgets": {
@@ -178,12 +178,14 @@
     },
     "run_id": "c427b8c0-469c-4238-a486-687fd9992769",
     "runtime_commit": "0c4caaef671b56e0ed42a781e210e5fc24a8c463",
-    "elapsed_active_session_seconds": 3000.357,
-    "checkpoint_count": 28,
+    "elapsed_active_session_seconds": 3628.327,
+    "checkpoint_count": 32,
     "latest_checkpoint": {
-      "kind": "native",
-      "stage": "whole_recovery_4_consult",
-      "content_sha256": "60ce13d174d6ad99b59a3ce1ec601410b3fbab1c53143a709a63f3db8e825593"
+      "kind": "graph",
+      "stage": "code_build",
+      "binding": "e24d14f40aefee461c30eebdad888b729e3e3a6b4071fe4e20a8aaf8b244492a",
+      "content_sha256": "21684c28383f91aeb06f7b59950df974a98a657ee4f9122aa6e6eb19e7f9c101",
+      "created": 1795634643.226623
     },
     "application_checkpoint_preserved": true,
     "compiler_and_reference_candidate_smoke": "passed",
@@ -216,29 +218,35 @@
       {
         "kind": "shared",
         "reason": "An edit repeats an evidence reference"
+      },
+      {
+        "kind": "shared",
+        "reason": "This patch already failed against the same source; consult with new evidence"
       }
     ],
     "active_counters": {
       "build_tests_defect": 2,
       "coordinated_patch": 5,
-      "recovery_diagnosis": 4,
+      "recovery_diagnosis": 6,
       "recovery_issue_2818fb3b8f1714fabb9c2e7401fd91a5": 1,
       "recovery_issue_887b594a8901f79cd98ac76ee7d58040": 1,
+      "recovery_issue_89a5ceb09ee2c683978964fde99f83b1": 1,
       "recovery_issue_8bb60e1c0d1ab1ade9c2f307722bd437": 1,
       "recovery_issue_b7df9ff5bc84b574e94f1c60fd376357": 1,
-      "recovery_output_correction": 3,
-      "recovery_request": 5,
+      "recovery_issue_c0e70eabdee0b8772f1aa7b83e7f65d7": 1,
+      "recovery_output_correction": 4,
+      "recovery_request": 9,
       "whole_compile_initial_1": 2,
       "whole_compile_initial_2": 1,
       "whole_self_repair": 3
     },
     "spent_budget_summary": {
       "diagnoses": {
-        "spent": 4,
+        "spent": 6,
         "limit": 16
       },
       "shared_output_corrections": {
-        "spent": 3,
+        "spent": 4,
         "limit": 4
       },
       "coordinated_validations": {
@@ -246,7 +254,7 @@
         "limit": 6
       },
       "requests": {
-        "spent": 5,
+        "spent": 9,
         "limit": 64
       },
       "ordinary_defect_repairs": {
@@ -256,18 +264,18 @@
     },
     "historical_stage_costs_archived": true,
     "operator_source_repairs_after_launch": false,
-    "operator_control_action": "user_requested_checkpoint_pause",
+    "operator_control_action": "user_requested_checkpoint_pause_then_post_reboot_resume",
     "unattended_until_explicit_pause": true,
     "pause_acknowledged": true,
     "pause_approval_bound": true,
-    "post_reboot_resume_performed": false,
+    "post_reboot_resume_performed": true,
     "frozen_runtime_unchanged": true,
     "frozen_files_verified": 3661,
-    "settled_request_receipts_verified": 28,
+    "settled_request_receipts_verified": 31,
     "sandbox_lifecycle_cleanups_verified": 17,
     "native": {
       "qwen": {
-        "completed": 11,
+        "completed": 14,
         "compactions": 0,
         "other_outcomes": []
       }
@@ -281,9 +289,90 @@
     "mandatory_candidate_source_gate_live": "not_reached; CPU control passed",
     "end_to_end_success": false,
     "evidence_sha256": {
-      "terminal.json": "53b1d0ad4f3f2fe644cb917c32ce11e2a1cae094e2ab6ed6f91ea7acbaa13027",
-      "outcome.json": "b80615885445f18053b566ed9bcb0606163b1c60756fcaea6b6f630854a6183c",
-      "pause-verification.json": "17d677a54040360f820cb84440178ab0c496c8596f76155f7a337f7021e41cbd"
-    }
-  }
+      "terminal.json": "628cea5d2c9b384dcd2f025829787eb7e8771df68dcdcfaeb168bd21cbd4a62c",
+      "outcome.json": "e676926a24effffe9579f2405e450c15094919edeab069838e337fc7f99b2c40",
+      "operator-verification.json": "00368188327d2e76f951100329b48bcf25295b4777d20d57282bc54ee2737ed3"
+    },
+    "pause_snapshot_2026_11_24": {
+      "status": "paused",
+      "elapsed_active_session_seconds": 3000.357,
+      "checkpoint_count": 28,
+      "latest_checkpoint": {
+        "kind": "native",
+        "stage": "whole_recovery_4_consult",
+        "content_sha256": "60ce13d174d6ad99b59a3ce1ec601410b3fbab1c53143a709a63f3db8e825593"
+      },
+      "active_counters": {
+        "build_tests_defect": 2,
+        "coordinated_patch": 5,
+        "recovery_diagnosis": 4,
+        "recovery_issue_2818fb3b8f1714fabb9c2e7401fd91a5": 1,
+        "recovery_issue_887b594a8901f79cd98ac76ee7d58040": 1,
+        "recovery_issue_8bb60e1c0d1ab1ade9c2f307722bd437": 1,
+        "recovery_issue_b7df9ff5bc84b574e94f1c60fd376357": 1,
+        "recovery_output_correction": 3,
+        "recovery_request": 5,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      },
+      "evidence_sha256": {
+        "terminal.json": "53b1d0ad4f3f2fe644cb917c32ce11e2a1cae094e2ab6ed6f91ea7acbaa13027",
+        "outcome.json": "b80615885445f18053b566ed9bcb0606163b1c60756fcaea6b6f630854a6183c",
+        "pause-verification.json": "17d677a54040360f820cb84440178ab0c496c8596f76155f7a337f7021e41cbd"
+      },
+      "native": {
+        "qwen": {
+          "completed": 11,
+          "compactions": 0,
+          "other_outcomes": []
+        }
+      }
+    },
+    "terminal_date": "2026-11-25",
+    "error": {
+      "message": "This patch already failed against the same source; consult with new evidence",
+      "stage": "build_control_recovery"
+    },
+    "resumed_session_seconds": 627.969,
+    "session_elapsed_seconds": {
+      "3c22fa5fae924d789a507d3a9cd667c2": 3000.357,
+      "42d8e495bc614220a5ef144949a77240": 627.969
+    },
+    "wall_elapsed_seconds_including_offline_pause": 46184.931,
+    "offline_time_in_active_total": false,
+    "unattended_after_resume": true,
+    "previous_calls_physically_redispatched": false,
+    "resume_dispatched_stages": [
+      "whole_recovery_4_output",
+      "whole_recovery_5_consult",
+      "whole_recovery_6_consult"
+    ],
+    "native_sessions": {
+      "3c22fa5fae924d789a507d3a9cd667c2/qwen": {
+        "completed": 11,
+        "compactions": 0,
+        "other_outcomes": []
+      },
+      "42d8e495bc614220a5ef144949a77240/qwen": {
+        "completed": 3,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "repeat_rejection": {
+      "executable_edits_digest": "9738055de923594a9a7260f8cea03a3e3435be41aecaf95fa662cba86deb98b3",
+      "edits": 3,
+      "files": 2,
+      "evidence_references_deduplicated": true,
+      "earlier_rejection": "An edit repeats an evidence reference",
+      "earlier_proposal_executed": false,
+      "revised_proposal_composed_or_executed": false,
+      "new_promotions_after_resume": 0,
+      "additional_reference_execution_after_resume": false
+    },
+    "additional_allowance_granted": 0,
+    "another_run_started": false
+  },
+  "last_updated_date": "2026-11-25"
 }

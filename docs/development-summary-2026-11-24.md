@@ -4,6 +4,8 @@ Run 25 now has a preserved, compiling 79-file application and a newly authored i
 
 This report covers November 24 in Pacific time, including the conclusion of Run 24, Run 25's cancellation and nine separately approved continuations, and the latest clean restart of independent authoring and verification. Earlier cancelled and failed trials remain unchanged. The [stage-restart report](../benchmarks/reports/run25-stage-restart-2026-11-24.json) contains the latest derived evidence; the investigations linked below retain the individual outcomes and controls.
 
+**November 25 follow-up:** the saved run resumed after reboot and ended failed after 10m28s. The fourth correction fixed duplicate evidence metadata but hit the executable-patch repeat guard before evaluation. The November 24 results below remain the day's historical snapshot; see the [dated resume outcome](run25-stage-restart-2026-11-24.md) for the final audit.
+
 ## Recovery changes
 
 - **Reference-output failures reach an executable repair capability.** Run 24 exposed a rejected smoke patch whose consultant lacked the original instructions, suite and authorized correction path. Shared recovery now retains that context, asks the original owner to correct under the captured schema, and reruns composition, coverage, scope, test-identity and reference gates. Settled malformed advice gets one bounded feedback retry; semantic failures such as missing requested changes use that same retry. See [reference recovery](reference-recovery-2026-11-24.md).
