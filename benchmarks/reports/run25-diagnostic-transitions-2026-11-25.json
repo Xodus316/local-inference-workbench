@@ -1,0 +1,229 @@
+{
+  "date": "2026-11-25",
+  "status": "controls_passed_before_continuation14",
+  "changes": [
+    "Retain all post-patch failure observations even when failed case IDs are unchanged",
+    "Derive richer feedback from settled model and full-reference receipts without rewriting old records",
+    "Expose bounded post-patch diagnostics for every recent attempt; prefer receipt-bound carried feedback",
+    "Preserve V1 feedback and older V9 continuation approvals; progress and source gates unchanged"
+  ],
+  "validation": {
+    "core_tests": 686,
+    "core_passed": 678,
+    "optional_skips": 8,
+    "native_adapter_tests": 38,
+    "native_adapter_passed": 38
+  },
+  "saved_case_control": {
+    "status": "passed",
+    "source_run_id": "bbcd53c0-fae9-49f5-a588-b7f9de951013",
+    "source_checkpoint": {
+      "kind": "graph",
+      "stage": "code_build",
+      "binding": "d81f153ddef938960683d6aea0c009bb8f3f08797311d960694ceb9045893fe2",
+      "content_sha256": "d17b60a3a4ac52d7e2280870da4af34063ee067972f42ea820d2e3855592474f",
+      "created": 1795642038.820948
+    },
+    "retained_application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
+    "retained_independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
+    "application_files": 79,
+    "test_files": 12,
+    "reference_cases": 49,
+    "remaining_reference_failures": 2,
+    "source_spent_counters_archived": {
+      "build_tests_defect": 2,
+      "coordinated_patch": 4,
+      "recovery_diagnosis": 6,
+      "recovery_issue_15d854090e821073f923137745df66cf": 1,
+      "recovery_issue_16420336648b33b6eab4b2a429d1c53f": 1,
+      "recovery_issue_1fa3bb2cd8e132df68ddccdf1df1d6f1": 1,
+      "recovery_issue_230596d0b6c50f43858f22bb47322207": 1,
+      "recovery_issue_9206784537d431c763c7b85ac5e628c7": 1,
+      "recovery_issue_b24ed91e8351bd8d1598ab9aec02b66b": 1,
+      "recovery_output_correction": 4,
+      "recovery_request": 7,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "fresh_shared_budget": {
+      "diagnoses": 16,
+      "requests": 64,
+      "output_corrections": 4,
+      "coordinated_validations": 6
+    },
+    "ordinary_compile_and_general_costs_retained": {
+      "build_tests_defect": 2,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "retained_prior_budget_epoch": {
+      "costs_refunded": false,
+      "fresh_budgets": {
+        "coordinated_validations": 6,
+        "diagnoses": 16,
+        "output_corrections": 4,
+        "requests": 64
+      },
+      "policy": "settled-checkpoint-repair-epoch-v9",
+      "prior_budget_epoch": {
+        "costs_refunded": false,
+        "fresh_budgets": {
+          "coordinated_validations": 6,
+          "diagnoses": 16,
+          "output_corrections": 4,
+          "requests": 64
+        },
+        "policy": "settled-checkpoint-repair-epoch-v9",
+        "prior_budget_epoch": {
+          "costs_refunded": false,
+          "fresh_budgets": {
+            "coordinated_validations": 6,
+            "diagnoses": 16,
+            "output_corrections": 4,
+            "requests": 64
+          },
+          "policy": "settled-checkpoint-repair-epoch-v9",
+          "prior_budget_epoch": {
+            "archived_stage_counters": {
+              "build_tests_defect": 3,
+              "build_tests_syntax": 1,
+              "coordinated_patch": 4,
+              "recovery_diagnosis": 16,
+              "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+              "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+              "recovery_issue_230596d0b6c50f43858f22bb47322207": 2,
+              "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+              "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+              "recovery_issue_6fff79082c029dcdd19e00e7d4e60a87": 2,
+              "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+              "recovery_issue_9fe0ed0530997a1bede0f88bf5524751": 1,
+              "recovery_issue_a4bccbaeed61d63c4dee3103a9f8f833": 1,
+              "recovery_issue_a92b5a06cda982c2d136d119ec2cfc8c": 1,
+              "recovery_issue_bf18f9133be7e4a9233ed2c2cb1d7f43": 1,
+              "recovery_issue_e688f5a01f31e3c5c09456bab8486765": 1,
+              "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+              "recovery_output_correction": 7,
+              "recovery_request": 41
+            },
+            "costs_refunded": false,
+            "fresh_budgets": {
+              "coordinated_validations": 6,
+              "diagnoses": 16,
+              "general_repairs": 8,
+              "output_corrections": 4,
+              "requests": 64,
+              "test_coverage_repairs": 2,
+              "test_defect_repairs": 2,
+              "test_fixture_repairs": 2,
+              "test_syntax_repairs": 2
+            },
+            "policy": "independent-verification-stage-restart-v8",
+            "retained_counters": {
+              "whole_compile_initial_1": 2,
+              "whole_compile_initial_2": 1,
+              "whole_self_repair": 3
+            },
+            "source_spent_counters": {
+              "build_tests_defect": 3,
+              "build_tests_syntax": 1,
+              "coordinated_patch": 4,
+              "recovery_diagnosis": 16,
+              "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+              "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+              "recovery_issue_230596d0b6c50f43858f22bb47322207": 2,
+              "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+              "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+              "recovery_issue_6fff79082c029dcdd19e00e7d4e60a87": 2,
+              "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+              "recovery_issue_9fe0ed0530997a1bede0f88bf5524751": 1,
+              "recovery_issue_a4bccbaeed61d63c4dee3103a9f8f833": 1,
+              "recovery_issue_a92b5a06cda982c2d136d119ec2cfc8c": 1,
+              "recovery_issue_bf18f9133be7e4a9233ed2c2cb1d7f43": 1,
+              "recovery_issue_e688f5a01f31e3c5c09456bab8486765": 1,
+              "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+              "recovery_output_correction": 7,
+              "recovery_request": 41,
+              "whole_compile_initial_1": 2,
+              "whole_compile_initial_2": 1,
+              "whole_self_repair": 3
+            }
+          },
+          "source_spent_counters": {
+            "build_tests_defect": 2,
+            "coordinated_patch": 5,
+            "recovery_diagnosis": 6,
+            "recovery_issue_2818fb3b8f1714fabb9c2e7401fd91a5": 1,
+            "recovery_issue_887b594a8901f79cd98ac76ee7d58040": 1,
+            "recovery_issue_89a5ceb09ee2c683978964fde99f83b1": 1,
+            "recovery_issue_8bb60e1c0d1ab1ade9c2f307722bd437": 1,
+            "recovery_issue_b7df9ff5bc84b574e94f1c60fd376357": 1,
+            "recovery_issue_c0e70eabdee0b8772f1aa7b83e7f65d7": 1,
+            "recovery_output_correction": 4,
+            "recovery_request": 9,
+            "whole_compile_initial_1": 2,
+            "whole_compile_initial_2": 1,
+            "whole_self_repair": 3
+          }
+        },
+        "source_spent_counters": {
+          "build_tests_defect": 2,
+          "coordinated_patch": 2,
+          "recovery_diagnosis": 4,
+          "recovery_issue_230596d0b6c50f43858f22bb47322207": 1,
+          "recovery_issue_678d70d7029314a98e4d0b58bc085958": 1,
+          "recovery_issue_a39a38275d6224b03730f46bd9a790a9": 1,
+          "recovery_issue_ef51a61cb990f0cf3a250d8d50150ecd": 1,
+          "recovery_output_correction": 2,
+          "recovery_request": 5,
+          "whole_compile_initial_1": 2,
+          "whole_compile_initial_2": 1,
+          "whole_self_repair": 3
+        }
+      },
+      "source_spent_counters": {
+        "build_tests_defect": 2,
+        "recovery_diagnosis": 2,
+        "recovery_issue_1fa3bb2cd8e132df68ddccdf1df1d6f1": 1,
+        "recovery_issue_24debf78aeddba7dacc85d02672c5d57": 1,
+        "recovery_request": 2,
+        "whole_compile_initial_1": 2,
+        "whole_compile_initial_2": 1,
+        "whole_self_repair": 3
+      }
+    },
+    "source_bound_rejections_rehydrated": 4,
+    "unchanged_failed_case_diagnostics_retained": true,
+    "prior_history_unchanged": true,
+    "frozen_hashes_verified": 4391,
+    "actual_model_inference": false,
+    "gpu_used": false,
+    "sandbox_reference_execution": false,
+    "consultation_prompt_tokens": 26369,
+    "total_reserved_tokens": 93953,
+    "completion_reserve": 65536,
+    "framing_reserve": 2048,
+    "approved_context": 98304,
+    "restored_test_suite_unchanged": true,
+    "acceptance_credit": false
+  },
+  "validation_sha256": {
+    "core-tests.log": "82ee9af7aa48941b634b03c6be51f4b5f0cd4039d3dbf3f1b6ec0df150bc4431",
+    "adapter-tests.log": "5c5d358d24145af9a96f1a7fed128b557341116082e654ee49518a509be5bdb7",
+    "diagnostic-transition-control-summary.json": "a49bbffd89b6ad5964e3de31f9627c39954800d69094e31d9aebedaeccb5d874"
+  },
+  "continuation14": {
+    "status": "not_started",
+    "application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
+    "independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
+    "fresh_shared_budget": {
+      "diagnoses": 16,
+      "requests": 64,
+      "output_corrections": 4,
+      "coordinated_validations": 6
+    },
+    "previous_costs_archived": true,
+    "operator_source_changes_during_trial": false
+  }
+}

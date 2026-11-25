@@ -21,17 +21,19 @@ class ReferencePatchError(ValueError):
 
 def feedback(before,after,base,candidate):
     old=set(before['failed']);new=set(after['failed'])
-    return {'policy':'reference-progress-rejection-v1','base_suite_digest':digest(base.model_dump()),
+    return {'policy':'reference-progress-rejection-v2','base_suite_digest':digest(base.model_dump()),
         'proposed_suite_digest':digest(candidate.model_dump()),'before_receipt_digest':before['receipt_digest'],
         'after_receipt_digest':after['receipt_digest'],'tests_before':before['tests_run'],'tests_after':after['tests_run'],
         'before_failed':sorted(old),'after_failed':sorted(new),'resolved':sorted(old-new),
+        'post_patch_failure_observations':deepcopy(after['failures']),
+        'post_patch_failure_observations_digest':digest(after['failures']),
         'regressions':sorted(new-old),'new_failure_observations':[deepcopy(item) for item in after['failures'] if item['case'] not in old],
         'executable_source_applied':False,'acceptance_credit':False,
         'correction_base':'The proposed suite was rolled back. Return replacement anchors against original base_suite. '
-            'A lower failure count cannot authorize a newly failing case or a changed test population.'}
+            'Post-patch observations describe the rejected candidate, not the retained source. Compare their diagnostics even when case IDs remain unchanged; do not infer that the original failure mode persisted. Combine necessary changes in a new proposal against the original source. A lower failure count cannot authorize a newly failing case or a changed test population.'}
 
 
-def pack(row,requests,raw,suite,before,receipt_bytes,checkpoint):
+def pack(row,requests,raw,suite,before,receipt_bytes,checkpoint,*,current_only=False):
     """Derive old rejected-candidate diagnostics only from audited model and sandbox receipts."""
     from .reference_repair_coordinator import reference_evidence
     history=row['result']['output']['verification']['whole_project'].get('coordinated_repairs',[])
@@ -43,6 +45,7 @@ def pack(row,requests,raw,suite,before,receipt_bytes,checkpoint):
         proposals=[stage for stage,response in raw.items() if isinstance(response.get('value'),dict)
             and digest(response['value'])==record['proposal_digest']
             and requests[stage].get('role')=='test_author' and requests[stage].get('operation')=='generate']
+        if not proposals and current_only:continue  # Ancestor records remain immutable; only current journal receipts can rehydrate them.
         if len(proposals)!=1:raise ValueError('Rejected verification proposal lacks one exact settled producer receipt')
         stage=proposals[0];request=requests[stage];value=raw[stage]['value']
         data=json.loads(request['payload']['messages'][1]['content'])
@@ -76,11 +79,12 @@ def validate(items,value,suite):
         fields={'policy','base_suite_digest','proposed_suite_digest','before_receipt_digest','after_receipt_digest',
             'tests_before','tests_after','before_failed','after_failed','resolved','regressions','new_failure_observations',
             'executable_source_applied','acceptance_credit','correction_base'}
+        if f.get('policy')=='reference-progress-rejection-v2':fields|={'post_patch_failure_observations','post_patch_failure_observations_digest'}
         if (item.keys()!=required or f.keys()!=fields or item['patch_digest'] in seen
                 or not any(r.get('patch_digest')==item['patch_digest'] and r.get('proposal_digest')==item['proposal_digest']
                     and r.get('disposition')=='rolled_back' for r in history)
                 or value['source_receipts'].get(item['model_stage'])!={'request_digest':item['request_digest'],'raw_digest':item['raw_digest']}
-                or f['policy']!='reference-progress-rejection-v1' or f['base_suite_digest']!=digest(suite.model_dump())
+                or f['policy'] not in {'reference-progress-rejection-v1','reference-progress-rejection-v2'} or f['base_suite_digest']!=digest(suite.model_dump())
                 or f['before_receipt_digest']!=value['retained_reference']['receipt_digest']
                 or set(f['before_failed'])!=set(value['retained_reference']['failed'])
                 or not set(f['before_failed'])<=cases.keys() or not set(f['after_failed'])<=cases.keys()
@@ -93,4 +97,11 @@ def validate(items,value,suite):
                 or any(not re.fullmatch('[a-f0-9]{64}',s) for s in [item['reference_raw_sha256'],
                     f['proposed_suite_digest'],f['before_receipt_digest'],f['after_receipt_digest']])):
             raise ValueError('Carried verification feedback differs from its source, inventory or rejected receipts')
+        if f['policy']=='reference-progress-rejection-v2':
+            observations=f['post_patch_failure_observations']
+            if (not isinstance(observations,list) or len(observations)!=len(f['after_failed'])
+                    or {o['case'] for o in observations}!=set(f['after_failed'])
+                    or any({k:o[k] for k in ('id','path','test_name')}!=cases[o['case']] for o in observations)
+                    or f['post_patch_failure_observations_digest']!=digest(observations)):
+                raise ValueError('Post-patch diagnostics differ from the rejected candidate inventory or digest')
         seen.add(item['patch_digest'])

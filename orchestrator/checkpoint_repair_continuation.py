@@ -24,7 +24,7 @@ def accepted_suite(row):
     return evidence.get('independent_draft',{}).get('suite') or row['bundle'][KEY]['independent_suite']
 
 
-def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,preflight_bytes,reference_bytes):
+def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,preflight_bytes,reference_bytes,reference_history_bytes=None):
     from .stage_continuation import validate as validate_parent,retained_suite
     from .whole_project import _stopped_opencode_result
     from .project_build import execution_settled,project_test_types
@@ -48,6 +48,7 @@ def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,prefl
         receipts[name]={'request_digest':digest(requests[name]),'raw_digest':digest(raw[name])}
     for key in ('model','context','thinking','model_manifest_sha256','backend_identity','sampling'):
         if source['backend'].get(key)!=target['backend'].get(key):raise ValueError('Repair continuation cannot change models')
+    suite_type=project_test_types(source)[0]
     suite=retained_suite(row,requests,raw)
     if suite!=accepted_suite(row):raise ValueError('Accepted test source does not match completed promotion receipts')
     record=row['checkpoints'][-1];cp=json.loads(checkpoint_bytes);pre=json.loads(preflight_bytes)
@@ -81,6 +82,9 @@ def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,prefl
         'prior_budget_epoch':deepcopy(e.get('budget_epoch',{})),
         'repair_attempts':out['repair_attempts'],'compile_repair_attempts':out['compile_repair_attempts'],
         'restart_scope':'shared_recovery_over_retained_independent_tests'}
+    from .reference_repair_feedback import pack as pack_feedback
+    if reference_history_bytes is not None:
+        value['verification_rejections']=pack_feedback(row,requests,raw,suite_type.model_validate(suite),reference,reference_history_bytes,cp,current_only=True)
     validate(value,{**target,KEY:value})
     return value
 
@@ -96,6 +100,7 @@ def validate(value,bundle):
         'self_suite_digest','independent_suite','independent_suite_digest','retained_reference','coordinated_history',
         'source_spent_counters','source_spent_counters_digest','counters','fresh_budgets','prior_budget_epoch',
         'repair_attempts','compile_repair_attempts','restart_scope'}
+    if 'verification_rejections' in value:fields.add('verification_rejections')
     if (value.keys()!=fields or value['policy']!=POLICY or value['fresh_budgets']!=budgets()
             or value['restart_scope']!='shared_recovery_over_retained_independent_tests'
             or value['target_binding_digest']!=binding_digest(bundle)
@@ -129,6 +134,9 @@ def validate(value,bundle):
     history=value['coordinated_history']
     if any(r.get('disposition') not in {'promoted','rolled_back'} or r['patch_digest']!=digest(executable_edits(r['edits'])) for r in history):
         raise ValueError('Retained repair history changed')
+    if 'verification_rejections' in value:
+        from .reference_repair_feedback import validate as validate_feedback
+        validate_feedback(value['verification_rejections'],value,suite)
     validate_checkpoint({'policy':'whole-project-checkpoint-v1','source_run_id':value['source_run_id'],
         'source_approval_digest':value['source_approval_digest'],'binding_digest':binding_digest(bundle),'phase':'tests',
         'plan':plan.model_dump(),'artifact':artifact.model_dump(),'suite':suite.model_dump(),'self_suite':smoke.model_dump(),
@@ -142,6 +150,7 @@ def restore(flow):
     value=flow.bundle[KEY];plan,artifact=validate(value,flow.bundle)
     flow.counters.update(value['counters'])
     flow.output.update(repair_attempts=value['repair_attempts'],compile_repair_attempts=value['compile_repair_attempts'])
+    if 'verification_rejections' in value:flow.evidence['carried_verification_rejections']=deepcopy(value['verification_rejections'])
     flow._continued_independent_suite=deepcopy(value['independent_suite'])
     flow.evidence.update(coordinated_repairs=deepcopy(value['coordinated_history']),budget_counters=dict(flow.counters),
         application_checkpoint_digest=value['artifact_digest'],stage_continuation={

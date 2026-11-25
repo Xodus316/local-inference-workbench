@@ -1,6 +1,6 @@
 {
   "date": "2026-11-25",
-  "status": "controls_passed_before_continuation13",
+  "status": "continuation13_terminal_failed_audited",
   "changes": [
     "Every active advice branch is a complete object with common diagnosis/evidence/action requirements",
     "Legacy flat wire schemas remain unchanged",
@@ -191,7 +191,7 @@
     "branch-control-summary.json": "cdf9e11c9179b6e60405674a290c68d94f5d425f433c98e621870a8058a7117e"
   },
   "continuation13": {
-    "status": "not_started",
+    "status": "failed",
     "application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
     "independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
     "fresh_shared_budget": {
@@ -201,6 +201,204 @@
       "coordinated_validations": 6
     },
     "source_costs_archived": true,
-    "operator_source_changes_during_trial": false
+    "operator_source_changes_during_trial": false,
+    "run_id": "bbcd53c0-fae9-49f5-a588-b7f9de951013",
+    "elapsed_seconds": 2811.565,
+    "reference_cases": 49,
+    "remaining_reference_failures": 2,
+    "patches_dispatched": 4,
+    "promotions": 0,
+    "application_and_test_source_unchanged": true,
+    "failure": "Same test IDs continued failing after their diagnostics changed; prior feedback omitted post-patch observations for unchanged failed case identities.",
+    "audit": {
+      "status": "failed",
+      "run_id": "bbcd53c0-fae9-49f5-a588-b7f9de951013",
+      "elapsed_seconds": 2811.565,
+      "frozen_files_verified": 4391,
+      "checkpoints": [
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_1_2",
+          "content_sha256": "18e46a5573ad4c3acb8c22e3f9cd98a8e521e0f6fdc7825704e73a1f807a43f3"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_2_1",
+          "content_sha256": "eadf7251be952c577ba57229123f43097215c5ca782527ae61dca055f2ce0c85"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_0",
+          "content_sha256": "63b97afc30ddd8169f305b587c6225246dce415301bdbadfff410de6a622567a"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_0",
+          "content_sha256": "230080a68d7ae1e21f2d0ee9b914731ca011092a771aa9ab3e2bb9d2623d9804"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_self_verify_3",
+          "content_sha256": "848c6cbfd86ffe81d7b729f9e40ca57cc1e9006197b67806c3370b85492e6fb1"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_1",
+          "content_sha256": "d121e3aec1486c66fd01e550aaeb8b69ab65d0f83f4b85665c59d7c9c4d51c81"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_1",
+          "content_sha256": "e079579d391ed12750389843ff8a041317a4970d0be85cb624d47efcb1e923f2"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_1_consult",
+          "content_sha256": "a19502011aa99e7404f0afe85445a561c45f1d204e9c6365ef78a0d32bd98864"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_1_retry_consult",
+          "content_sha256": "544b4f9217ebb8d4dd12f57ecb13fd05a6027db364d4e5cb3bda6f21f4773a04"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_1_output",
+          "content_sha256": "06cc6113d05f7a03aa4d191d3bc77676e98e5eedd04101ae8469d7a34cd46e35"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_2",
+          "content_sha256": "693ea8abf2782ce5530c897628f8d5b1fb4b0a0dccc5be37ad422e4c24a3cfe0"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_coordinated_1_targeted",
+          "content_sha256": "da095bb88465b6e8af644b4d7ec68f031266c6918d29581bce925afdbee42110"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_2",
+          "content_sha256": "ead4d166647a26fc440168b5d2a1602d6948606a515b81e4ce06702b0a75c8ce"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_2_consult",
+          "content_sha256": "2ec393f78c9417968e6cc3b266bce60d08bfc456b7d21192c0f3fab2c284b7a4"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_2_output",
+          "content_sha256": "a779744bea3504b2d14c97145abb558ef091c3a57584a0a6e8f142915cd30aba"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_3",
+          "content_sha256": "0e511e9ff914ab535cd0982d94dc875bc75ef3000601b081d8db2d12bfa63938"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_coordinated_2_targeted",
+          "content_sha256": "c299dcd65123099bc7c65d35d74b1149b14050cd2f409684a7eaf1f18a8af381"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_3",
+          "content_sha256": "7bd2a1c511704597d05114ad6478724793783f9198f64562670d6d0e00d5022c"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_3_consult",
+          "content_sha256": "291c9d892db84b741602302de9bfd43fea1faf980763a7ffd778b035ad724f65"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_3_output",
+          "content_sha256": "1b0d0698b28ac457c716552c4fe691c16bb034837a028320c112c3899040d75c"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_4",
+          "content_sha256": "525b1ed2f8e74bfa8b52a1ba86bf4372764e96516182ce36f25f3f9482a3a75c"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_coordinated_3_targeted",
+          "content_sha256": "c44159c7866aa7b109d885e9042818095310c9875601361694f5032122944189"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_4",
+          "content_sha256": "de1f7abc22b7f5dcdac0adf262425ac8a179c02688b029ac15692209515089b7"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_4_consult",
+          "content_sha256": "764d9d2f4cbe670c7fee24bc11ef3e3d7779665a6f884b7ed12ddff535a41ea5"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_4_output",
+          "content_sha256": "f25ff57ea9e866e43e7f0a0050cb235f245689de3e55f4e31eec3f0b4d16e164"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_5",
+          "content_sha256": "59d2010a830ef832134e89dcf1c4cd0b9bb52c0c0d8aa1412d87a55a4fa87651"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_coordinated_4_targeted",
+          "content_sha256": "3eea34db71786e930ccc24c632d1b3f7b065b2bdc6291426668c714289d4eb23"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_5",
+          "content_sha256": "1c786961774cf79ece7b62c5f11892d145e9d2a959fc8672506f55cf90056e64"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_5_consult",
+          "content_sha256": "69d6a7b8861e150d9bd8f8ac475a9d2d0025989dd916c40006093f981baf7ad6"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_6_consult",
+          "content_sha256": "5c613d092fc9cda82e32e2ec0d3c8b2dc3da909a7a8642167e9880374e200018"
+        },
+        {
+          "kind": "graph",
+          "stage": "code_build",
+          "content_sha256": "d17b60a3a4ac52d7e2280870da4af34063ee067972f42ea820d2e3855592474f"
+        }
+      ],
+      "native": {
+        "qwen": {
+          "completed": 11,
+          "compactions": 0,
+          "other_outcomes": []
+        }
+      },
+      "owners": {
+        "qwen": {
+          "container_id": "a45b129bddb077d336dad080ce04c3d91b543ecee69f83cc29d9c92e30e2070e",
+          "ownership_verified": true,
+          "stopped": true,
+          "transport_drained": true,
+          "bridge_closed": true
+        }
+      },
+      "no_operator_intervention": true,
+      "continuation_of": "08954305-be87-461d-8acb-5d85c4c806b4",
+      "error": {
+        "message": "Repair did not reduce failed cases without regressions; retain previous source",
+        "stage": "build_control_recovery"
+      },
+      "evidence_sha256": {
+        "terminal.json": "44be12990da7c85374b3775fb7703c01ce2f6515ecda8343c3ccc6b4cbc452d3",
+        "outcome.json": "20b4bde45d54338b172e1c94d767e0fed80a1cdbfc78708e0b48629ba5e71882"
+      }
+    },
+    "independent_candidate_review_delivery": "not_reached"
   }
 }

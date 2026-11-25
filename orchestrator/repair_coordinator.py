@@ -258,9 +258,15 @@ def prior_attempts(attempts,*,flow=None,suite=None):
     carried={r['patch_digest']:r['feedback'] for r in getattr(flow,'evidence',{}).get('carried_verification_rejections',[])} if flow is not None else {}
     for index,record in enumerate(recent):
         value={k:record[k] for k in ('patch_digest','base_suite_digest','disposition','progress','rejection','validation_phase') if k in record}
+        details=carried.get(record['patch_digest']) or record.get('validation_feedback')
+        if details and details.get('policy')=='reference-progress-rejection-v2':
+            value['post_patch_diagnostics']={
+                'proposed_suite_digest':details['proposed_suite_digest'],
+                'receipt_digest':details['after_receipt_digest'],'acceptance_credit':False,
+                'observations':excerpt(details['post_patch_failure_observations'],1200)}
         if index==len(recent)-1:
             value['patch_excerpt']=excerpt(record.get('edits',[]),2000)
-            details=record.get('validation_feedback') or carried.get(record['patch_digest'])
+            details=carried.get(record['patch_digest']) or record.get('validation_feedback')
             if details is None and flow is not None and suite is not None:
                 from .repair_diagnostics import replay
                 details=replay(flow,suite,record)
@@ -400,7 +406,7 @@ INSTRUCTION=(
     'contract. Do not skip tests, make operations optional, weaken assertions to vacuous checks, or tailor tests '
     'to private reference implementation details. Other source is read-only. The host checks affected source '
     'first, then reruns reference qualification. A patch is promoted only with fewer failed cases and no regressions. '
-    'Account for previous_attempts. A metadata rejection before composition does not prove executable failure; correct invalid metadata while preserving otherwise appropriate code. Never repeat edits rejected by composition or execution. No budgets, models or gates may change.')
+    'Review post_patch_diagnostics for every recent proposal, including changed diagnostics on the same failed test IDs. They describe rejected candidate source; compare them with the retained baseline before diagnosing another correction. Account for previous_attempts. A metadata rejection before composition does not prove executable failure; correct invalid metadata while preserving otherwise appropriate code. Never repeat edits rejected by composition or execution. No budgets, models or gates may change.')
 
 DIRECT_INSTRUCTION=INSTRUCTION.replace(
     'Group cases by actual root cause; for each cluster select its exact host-provided evidence_id values in evidence_refs and identify zero-based edit_indexes.',
