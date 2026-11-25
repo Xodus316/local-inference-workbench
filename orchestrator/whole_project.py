@@ -700,8 +700,11 @@ class WholeProjectBuildRun(ProjectBuildRun):
             retry_stage = stage.removesuffix('_consult') + '_retry_consult'
             self.stages.setdefault(stage,{})['decision_rejection'] = {
                 'reason':public_error(error), 'rejected_output_digest':digest(error.value), 'retry_stage':retry_stage}
+            from .agent_recovery import advice_retry_rejection
+            retry_feedback=advice_retry_rejection(model_type,error.value)
+            self.stages[stage]['decision_rejection']['feedback_projection']=retry_feedback
             retry_data = {**data, 'previous_decision_rejection':{
-                'failure':public_error(error), 'rejected_output':excerpt(error.value),
+                'failure':public_error(error), 'rejected_output':retry_feedback,
                 'instruction':'Correct only this advice under the same response schema. Supply requested_changes '
                     'for correct_stage_output and leave required_capability empty when no new capability is needed. '
                     'Respect every field length limit. No further retry is available.'}}

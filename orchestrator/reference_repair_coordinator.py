@@ -147,7 +147,11 @@ def repair(flow,suite,result):
                 raise ValueError('Affected checks show no progress; retain previous source')
             full=flow.control(candidate)
             after=reference_evidence(flow.bundle,candidate,full)
-            record.update(progress=progress(before,after),disposition='promoted',
+            try:improvement=progress(before,after)
+            except ValueError as error:
+                from .reference_repair_feedback import ReferencePatchError,feedback
+                raise ReferencePatchError(feedback(before,after,suite,candidate)) from error
+            record.update(progress=improvement,disposition='promoted',
                 candidate_suite_digest=digest(candidate.model_dump()),reference_receipt_digest=digest(full))
             # Reuse only this actual completed full-gate receipt at the next normal check_suite iteration.
             flow._coordinator_reference={'suite_digest':digest(candidate.model_dump()),'receipt':full,'stage':flow.stage}

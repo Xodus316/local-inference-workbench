@@ -1,6 +1,6 @@
 {
   "date": "2026-11-24",
-  "status": "implementation_and_checkpoint_control_passed_before_continuation",
+  "status": "continuation8_failed_audited_followup_uses_same_remaining_grant",
   "source_run_id": "33454b77-32bc-4ca5-9322-7d3781f180e5",
   "root_cause": "Partial local binding rename left a later branch using tok",
   "changes": [
@@ -58,10 +58,178 @@
     "optional_skips": 8
   },
   "continuation8": {
-    "status": "not_started",
-    "fresh_output_corrections": 4,
-    "inherited_spent_output_corrections": 4,
-    "cumulative_limit": 8,
-    "operator_intervention_allowed": false
+    "status": "failed",
+    "run_id": "ac66f41a-c76f-4400-86f2-f2706111cfa2",
+    "runtime_commit": "316896200a3d70b30d815c3e3e3c9978d9773efa",
+    "elapsed_seconds": 1159.81,
+    "no_operator_intervention": true,
+    "compile_and_smoke": "passed",
+    "independent_baseline": {
+      "tests": 58,
+      "passed": 41,
+      "failed": 17
+    },
+    "proposal": {
+      "edits": 5,
+      "files": 2,
+      "static_and_pinned_preflight": "passed",
+      "affected_probe": {
+        "tests": 17,
+        "failed": 12
+      },
+      "full_reference": {
+        "tests": 58,
+        "failed": 13
+      },
+      "resolved_original_cases": 5,
+      "new_failure_cases": [
+        "test_products.TestProducts.test_updated_at_refresh"
+      ],
+      "disposition": "rolled_back",
+      "acceptance_credit": false
+    },
+    "repair_retry_blocker": {
+      "advice_stage": "whole_recovery_13_consult",
+      "decision": "correct_stage_output",
+      "requested_changes_missing": true,
+      "format_retry_dispatched": false,
+      "reason": "Repeated raw oversized diagnosis plus full source exceeded approved context"
+    },
+    "spent_counters": {
+      "build_tests_defect": 3,
+      "build_tests_syntax": 1,
+      "coordinated_patch": 2,
+      "recovery_diagnosis": 14,
+      "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+      "recovery_issue_0f1041887d560791d192d03d28dd7729": 2,
+      "recovery_issue_230596d0b6c50f43858f22bb47322207": 2,
+      "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+      "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+      "recovery_issue_6fff79082c029dcdd19e00e7d4e60a87": 2,
+      "recovery_issue_9362cb69bf37ae1f0ec7dd4942e686a1": 1,
+      "recovery_issue_a92b5a06cda982c2d136d119ec2cfc8c": 1,
+      "recovery_issue_bf18f9133be7e4a9233ed2c2cb1d7f43": 1,
+      "recovery_issue_e688f5a01f31e3c5c09456bab8486765": 1,
+      "recovery_issue_e771905648dee2494393d57c1ea86e6b": 1,
+      "recovery_output_correction": 5,
+      "recovery_request": 37,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "new_grant_used": 1,
+    "new_grant_remaining": 3,
+    "cumulative_correction_limit": 8,
+    "no_extra_allowance": true,
+    "audit": {
+      "status": "failed",
+      "run_id": "ac66f41a-c76f-4400-86f2-f2706111cfa2",
+      "elapsed_seconds": 1159.81,
+      "frozen_files_verified": 3250,
+      "checkpoints": [
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_1_2",
+          "content_sha256": "71a601e9ac7ec6f67ce7c7bfe144c1232b9f85f8db441150787da9d0d2adfd66"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_compile_checkpoint_2_1",
+          "content_sha256": "d013a2902376db558a39055401e135b9be696bf6fd9f9aef22d49eaa093a21da"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_0",
+          "content_sha256": "d8c1fbd2e16f5dc68645ec893a8bd5adf5142d6c9cd16b791c251cd195f0f52b"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_0",
+          "content_sha256": "f62a7b90e288d7b34455bfd7c7ea1c65ae64e1bf9f12e8cc9526077a1d717102"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_self_verify_3",
+          "content_sha256": "03df6a44aa1d260015410cd4cfba02b98935c8336c1ec5b9b779c3c3cf087e2c"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_1",
+          "content_sha256": "86c8db34c0bd86f354bb8f7f2735290884485fa4e835758f95c5894ee227e2c6"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_1",
+          "content_sha256": "2f44c0546e3e8acc17390747b4d301a55ed4319a4ef21f66ea29d5a0f5a7dbf0"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_12_consult",
+          "content_sha256": "7e8b30eca5423d1700ee70e31e8f3864f74b4e86a0f00ec259a26e5fab964d9e"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_12_output",
+          "content_sha256": "405b55f4beb8958fe4139e999e3dc8fe7a70393fe65af9a6ad42c08671b25185"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_test_preflight_2",
+          "content_sha256": "2c5edf2b7155a828427579538f41b5afac230f7f1b3d5ff13fe07cc61d10d839"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "whole_coordinated_2_targeted",
+          "content_sha256": "860506fccfa60f0aee0123a02e136cd0043a70c3b76b148affe7ac3796d01392"
+        },
+        {
+          "kind": "sandbox",
+          "stage": "build_control_2",
+          "content_sha256": "a3a12012bcccbbc6c940e1177a1476045cb548403ccc6d5d0c0d1f92a9a898bb"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_13_consult",
+          "content_sha256": "01858d4ce877e680e1184629a3e398f576c24e12c81da91aad6a95f692e0b646"
+        },
+        {
+          "kind": "native",
+          "stage": "whole_recovery_14_consult",
+          "content_sha256": "f1f1b7f13ec382c7b58b3a6c2ab8c7c1aa6979167bb479f4b608a0cce955cdc3"
+        },
+        {
+          "kind": "graph",
+          "stage": "code_build",
+          "content_sha256": "de8c0868bfe46fd55d25d2f900218a817a746833bed25c68e80cd8b95df8a038"
+        }
+      ],
+      "native": {
+        "qwen": {
+          "completed": 4,
+          "compactions": 0,
+          "other_outcomes": []
+        }
+      },
+      "owners": {
+        "qwen": {
+          "container_id": "01d3aee281b3bf816284ad41f16c0dbfa816f8682a7dee003deb386e049ab040",
+          "ownership_verified": true,
+          "stopped": true,
+          "transport_drained": true,
+          "bridge_closed": true
+        }
+      },
+      "no_operator_intervention": true,
+      "continuation_of": "33454b77-32bc-4ca5-9322-7d3781f180e5",
+      "error": {
+        "message": "Repair did not reduce failed cases without regressions; retain previous source",
+        "stage": "build_control_recovery"
+      },
+      "evidence_sha256": {
+        "terminal.json": "3b73d220cce65c50c16307ad9e3683fd40a9bf38bba327fd3b1469638677c2ef",
+        "outcome.json": "90688a31482ece14c0e3dcfabda01d4f55a876b50b47b287d8dcbb5d2e92c97f"
+      }
+    },
+    "owned_backend_closed": true
   }
 }

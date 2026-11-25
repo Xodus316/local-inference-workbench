@@ -207,15 +207,20 @@ def root_hints(items):
 
 def prior_attempts(attempts,*,flow=None,suite=None):
     from .agent_recovery import excerpt
-    result=[]
-    for record in attempts[-4:]:
+    result=[];recent=attempts[-4:]
+    carried={r['patch_digest']:r['feedback'] for r in getattr(flow,'evidence',{}).get('carried_verification_rejections',[])} if flow is not None else {}
+    for index,record in enumerate(recent):
         value={k:record[k] for k in ('patch_digest','base_suite_digest','disposition','progress','rejection') if k in record}
-        value['patch_excerpt']=excerpt(record.get('edits',[]),2500)
-        details=record.get('validation_feedback')
-        if details is None and flow is not None and suite is not None:
-            from .repair_diagnostics import replay
-            details=replay(flow,suite,record)
-        if details is not None:value['composed_patch_rejection']=deepcopy(details)
+        if index==len(recent)-1:
+            value['patch_excerpt']=excerpt(record.get('edits',[]),2000)
+            details=record.get('validation_feedback') or carried.get(record['patch_digest'])
+            if details is None and flow is not None and suite is not None:
+                from .repair_diagnostics import replay
+                details=replay(flow,suite,record)
+            if details is not None:value['composed_patch_rejection']=deepcopy(details)
+        else:
+            value['executable_edits_host_retained']=True
+            if 'rejection' in value:value['rejection']=value['rejection'][:500]
         result.append(value)
     return result
 

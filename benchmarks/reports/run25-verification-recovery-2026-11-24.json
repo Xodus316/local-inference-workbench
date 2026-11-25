@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-24",
+  "status": "followup_implementation_cpu_controls_passed_before_continuation9",
+  "source_run_id": "ac66f41a-c76f-4400-86f2-f2706111cfa2",
+  "changes": [
+    "Complete source-bound before/after reference regressions retained and supplied to repair agent",
+    "Bounded advice-format feedback retains raw response digest without repeating oversized narrative",
+    "Latest rejection context and patch excerpt supplied once; older attempts retain hashes and brief outcomes",
+    "Consultation identity follows executable proposal and verified evidence revisions; descriptive summary cannot evade guard",
+    "Checkpoint continuation carries remaining approved budget without refund, new grant or higher ceiling",
+    "Resume selects preflight/reference receipts matching retained accepted source rather than latest rejected candidate"
+  ],
+  "saved_case_control": {
+    "status": "passed",
+    "source_run_id": "ac66f41a-c76f-4400-86f2-f2706111cfa2",
+    "policy": "settled-carried-reference-continuation-v7",
+    "baseline_reference_stage": "build_control_1",
+    "baseline_preflight_stage": "build_test_preflight_1",
+    "rejected_candidate_reference_stage": "build_control_2",
+    "new_failure_cases": [
+      "test_products.TestProducts.test_updated_at_refresh"
+    ],
+    "resolved_cases": [
+      "test_config.TestConfig.test_api_prefix",
+      "test_resources.TestResources.test_crud_affiliates",
+      "test_resources.TestResources.test_crud_categories",
+      "test_resources.TestResources.test_crud_products",
+      "test_resources.TestResources.test_tracked_crud"
+    ],
+    "full_reference_tests": 58,
+    "new_failure_observations_complete": true,
+    "spent_output_corrections": 5,
+    "carried_remaining_output_corrections": 3,
+    "cumulative_limit": 8,
+    "additional_allowance_granted": 0,
+    "source_counters_and_history_preserved": true,
+    "prompt_tokens": {
+      "consult": 29178,
+      "actual_advice_format_retry": 29953,
+      "producer": 28484,
+      "correction": 29374
+    },
+    "completion_reserve": 65536,
+    "framing_reserve": 2048,
+    "maximum_reserved": 97537,
+    "approved_context": 98304,
+    "frozen_files_verified": 3250,
+    "actual_model_inference": false,
+    "gpu_used": false,
+    "application_or_test_edits_applied": false,
+    "acceptance_credit": false
+  },
+  "validation": {
+    "core_tests": 668,
+    "native_adapter_tests": 38,
+    "native_adapter_passed": 38,
+    "core_passed": 660,
+    "optional_skips": 8
+  },
+  "continuation9": {
+    "status": "not_started",
+    "spent_output_corrections": 5,
+    "remaining_output_corrections": 3,
+    "cumulative_limit": 8,
+    "new_grant": 0
+  }
+}

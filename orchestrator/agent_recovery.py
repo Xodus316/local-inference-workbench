@@ -57,6 +57,17 @@ def excerpt(value, limit=12000):
             'json_excerpt':material[:limit].decode('utf8','ignore')}
 
 
+def advice_retry_rejection(model_type,raw):
+    """Keep the settled raw digest; the single format retry needs bounded advice, not repeated prose."""
+    from .repair_coordinator import project_narrative
+    projected=project_narrative(raw,{'diagnosis':1600,'required_capability':600})
+    try:projected=model_type.model_validate(projected).model_dump()
+    except ValueError:pass
+    value=excerpt(projected,2400)
+    return {**value,'digest':digest(raw),'projected_digest':digest(projected),
+        'policy':'bounded-non-executable-advice-feedback-v1','raw_response_host_retained':True}
+
+
 def barrier(flow, message):
     """Do not start another inference while physical execution is unresolved."""
     if any(word in message.lower() for word in ('native_completion_unknown', 'completion is unknown',
@@ -74,7 +85,13 @@ def consult(recovery, stage, error, context=None):
     flow = recovery.flow
     message = public_error(error) if isinstance(error, Exception) else str(error)
     message = message[:1600]
-    key = digest({'stage':stage, 'error':message})
+    identity={'stage':stage,'error':message}
+    if context is not None and context['data'].get('repair_policy')=='grouped-anchored-recovery-v2':
+        identity['repair_revision']={'base_suite_digest':context['data'].get('base_suite_digest'),
+            'failure_evidence_digest':digest(context['data'].get('failures',[])),
+            'prior_rejections_digest':digest(context['data'].get('previous_attempts',[])),
+            'executable_proposal_digest':digest(context.get('value',{}).get('edits',[]))}
+    key = digest(identity)
     memo = getattr(recovery, '_consultations', {})
     if key in memo:
         return memo[key]
@@ -123,7 +140,8 @@ def consult(recovery, stage, error, context=None):
         from .worker_progress import OpenCodeProgressError
         if isinstance(error,OpenCodeProgressError):data['worker_progress']=dict(error.proof)
         from .repair_diagnostics import PatchValidationError
-        if isinstance(error,PatchValidationError):data['composed_patch_rejection']=deepcopy(error.feedback)
+        from .reference_repair_feedback import ReferencePatchError
+        if isinstance(error,(PatchValidationError,ReferencePatchError)):data['composed_patch_rejection']=deepcopy(error.feedback)
         from .build_coverage import TestSyntaxError
         if isinstance(error,TestSyntaxError):data['parser_diagnostics']=deepcopy(error.diagnostics)
         if getattr(error,'not_dispatched',False) is True:
@@ -137,6 +155,7 @@ def consult(recovery, stage, error, context=None):
                 'failure_observations':excerpt(context['data'].get('failures',[]),24000),
                 'scope':context['data'].get('scope',[]),
                 'root_cause_hints':excerpt(context['data'].get('root_cause_hints',[]),6000),
+                'previous_attempts':deepcopy(context['data'].get('previous_attempts',[])),
                 'base_suite_digest':context['data'].get('base_suite_digest'),
                 'verification_rule':'Promote only a strictly smaller failed-case set with no regressions; all original gates remain required.'}
             base=context['data'].get('base_suite')
@@ -160,7 +179,7 @@ def consult(recovery, stage, error, context=None):
                 contract_inputs={**context['data'],'base_suite':{'digest':digest(base),
                     'complete_source_location':'coordinated_repair.editable_source and read_only_support_source',
                     'metadata_location':'coordinated_repair.immutable_suite_metadata'}}
-                for key,location in [('failures','failure_observations'),('root_cause_hints','root_cause_hints')]:
+                for key,location in [('failures','failure_observations'),('root_cause_hints','root_cause_hints'),('previous_attempts','previous_attempts')]:
                     if key in contract_inputs:
                         contract_inputs[key]={'digest':digest(context['data'][key]),'location':'coordinated_repair.'+location}
                 if 'read_only_application_inventory' in contract_inputs:
@@ -206,7 +225,8 @@ def consult(recovery, stage, error, context=None):
             data, role=role, tool_policy=INLINE_RECOVERY_POLICY,validator=checked_advice)
         advice = checked_advice(raw)
         request = recovery.request(stage, role, advice.action,
-            evidence={'error':message, 'advice':advice.model_dump()},
+            evidence={'error':message, 'advice':advice.model_dump(),
+                **({'repair_revision':identity['repair_revision']} if 'repair_revision' in identity else {})},
             status='authorized' if advice.action in capabilities else 'blocked', reason=advice.diagnosis)
         if request is None:raise ValueError('Recovery request journal is exhausted')
         proof = {'index':index, 'request_id':request['id'], 'advice':advice.model_dump()}
@@ -238,6 +258,10 @@ def validate_output(recovery, value, validator, context):
                 from .build_workflow import public_error
                 pending.update(status='output_correction_rejected', rejection=public_error(error), acceptance_credit=False)
             if context is None or context['value_digest'] != digest(value):raise
+            if context['data'].get('repair_policy')=='grouped-anchored-recovery-v2' and isinstance(context['data'].get('base_suite'),dict):
+                from .repair_coordinator import prior_attempts
+                suite=flow.suite_type.model_validate(context['data']['base_suite'])
+                context['data']['previous_attempts']=prior_attempts(flow.evidence.get('coordinated_repairs',[]),flow=flow,suite=suite)
             proof = consult(recovery, context['stage'], error, context)
             if proof is None or proof['advice']['action'] != 'correct_stage_output':raise
             if (proof['request_id'] in attempted or flow.counters['recovery_output_correction']
