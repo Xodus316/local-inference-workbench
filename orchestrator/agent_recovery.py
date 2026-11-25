@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import traceback
 
-from pydantic import Field
+from pydantic import Field,create_model,model_validator
 from typing import Literal
 
 from .schemas import Record
@@ -28,6 +28,25 @@ class RecoveryAdvice(Record):
     action: Literal['correct_stage_output', 'request_capability', 'stop']
     requested_changes: list[str] = Field(default_factory=list, max_length=8)
     required_capability: str = Field(default='', max_length=600)
+
+
+class EvidenceRecoveryAdvice(Record):
+    diagnosis: str = Field(min_length=1,max_length=1600)
+    evidence_ref: str = Field(min_length=1,max_length=64)
+    action: Literal['correct_stage_output','request_capability','stop']
+    requested_changes: list[str] = Field(default_factory=list,max_length=8)
+    required_capability: str = Field(default='',max_length=600)
+
+    @model_validator(mode='before')
+    @classmethod
+    def narrative(cls,value):
+        from .repair_coordinator import project_narrative
+        return project_narrative(value,{'diagnosis':1600,'required_capability':600})
+
+
+def advice_type(evidence_ref):
+    return create_model('BoundRecoveryAdvice',__base__=EvidenceRecoveryAdvice,
+        evidence_ref=(Literal[evidence_ref],...))
 
 
 def excerpt(value, limit=12000):
@@ -109,7 +128,7 @@ def consult(recovery, stage, error, context=None):
                 'recovery_scope':'Produce the original schema-bound output through the approved recovery capability; no model, budget or gate changes.'}
     if context is not None:
         contract_inputs=context['data']
-        if context['data'].get('repair_policy')=='grouped-anchored-recovery-v1':
+        if context['data'].get('repair_policy') in {'grouped-anchored-recovery-v1','grouped-anchored-recovery-v2'}:
             data['coordinated_repair']={
                 'input_kind':'host_anchored_patch_request; no initial model patch is claimed',
                 'failure_observations':excerpt(context['data'].get('failures',[]),24000),
@@ -154,11 +173,15 @@ def consult(recovery, stage, error, context=None):
                         'correction_scope':'Correct the rejected generated output under this original contract. '
                             'A validator rejection does not authorize changing retained inputs, coverage mappings '
                             'or other immutable artifacts. The same validator must accept the correction.'})
+    referenced = context is not None and context['data'].get('repair_policy')=='grouped-anchored-recovery-v2'
+    evidence_ref='F'+digest(message)[:12]
+    model_type=advice_type(evidence_ref) if referenced else RecoveryAdvice
+    if referenced:data['failure_evidence_id']=evidence_ref
     saved_stage = flow.stage
     recovery._consulting = True
     def checked_advice(raw):
-        advice=RecoveryAdvice.model_validate(raw)
-        if advice.evidence_quote not in message:
+        advice=model_type.model_validate(raw)
+        if not referenced and advice.evidence_quote not in message:
             raise ValueError('Recovery agent did not quote the retained failure')
         if advice.action=='correct_stage_output':
             if not capabilities:raise ValueError('Recovery agent requested an unavailable output correction')
@@ -168,9 +191,11 @@ def consult(recovery, stage, error, context=None):
             raise ValueError('Recovery agent did not describe the missing capability')
         return advice
     try:
-        raw, consultation_stage, _ = flow._repair_decision(f'whole_recovery_{index}_consult', RecoveryAdvice,
-            'The orchestrator has no successful handler for this failure. Diagnose the retained evidence '
-            'and choose a next action. Quote the failure exactly. Use correct_stage_output only when it '
+        raw, consultation_stage, _ = flow._repair_decision(f'whole_recovery_{index}_consult', model_type,
+            'The orchestrator has no successful handler for this failure. Diagnose the retained evidence '+
+            ('and choose a next action. Select the exact failure_evidence_id in evidence_ref. ' if referenced else
+             'and choose a next action. Quote the failure exactly. ')+
+            'Use correct_stage_output only when it '
             'is an available host capability; specify minimal corrections preserving all immutable contracts. '
             'Otherwise request the missing capability with actionable requirements, or stop if the approved '
             'budget cannot permit recovery. Excerpts explicitly marked incomplete are not complete source. '

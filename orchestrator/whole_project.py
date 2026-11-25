@@ -1038,7 +1038,13 @@ class WholeProjectBuildRun(ProjectBuildRun):
             raise ValueError("OpenCode did not return a structured result")
         if agent_recovery:
             try:
-                model_type.model_validate(value)
+                parsed=model_type.model_validate(value).model_dump()
+                from .repair_coordinator import EvidencePatch,metadata_projection
+                if issubclass(model_type,EvidencePatch):
+                    self.stages[stage]['metadata_projection']=metadata_projection(value,parsed)
+                elif getattr(model_type,'__name__','')=='BoundRecoveryAdvice' and value!=parsed:
+                    self.stages[stage]['metadata_projection']={'raw_digest':digest(value),'normalized_digest':digest(parsed),
+                        'policy':'non-executable-advice-narrative-projection-v1'}
             except ValidationError as error:
                 raise AgentOutputValidationError(value,error) from error
             return value

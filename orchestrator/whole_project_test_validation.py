@@ -33,7 +33,7 @@ def compose(flow, suite, diagnostics, raw):
 
 
 def rewrite(flow, suite, diagnostics, reason):
-    from .repair_coordinator import INSTRUCTION,compose_tests,observations,root_hints,test_scope,prior_attempts
+    from .repair_coordinator import INSTRUCTION,compose_tests,observations,root_hints,test_scope,prior_attempts,patch_type,metadata_projection
     items=observations(diagnostics,suite);scope=test_scope(suite,items)
     data={'base_suite':suite.model_dump(),'base_suite_digest':digest(suite.model_dump()),
         'scope':scope,'failures':items,'root_cause_hints':root_hints(items),
@@ -51,6 +51,7 @@ def rewrite(flow, suite, diagnostics, reason):
         index=flow.counters['coordinated_patch'];saved=flow.stage
         record={'patch_digest':digest(raw['edits']),'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),
             'base_suite_digest':digest(suite.model_dump()),'disposition':'rolled_back'}
+        record['metadata_projection']=metadata_projection(raw,patch_type(items).model_validate(raw).model_dump())
         flow.evidence.setdefault('coordinated_repairs',[]).append(record)
         try:
             revised=compose_tests(flow,suite,items,scope,raw)

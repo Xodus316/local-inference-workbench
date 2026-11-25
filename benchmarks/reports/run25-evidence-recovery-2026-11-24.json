@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-24",
+  "source_run_id": "dc399293-f3bf-4a6e-bf25-2a6dbc7016b4",
+  "status": "implementation_validated_continuation_not_started",
+  "root_causes": [
+    "Narrative summary limit rejected a complete proposal before semantic source validation",
+    "Legacy copied evidence quote expanded beyond the literal supplied diagnostic",
+    "No approved route existed to evaluate the completed paid-for proposal after all shared corrections were spent"
+  ],
+  "changes": [
+    "Bound host evidence IDs for coordinated patches and consultations",
+    "Audited deterministic normalization of explicitly non-executable narrative only",
+    "Checkpoint-bound evaluation of completed proposal without model redispatch or counter refund",
+    "Immutable coverage metadata projection with verified checkpoint replay"
+  ],
+  "validation": {
+    "core_tests": 658,
+    "native_adapter_tests": 38,
+    "native_adapter_passed": 38,
+    "core_passed": 650,
+    "optional_skips": 8
+  },
+  "saved_proposal_control": {
+    "source_run_id": "dc399293-f3bf-4a6e-bf25-2a6dbc7016b4",
+    "policy": "settled-proposal-validation-continuation-v5",
+    "migration": {
+      "policy": "legacy-case-selections-to-host-evidence-v1",
+      "raw_digest": "ee7bb1d9615efc10e73bc0372ae200234a16559636ad58115d0b4a3a6407b9fc",
+      "normalized_digest": "ebb9d99651306bebadef007c97aa1ecfb8f9b2e4c954f0f55b93f1a8110203f1",
+      "executable_edits_digest": "2e8c7ee86ef974575e7ed64d71d4a8fff11ae42ccd140a1e99e8593efda247e1",
+      "evidence_catalog_digest": "85ebae4648ed3552c1136b5dbbe823479e26dc6c15724f675887355aece76e8d",
+      "legacy_quotes_advisory": [
+        {
+          "cluster": 0,
+          "quote_digest": "6ec6e19a5e7e38b813aaa03596e1cf013e3dd4e99a7990ba748cc7d30e015341",
+          "literal_quote_matched": true
+        },
+        {
+          "cluster": 1,
+          "quote_digest": "d754ed34c5791de8b1c8ff2d41f09f6a69e4f813d7579f220872723c3dc22bd1",
+          "literal_quote_matched": true
+        },
+        {
+          "cluster": 2,
+          "quote_digest": "00e39524e51591099c562268edacefd00ada57e52a39056db4e3c518eed6f8bb",
+          "literal_quote_matched": true
+        },
+        {
+          "cluster": 3,
+          "quote_digest": "fc4f339a5ef5454b747ecbd380e71f2130bdc97a49e981f671e44755227d3427",
+          "literal_quote_matched": false
+        },
+        {
+          "cluster": 4,
+          "quote_digest": "061b39e1731d207f38181f6bd0bc49d21d0dce2348bd3a9849f0300021a09935",
+          "literal_quote_matched": true
+        }
+      ],
+      "summary_characters_before": 1235,
+      "summary_characters_after": 1200
+    },
+    "edits": 19,
+    "shared_corrections_spent": 4,
+    "counters_preserved": true,
+    "model_redispatched": false,
+    "gpu_used": false,
+    "acceptance_credit": false,
+    "composition_passed": false,
+    "rejection": "Anchored repair has static defects: [{'path': 'tests/test_config.py', 'line': 40, 'names': ['test_api_prefix'], 'code': 'undefined_name', 'message': \"test_api_prefix reads undefined name 'tok'; the test raises NameError for every implementation\"}]",
+    "producer_admission": {
+      "prompt_tokens": 27194,
+      "framing_reserve": 2048,
+      "completion_reserve": 65536,
+      "total_reserved": 94778,
+      "approved_context": 98304
+    },
+    "frozen_files_verified": 2880
+  },
+  "continuation7": {
+    "status": "not_started",
+    "operator_intervention": false,
+    "model_repair_budget_increased": false
+  }
+}

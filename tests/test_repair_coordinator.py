@@ -43,10 +43,12 @@ def fixture():
     flow.runtime=SimpleNamespace(store=store,_guard=Mock());flow.recovery=StageRecovery(flow)
     def generate(stage,role,model_type,instruction,data,visible,**kw):
         if stage.endswith('_consult'):
-            return {'diagnosis':'Two failed tests use the same helper','evidence_quote':data['failure'],
+            return {'diagnosis':'Two failed tests use the same helper',
+                **({'evidence_ref':data['failure_evidence_id']} if 'failure_evidence_id' in data else {'evidence_quote':data['failure']}),
                 'action':'correct_stage_output' if data['available_capabilities'] else 'stop',
                 'requested_changes':['Correct the shared helper'] if data['available_capabilities'] else []}
-        return proposal(data['failures'])
+        from orchestrator.repair_coordinator import migrate_legacy_proposal
+        return migrate_legacy_proposal(proposal(data['failures']),data['failures'])[0]
     flow._generate=Mock(side_effect=generate)
     return flow,suite
 

@@ -11,7 +11,7 @@ from .build_coverage import python_test_names
 from .build_discovery import CASE_LINE
 from .build_workflow import validate_baseline
 from .project_build import execution_settled,matching_image_checks,sandbox_stage_results
-from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts
+from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts,patch_type,metadata_projection
 from .store import digest
 
 
@@ -110,9 +110,13 @@ def targeted(flow,suite,cases,index):
 def repair(flow,suite,result):
     before=reference_evidence(flow.bundle,suite,result)
     if not before['failed']:raise ValueError('Reference repair requires observed failures')
-    items=before['failures'];scope=test_scope(suite,items)
+    retained=getattr(flow,'_pending_repair',None)
+    items=retained['evidence'] if retained is not None else before['failures']
+    scope=retained['scope'] if retained is not None else test_scope(suite,items)
     attempts=flow.evidence.setdefault('coordinated_repairs',[])
     original=digest(suite.model_dump())
+    if retained is not None and retained['base_suite_digest']!=original:
+        raise ValueError('Retained repair proposal no longer matches the current test source')
     instruction=INSTRUCTION+' This is pre-freeze independent test qualification against the trusted reference. '+flow.frontend_dom_test_brief
     data={'base_suite':suite.model_dump(),'base_suite_digest':original,'scope':scope,'failures':items,
         'root_cause_hints':root_hints(items),'read_only_application_inventory':list(suite.implementation_files),
@@ -127,6 +131,9 @@ def repair(flow,suite,result):
             raise ValueError('This patch already failed against the same source; consult with new evidence')
         record={'patch_digest':patch_digest,'proposal_digest':digest(raw),'edits':deepcopy(raw['edits']),
             'base_suite_digest':original,'disposition':'rolled_back'}
+        parsed=patch_type(items).model_validate(raw).model_dump()
+        record['metadata_projection']=metadata_projection(raw,parsed)
+        if retained is not None:record['retained_model_stage']=retained['source_stage'];record['migration']=retained['migration']
         if flow.counters['coordinated_patch']>=6:raise ValueError('Coordinated patch validation budget exhausted')
         flow.counters['coordinated_patch']+=1
         flow.evidence['budget_counters']=dict(flow.counters)
@@ -134,7 +141,8 @@ def repair(flow,suite,result):
         try:
             candidate=compose_tests(flow,suite,items,scope,raw)
             flow.compile_test_suite(candidate)
-            affected,_=targeted(flow,candidate,before['failed'],index)
+            affected_cases=sorted(set(before['failed'])|{x['case'] for x in items})
+            affected,_=targeted(flow,candidate,affected_cases,index)
             if not set(affected['failed'])<set(before['failed']):
                 raise ValueError('Affected checks show no progress; retain previous source')
             full=flow.control(candidate)
@@ -153,7 +161,8 @@ def repair(flow,suite,result):
             flow.stage=saved
             flow.runtime.store.save_artifact(flow.state['run_id'],f'whole_coordinated_{index}_evaluation','raw',deepcopy(record))
     ordinary=None
-    if flow.counters['build_tests_defect']<flow.limits['max_test_defect_repairs']:
+    if retained is None and flow.counters['build_tests_defect']<flow.limits['max_test_defect_repairs']:
         ordinary=flow.bounded('build_tests_defect','max_test_defect_repairs')
+    if retained is not None:flow._pending_repair=None
     return flow.recovery.repair_patch(stage='build_control_recovery',role='test_author',instruction=instruction,
-        data=data,validator=checked,ordinary=ordinary)
+        data=data,validator=checked,ordinary=ordinary,retained=retained)

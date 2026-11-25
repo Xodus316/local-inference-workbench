@@ -27,11 +27,12 @@ def fixture(*,ordinary=3,shared=1):
     original=ProjectTestSuite.model_validate(bad)
     def generate(stage,role,model_type,instruction,data,visible,**kw):
         if stage.endswith('_consult'):
-            return {'diagnosis':'Correct the static defect in retained model-authored tests','evidence_quote':data['failure'][:1000],
+            return {'diagnosis':'Correct the static defect in retained model-authored tests',
+                **({'evidence_ref':data['failure_evidence_id']} if 'failure_evidence_id' in data else {'evidence_quote':data['failure'][:1000]}),
                 'action':'correct_stage_output' if data['available_capabilities'] else 'stop',
                 'requested_changes':['Bind the helper used by the preserved assertion']}
         value={'summary':'Bind the missing name','clusters':[{'cause':'Unbound helper',
-            'failure_ids':[data['failures'][0]['id']],'evidence_quote':data['failures'][0]['diagnostic'],'edit_indexes':[0]}],
+            'evidence_refs':[data['failures'][0]['evidence_id']],'edit_indexes':[0]}],
             'edits':[{'path':bad['files'][0]['path'],'before':'missing()','after':'1 + 1'}]}
         if not stage.endswith('_output'):
             value['edits'][0]['after']='another_missing()'
