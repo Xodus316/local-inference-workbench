@@ -144,5 +144,71 @@
       "predispatch-cli-control-summary.json": "59b9927dbad4793f3312480920bc71eb18b6a8d1b055277dca9c480800d125da"
     }
   },
-  "continuation2_status_at_publication": "prepared_scaffold_not_started"
+  "continuation2": {
+    "status": "failed",
+    "workflow_id": "c22e4eea-59b9-46be-9d28-be8f6a4e8f89",
+    "source_runtime_commit": "4afd1a44d3d1e4060857f5e082fedd355c2f1311",
+    "approval_digest": "bb9340f9870d582075312b8f166f13c39d040081a2e312ee0c24e21205a352b5",
+    "manifest_sha256": "e54325ea172326b3a87a34f6ee9915d70514a16eb35d6590a9830a2982ac684b",
+    "elapsed_seconds": 584.157,
+    "frozen_files_verified": 2165,
+    "checkpoints": 10,
+    "native": {
+      "qwen": {
+        "completed": 2,
+        "compactions": 0,
+        "other_outcomes": []
+      }
+    },
+    "owners": {
+      "qwen": {
+        "container_id": "f361d84c972014dd0b589317eb18acb803a18b323db8def2663b603be7c2f0be",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "no_operator_intervention": true,
+    "backend_frontend_compile": "passed_without_new_repairs",
+    "reference_and_candidate_smoke": "passed",
+    "ordinary_defect_stage": "build_tests_defect_2",
+    "ordinary_defect_repair_completed": true,
+    "remaining_static_defects": {
+      "path": "tests/test_ui_auth.py",
+      "code": "undefined_name",
+      "name": "register",
+      "test_methods": [
+        "test_shell",
+        "test_logout",
+        "test_wrong_password",
+        "test_login_flow"
+      ]
+    },
+    "terminal_error": {
+      "message": "build_tests_defect repair budget exhausted",
+      "stage": "build_test_preflight_2"
+    },
+    "terminal_agent_consultation": "completed; chose stop because the approved ordinary defect budget was exhausted",
+    "spent_counters": {
+      "build_tests_defect": 3,
+      "build_tests_syntax": 1,
+      "recovery_diagnosis": 3,
+      "recovery_issue_0ead25db6507934c72b3b31f983246b9": 1,
+      "recovery_issue_2c76b3cc87ca5a80f6a1040903db38ab": 1,
+      "recovery_issue_624b37d72f1560f5b5d537a8349c0e0d": 1,
+      "recovery_output_correction": 1,
+      "recovery_request": 20,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "independent_reference_qualification_review_delivery": "not_reached",
+    "operator_application_or_test_edits": false,
+    "evidence_sha256": {
+      "terminal.json": "7ba4d8d646d45671956a73712a164716a2d614b3451c08af1314bf6b1a049af5",
+      "outcome.json": "d95c006b627b0fc1174d91f787923380197bd02c2e408b9ccd36f5cc3c50eaff",
+      "operator-verification.json": "b37ae35410d63d526acd5decb5fe9c8b4e715f0f593ad8252a9da4044f5bb309"
+    }
+  }
 }
