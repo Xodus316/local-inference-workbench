@@ -291,6 +291,8 @@ def _suite_feedback(value, error, *, byte_limit, file_limit):
 class WholeProjectBuildRun(ProjectBuildRun):
     def __init__(self, runtime, state):
         super().__init__(runtime, state)
+        from .recovery_limits import approved
+        if explicit:=approved(self.bundle):self.limits['max_test_defect_repairs']=explicit['test_defect_repairs']
         if (self.bundle["whole_project_workflow"] != POLICY
                 or self.bundle["request"]["build_profile"] != REVIEWED_POLICY
                 or "project_reuse" in self.bundle or self.opencode_worker is not None):

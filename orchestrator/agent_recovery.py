@@ -166,6 +166,8 @@ def consult(recovery, stage, error, context=None):
         'completed_stage_names':list(flow.stages)[-64:],
         'artifact_digest':digest(flow.output['artifact']) if flow.output.get('artifact') is not None else None,
         'suite_digest':flow.output.get('suite_digest')}
+    from .recovery_limits import approved
+    if explicit:=approved(flow.bundle):data['effective_repair_capacity']=explicit
     if isinstance(error,Exception):
         data['runtime_frames'] = [{'module':Path(frame.filename).name,'function':frame.name,'line':frame.lineno}
             for frame in traceback.extract_tb(error.__traceback__)[-8:]

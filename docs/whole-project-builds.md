@@ -27,6 +27,8 @@ The optional dependency catalog must bind the verifier image. The optional suppl
 
 The fresh entry point rejects application seeds, imported plans/checkpoints, reuse records, previous diagnoses and external findings. It records zero initial repair costs and binds the public engine's source files. Engine drift is rejected before execution. Same-weight roles require an explicit model-manifest and fresh-session identity binding; they are not described as independent model families. Default configurations still require a separate test-author model.
 
+An explicit `recovery_limits` argument can select `orchestrator.recovery_limits.EXPANDED` during preparation: 16 shared output corrections, 16 total ordinary test-defect repairs and 16 coordinated validations. The complete grant is frozen in approval and checkpoint bindings; both repair paths consume the same validation pool. Omitting it preserves the legacy limits. Resuming cannot silently replace an older continuation allowance or refund spent costs. General application, compiler and other repair bounds remain separate.
+
 The `reference_project` build setting points to verifier-only source. It is packed into the private local approval record and excluded from model prompts and worker worktrees. Do not publish raw approval records or run journals as benchmark reports.
 
 ## What the runtime does

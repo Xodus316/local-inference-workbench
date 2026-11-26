@@ -43,6 +43,8 @@ def validate_costs(bundle, counters):
         limits['recovery_output_correction'] = output_limit(bundle)
         validate_floors(bundle,counters)
         limits['coordinated_patch'] = coordinated_limit(bundle)
+        from .recovery_limits import approved
+        if explicit:=approved(bundle):limits['build_tests_defect']=explicit['test_defect_repairs']
         from .reference_context import observation_limit
         limits['recovery_context_observation'] = observation_limit(bundle)
         from .checkpoint_repair_continuation import POLICY as EPOCH,KEY as CONTINUATION,approved_budgets

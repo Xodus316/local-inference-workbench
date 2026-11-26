@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-25",
+  "status": "controls_passed_before_fresh_snake_run",
+  "changes": [
+    "Add explicit 16/16/16 recovery_limits to fresh whole-project approvals",
+    "Bind limits into approval and checkpoint identities while preserving historical absent-key bindings",
+    "Apply the effective limits to execution, cost validation, and recovery-agent input",
+    "Reject malformed grants and conflicts with older checkpoint allowances"
+  ],
+  "validation": {
+    "core_tests": 697,
+    "core_passed": 689,
+    "optional_skips": 8,
+    "native_adapter_tests": 38,
+    "native_adapter_passed": 38,
+    "historical_checkpoint_fixture_digest": "c4df6d31c9cad01ceac22955965c89d2dfdb67f8e7e8b6ebe9b43149c9f22b9c"
+  },
+  "browser_verifier_control": {
+    "status": "passed",
+    "image_id": "sha256:54bf5f7294d583e435d3e4b00816193a05d2c2f850e3e79bd8fb3cd3ab7b8fb5",
+    "real_chromium": true,
+    "trusted_browser_cases": 15,
+    "correct_fixture_passed": true,
+    "broken_score_mutant_rejected": true,
+    "test_failure_inventory_source_bound": true,
+    "gpu_used": false,
+    "model_inference": false,
+    "acceptance_credit": false
+  },
+  "fresh_snake_run": {
+    "status": "not_started",
+    "application_seed": null,
+    "plan_seed": null,
+    "independent_test_seed": null,
+    "models": "Pinned Qwen3.8-27B, every role through OpenCode with auto compaction",
+    "real_browser": "Chromium via pinned Playwright 1.64.1",
+    "reference_visibility": "harness only",
+    "operator_intervention_after_launch": false
+  },
+  "evidence_sha256": {
+    "core-tests-final.log": "4c8ce4e44ff0f841b77b1746e3f399c45d738324bc9bff7f65c79ce69c49e5ac",
+    "adapter-tests.log": "51408c1f1224d93523c352e72e6b6d988b558b1c4a7fd512321bdb74ae2f2acc",
+    "verifier-control-summary.json": "9ffdd1872c684b8006647fbe2c389ae5fc2997de9971fbc387407e1cf2133fa3",
+    "control_verifier.py": "84881d5461d45b5d297c2b7de06c7df1f1562a289b0e04d8912e301d7ad8a8b0"
+  }
+}

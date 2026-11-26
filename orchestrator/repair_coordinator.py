@@ -371,6 +371,8 @@ def repair(recovery, *,stage,role,instruction,data,validator,ordinary=None,retai
     if direct:instruction=instruction.replace(INSTRUCTION,DIRECT_INSTRUCTION)
     epoch=flow.bundle.get('whole_project_stage_continuation',{})
     if epoch.get('fresh_budgets'):material['effective_repair_capacity']=deepcopy(epoch['fresh_budgets'])
+    from .recovery_limits import approved
+    if explicit:=approved(flow.bundle):material['effective_repair_capacity']=explicit
     material['failures']=tagged_evidence(material['failures'])
     material['evidence_catalog_digest']=digest(evidence_catalog(material['failures']))
     if retained is not None:

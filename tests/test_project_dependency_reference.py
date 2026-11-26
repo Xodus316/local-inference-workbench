@@ -62,10 +62,11 @@ class DependencyReferenceTests(unittest.TestCase):
             "whole_project_test_author_migration", "same_model_role_isolation",
             "project_review_policy", "whole_project_gate_policy", "fresh_project", "whole_project_compile_progress_policy",
             "whole_project_stage_recovery_policy", "whole_project_java_api_probe", "whole_project_frontend_diagnostics",
-            "whole_project_candidate_source_contract"}]
+            "whole_project_candidate_source_contract", "whole_project_recovery_limits"}]
         legacy = {key: bundle.get(key) for key in old_keys if key != "run_timeout_seconds" or key in bundle}
         legacy.update(workers={}, reference_digest=None)
         self.assertEqual(binding_digest(bundle), digest(legacy))
+        self.assertEqual(binding_digest(bundle), 'c4df6d31c9cad01ceac22955965c89d2dfdb67f8e7e8b6ebe9b43149c9f22b9c')
         with_docs = {**bundle, "project_dependency_reference": catalog()}
         self.assertNotEqual(binding_digest(with_docs), binding_digest(bundle))
         changed = deepcopy(with_docs)

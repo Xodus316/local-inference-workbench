@@ -27,6 +27,8 @@ def carry(source,source_approval,counters):
 
 
 def output_limit(bundle,_depth=0):
+    from .recovery_limits import approved
+    if limits:=approved(bundle):return limits['output_corrections']
     value=bundle.get(CONTINUATION,{})
     from .checkpoint_repair_continuation import POLICY as EPOCH,approved_budgets
     if value.get('policy')==EPOCH:return approved_budgets(value['fresh_budgets'])['output_corrections']
@@ -72,6 +74,8 @@ def validate_floors(bundle,counters):
 
 
 def coordinated_limit(bundle):
+    from .recovery_limits import approved
+    if limits:=approved(bundle):return limits['coordinated_validations']
     from .checkpoint_repair_continuation import POLICY as EPOCH,approved_budgets
     value=bundle.get(CONTINUATION,{})
     return approved_budgets(value['fresh_budgets'])['coordinated_validations'] if value.get('policy')==EPOCH else 6

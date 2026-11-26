@@ -155,6 +155,8 @@ def project_enabled(bundle):
             raise ValueError("Reviewed projects require an independent reviewer and frozen reviewer context")
     from .project_reference import validate_reference
     validate_reference(bundle.get("project_reference"))
+    from .recovery_limits import approved
+    approved(bundle)
     from .project_environment import validate_project_environment
     environment = validate_project_environment(bundle)
     if (environment or {}).get("verification") and profile != REVIEWED_POLICY:

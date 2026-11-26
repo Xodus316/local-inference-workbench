@@ -32,7 +32,8 @@ def source_identity():
 
 def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES,
                            test_bytes=WHOLE_PROJECT_TEST_BYTES, dependency_reference=None,
-                           supplemental_suite=None, java_api_probe=None, frontend_diagnostics=None):
+                           supplemental_suite=None, java_api_probe=None, frontend_diagnostics=None,
+                           recovery_limits=None):
     """Pure preparation with explicit workers, image, reference and bounded gates.
 
     A supplemental suite is evaluator tooling, never a generated plan or source
@@ -64,6 +65,9 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
     )
     value[COMPILE_PROGRESS_KEY] = deepcopy(COMPILE_PROGRESS_POLICY)
     value[RECOVERY_KEY] = deepcopy(RECOVERY_POLICY)
+    if recovery_limits is not None:
+        from .recovery_limits import KEY, validate
+        value[KEY] = validate(recovery_limits)
     if java_api_probe is not None:
         from .compiler_api import KEY, validate_policy
         value[KEY] = deepcopy(validate_policy(java_api_probe))
@@ -102,6 +106,8 @@ def configure_fresh_bundle(runtime, bundle, *, source_bytes=DEFAULT_SOURCE_BYTES
 
 
 def validate_fresh_run(bundle):
+    from .recovery_limits import approved
+    approved(bundle)
     if not recovery_enabled(bundle):
         raise ValueError('Fresh runs require their frozen stage recovery policy')
     additional_repairs(bundle)
