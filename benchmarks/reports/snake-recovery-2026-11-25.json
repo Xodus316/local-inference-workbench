@@ -1,0 +1,43 @@
+{
+  "status": "recovery_controls_passed_continuation_not_started",
+  "trial": "Snake Run 1",
+  "terminal": "review_required",
+  "elapsed_seconds": 1473.522,
+  "journal_calls": 7,
+  "native_requests_completed": 12,
+  "operator_intervention_during_trial": false,
+  "frozen_files_verified": 145,
+  "checkpoints_verified": 15,
+  "trusted_reference_browser_cases_passed": 15,
+  "model_smoke_tests": 5,
+  "model_smoke_tests_failed_after_legacy_repairs": 3,
+  "candidate_behavior_not_yet_validated": true,
+  "cause": [
+    "Legacy two-attempt smoke reference ceiling bypassed the explicit shared 16/16/16 capacity.",
+    "Outer Python assertions obscured nested browser assertion details."
+  ],
+  "recovery": [
+    "Shared agent-consulted anchored smoke repair with full-reference nonregressing progress.",
+    "Exact-case hash-bound nested test diagnostics.",
+    "Audited latest smoke checkpoint continuation preserving application/tests/counters with no new acceptance credit."
+  ],
+  "controls": {
+    "core_tests": {
+      "run": 699,
+      "passed": 691,
+      "optional_skipped": 8
+    },
+    "additional_targeted_shared_smoke_tests": 4,
+    "adapters_passed": 38,
+    "real_closed_checkpoint_preserved": true,
+    "tamper_rejections": [
+      "application source",
+      "test source",
+      "costs",
+      "reference identities",
+      "checkpoint bytes",
+      "model settings"
+    ]
+  },
+  "continuation_status": "not_started"
+}

@@ -70,7 +70,8 @@ def reference_evidence(bundle,suite,receipt,*,profile=None,selected=None):
         return {'failed':[],'tests_run':len(wanted),'receipt_digest':digest(receipt),'failures':[]}
     if receipt.get('status')!='failed' or len(failures)!=1:
         raise ValueError('Reference repair requires a completed test failure')
-    failure=failures[0];items=failure.get('test_failures',[])
+    from .whole_project_smoke_reference import detailed_test_failures
+    failure=detailed_test_failures(summary,receipt,failures[0]);items=failure.get('test_failures',[])
     if (failure.get('test_failures_complete') is not True or failure.get('omitted_test_failures')!=0
             or failure.get('test_failure_count')!=len(items) or failure.get('tests_run')!=len(wanted)):
         raise ValueError('Incomplete reference failure inventory cannot prove repair progress')
@@ -108,7 +109,7 @@ def targeted(flow,suite,cases,index):
     return reference_evidence(flow.bundle,suite,receipt,profile=profile,selected=cases),stage
 
 
-def repair(flow,suite,result):
+def repair(flow,suite,result,*,smoke=False):
     before=reference_evidence(flow.bundle,suite,result)
     if not before['failed']:raise ValueError('Reference repair requires observed failures')
     retained=getattr(flow,'_pending_repair',None)
@@ -118,9 +119,9 @@ def repair(flow,suite,result):
     original=digest(suite.model_dump())
     if retained is not None and retained['base_suite_digest']!=original:
         raise ValueError('Retained repair proposal no longer matches the current test source')
-    instruction=INSTRUCTION+' This is pre-freeze independent test qualification against the trusted reference. '+flow.frontend_dom_test_brief
+    instruction=INSTRUCTION+(' This is smoke test qualification.' if smoke else ' This is pre-freeze independent test qualification.')+' Repair from the public contract and test-side diagnostics only. '+flow.frontend_dom_test_brief
     from .reference_context import observe
-    context=observe(flow,suite,before)
+    context=None if smoke else observe(flow,suite,before)
     data={'base_suite':suite.model_dump(),'base_suite_digest':original,'scope':scope,'failures':items,
         'root_cause_hints':root_hints(items),'read_only_application_inventory':list(suite.implementation_files),
         'previous_attempts':prior_attempts(attempts,flow=flow,suite=suite),
@@ -145,13 +146,18 @@ def repair(flow,suite,result):
             validate_metadata(raw,items)
             record['validation_phase']='composition'
             candidate=compose_tests(flow,suite,items,scope,raw)
+            if smoke:
+                from .whole_project_smoke_reference import reference_smoke_diagnostics,validate_smoke_reference_correction
+                validate_smoke_reference_correction(suite,candidate,reference_smoke_diagnostics(
+                    suite,[sandbox_stage_results(result['commands'][0])],receipt=result))
             record['validation_phase']='preflight'
             flow.compile_test_suite(candidate)
             affected_cases=sorted(set(before['failed'])|{x['case'] for x in items})
             record['validation_phase']='targeted'
-            affected,_=targeted(flow,candidate,affected_cases,index)
-            if not set(affected['failed'])<set(before['failed']):
-                raise ValueError('Affected checks show no progress; retain previous source')
+            if not smoke:
+                affected,_=targeted(flow,candidate,affected_cases,index)
+                if not set(affected['failed'])<set(before['failed']):
+                    raise ValueError('Affected checks show no progress; retain previous source')
             record['validation_phase']='full_reference'
             full=flow.control(candidate)
             after=reference_evidence(flow.bundle,candidate,full)
@@ -162,8 +168,11 @@ def repair(flow,suite,result):
             record.update(progress=improvement,disposition='promoted',
                 candidate_suite_digest=digest(candidate.model_dump()),reference_receipt_digest=digest(full))
             # Reuse only this actual completed full-gate receipt at the next normal check_suite iteration.
-            flow._coordinator_reference={'suite_digest':digest(candidate.model_dump()),'receipt':full,'stage':flow.stage}
-            flow.evidence['independent_draft']={'suite':candidate.model_dump(),'acceptance_credit':False}
+            if smoke:
+                flow.evidence.update(self_suite=candidate.model_dump(),self_suite_digest=digest(candidate.model_dump()))
+            else:
+                flow._coordinator_reference={'suite_digest':digest(candidate.model_dump()),'receipt':full,'stage':flow.stage}
+                flow.evidence['independent_draft']={'suite':candidate.model_dump(),'acceptance_credit':False}
             return candidate
         except Exception as error:
             from .build_workflow import public_error
@@ -177,5 +186,5 @@ def repair(flow,suite,result):
     if retained is None and flow.counters['build_tests_defect']<flow.limits['max_test_defect_repairs']:
         ordinary=flow.bounded('build_tests_defect','max_test_defect_repairs')
     if retained is not None:flow._pending_repair=None
-    return flow.recovery.repair_patch(stage='build_control_recovery',role='test_author',instruction=instruction,
+    return flow.recovery.repair_patch(stage='whole_smoke_reference_recovery' if smoke else 'build_control_recovery',role='implementer' if smoke else 'test_author',instruction=instruction,
         data=data,validator=checked,ordinary=ordinary,retained=retained)

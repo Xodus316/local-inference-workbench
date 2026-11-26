@@ -240,6 +240,8 @@ def pack(row, requests, raw, target, *, closed_execution_audit, checkpoint_bytes
 
 
 def validate(value,bundle):
+    from .smoke_continuation import POLICY as SMOKE_POLICY,validate as validate_smoke
+    if isinstance(value,dict) and value.get('policy')==SMOKE_POLICY:return validate_smoke(value,bundle)
     from .checkpoint_repair_continuation import POLICY as REPAIR_EPOCH,validate as validate_epoch
     if isinstance(value,dict) and value.get('policy')==REPAIR_EPOCH:return validate_epoch(value,bundle)
     from .independent_stage_restart import POLICY as RESTART_POLICY,validate as validate_restart
@@ -329,6 +331,8 @@ def validate(value,bundle):
 
 def restore(flow):
     value=flow.bundle[KEY]
+    from .smoke_continuation import POLICY as SMOKE_POLICY,restore as restore_smoke
+    if value.get('policy')==SMOKE_POLICY:return restore_smoke(flow)
     from .checkpoint_repair_continuation import POLICY as REPAIR_EPOCH,restore as restore_epoch
     if value.get('policy')==REPAIR_EPOCH:return restore_epoch(flow)
     from .independent_stage_restart import POLICY as RESTART_POLICY,restore as restore_restart

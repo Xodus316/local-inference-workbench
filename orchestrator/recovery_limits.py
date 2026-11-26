@@ -22,6 +22,9 @@ def approved(bundle):
         raise ValueError('Expanded recovery limits require approved dynamic stage recovery')
     epoch = bundle.get('whole_project_stage_continuation', {})
     if epoch:
+        from .smoke_continuation import POLICY as SMOKE_POLICY
+        if epoch.get('policy') == SMOKE_POLICY:
+            return value  # Carries the exact explicit grant and every spent counter.
         from .checkpoint_repair_continuation import POLICY, approved_budgets
         if epoch.get('policy') != POLICY:
             raise ValueError('Explicit recovery limits cannot override a different continuation grant')

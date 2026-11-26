@@ -82,3 +82,12 @@ The integration is checked with offline unit and mocked workflow tests, includin
 The final integration batch completed 463 tests: 455 passed and eight optional tests were skipped (one Docker test and seven PDF-dependency tests). The existing benchmark evidence verifier also passed. [Validation counts and receipt identities](../benchmarks/reports/runtime-integration-2026-11-18.json) distinguish this offline result from the still-unstarted Commerce run.
 
 For an observation-only trial, freeze the public commit, brief, model settings, reference, verifier profiles and evaluator suite before launch. Start from an empty application state and retain the terminal result, including any failure. Built-in bounded repairs are part of the experiment; operator edits, altered tests, enlarged budgets and rescued continuations would constitute a different trial.
+
+
+### Shared smoke recovery and checkpoint continuation
+
+With the explicit 16/16/16 recovery grant, reference smoke-test failures use the same agent-consulted anchored repair coordinator as independent-test failures. The legacy two-attempt smoke loop remains the default for approvals without that grant. Smoke proposals consume the common test-defect and coordinated-validation pools, preserve all test identities, assertions and previously passing methods, and are promoted only after syntax checks and the complete pinned reference execution show fewer failures without regressions. No reference implementation source is exposed. Smoke repairs do not create or qualify an independent suite.
+
+Nested browser assertions can be recovered from a complete, hash-bound unittest log. The recovered case identities and inventory must match the verifier's structured report; a truncated, altered or mismatched log cannot replace the reported diagnostics.
+
+`smoke_continuation.pack` imports an audited, settled smoke-qualification checkpoint into a separately approved runtime. It verifies the latest checkpoint, retained application worker chain, exact test source and reference receipt, model settings, and spent counters. It preserves application and smoke source and all costs, reruns compiler/reference/candidate gates, and still requires fresh independent tests and every downstream acceptance gate. It grants no fresh allowance or acceptance credit.

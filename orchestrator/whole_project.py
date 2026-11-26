@@ -2051,7 +2051,9 @@ class WholeProjectBuildRun(ProjectBuildRun):
         else:
             self.self_suite = self._author_self_suite(artifact, paths)
         checked_smoke = validate_smoke_reference(self, artifact, self.self_suite,
-                                                 allow_repair="self_suite" not in seed)
+                                                 allow_repair="self_suite" not in seed or
+                                                 self.bundle.get(STAGE_CONTINUATION,{}).get('policy') ==
+                                                 'settled-smoke-qualification-continuation-v10')
         if checked_smoke is None:
             return "review_required"
         self.self_suite = checked_smoke

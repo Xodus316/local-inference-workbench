@@ -24,6 +24,7 @@ _FAILURE_BLOCK = re.compile(
     r"(.*?)(?=^={20,}\n|^-{20,}\nRan \d+ tests?|\Z)"
 )
 _FAILED_SUMMARY = re.compile(r"(?m)^-{20,}\nRan (\d+) tests? in [^\n]+\n\nFAILED \(([^\n]+)\)\n*\Z")
+_ERROR_DETAIL = re.compile(r"(?m)^[ \t]*[\w.]*(?:Error|Exception|Failure)(?: \[[A-Z_]+\])?:[^\n]+")
 _SHADOWED_RUN = re.compile(
     r'\n  File "/usr/lib/python3\.\d+/unittest/case\.py", line \d+, in __call__\n'
     r"    return self\.run\(\*args, \*\*kw(?:ds|args)\)\nTypeError: 'str' object is not callable\n*\Z")
@@ -70,13 +71,27 @@ def _complete_test_log_failure(summary, receipt):
         return None
     rows = []
     for kind, name, body in blocks:
-        headlines = ERROR_HEADLINE.findall(body)
+        headlines = list(_ERROR_DETAIL.finditer(body))
         if not headlines:
             return None
         rows.append({"test": name, "status": "failed" if kind == "FAIL" else "error",
-                     "assertion": headlines[-1].strip()[:1200]})
+                     "assertion": body[headlines[-1].start():].strip()[:1200]})
     return {"test_failures": rows, "test_failure_count": len(rows), "omitted_test_failures": 0,
             "test_failures_complete": True, "tests_run": int(terminal[1])}
+
+
+def detailed_test_failures(summary, receipt, failure):
+    """Enrich exact reported cases only from their complete hash-bound test log."""
+    recovered = _complete_test_log_failure(summary, receipt)
+    if recovered is None:
+        return failure
+    if 'test_failures' in failure:
+        identity = lambda rows: [(row['test'], row['status']) for row in rows]
+        if (identity(recovered['test_failures']) != identity(failure['test_failures'])
+                or any(recovered[key] != failure.get(key) for key in
+                       ('test_failure_count', 'omitted_test_failures', 'test_failures_complete', 'tests_run'))):
+            return failure
+    return {**failure, **recovered}
 
 
 def _shadowed_run_repair(suite, summaries, receipt):
@@ -99,6 +114,7 @@ def reference_smoke_diagnostics(suite, summaries, *, receipt=None):
         for failure in summary.get("failures", []):
             if failure.get("stage") != "python-unittest" or failure.get("status") != "failed":
                 continue
+            failure = detailed_test_failures(summary, receipt, failure)
             if "test_failures" not in failure:
                 recovered = _complete_test_log_failure(summary, receipt)
                 if recovered is None:
@@ -274,6 +290,11 @@ def validate_smoke_reference(workflow, candidate, suite, *, allow_repair=True):
         record["status"] = "failed" if diagnostics or fixture else "review_required"
         workflow.stages[workflow.stage]["status"] = record["status"]
         attempts = workflow.counters["whole_self_reference_repair"]
+        from .recovery_limits import approved
+        if diagnostics and allow_repair and approved(workflow.bundle):
+            from .reference_repair_coordinator import repair
+            suite = repair(workflow, suite, result, smoke=True)
+            continue
         if not (diagnostics or fixture) or not allow_repair or attempts >= MAX_REPAIRS:
             workflow.output["error"] = {"stage": workflow.stage, "message": (
                 "Smoke tests did not pass the pinned reference; no candidate repair is authorized"
