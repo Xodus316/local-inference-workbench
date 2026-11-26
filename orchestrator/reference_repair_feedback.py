@@ -41,7 +41,7 @@ def pack(row,requests,raw,suite,before,receipt_bytes,checkpoint,*,current_only=F
     result=[]
     for record in history:
         if (record.get('disposition')!='rolled_back' or record.get('base_suite_digest')!=digest(suite.model_dump())
-                or record.get('rejection')!=MESSAGE):continue
+                or record.get('rejection') not in {MESSAGE,'Affected checks show no progress; retain previous source'}):continue
         proposals=[stage for stage,response in raw.items() if isinstance(response.get('value'),dict)
             and digest(response['value'])==record['proposal_digest']
             and requests[stage].get('role')=='test_author' and requests[stage].get('operation')=='generate']

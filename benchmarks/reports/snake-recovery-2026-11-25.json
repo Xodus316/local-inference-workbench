@@ -1,5 +1,5 @@
 {
-  "status": "verifier_independent_recovery_controls_passed",
+  "status": "settled_patch_feedback_controls_passed",
   "trial": "Snake Run 1",
   "terminal": "review_required",
   "elapsed_seconds": 1473.522,
@@ -23,8 +23,8 @@
   ],
   "controls": {
     "core_tests": {
-      "run": 705,
-      "passed": 697,
+      "run": 708,
+      "passed": 700,
       "optional_skipped": 8
     },
     "additional_targeted_shared_smoke_tests": 4,
@@ -52,7 +52,11 @@
       "independent_suite_preserved": true,
       "all_spent_costs_recorded": true,
       "ordinary_test_repairs_retained": 4
-    }
+    },
+    "settled_patch_feedback_tests": 3,
+    "retained_checkpoint_tests": 22,
+    "retained_checkpoint_failed": 1,
+    "carried_source_bound_rejections": 1
   },
   "continuation_status": "next_checkpoint_continuation_not_started",
   "continuations": [
@@ -101,6 +105,44 @@
         "Permit fresh full revalidation after an inconclusive verifier attempt without erasing rejection history.",
         "Reconstruct independent source from its actual author boundary, excluding earlier smoke patches."
       ]
+    },
+    {
+      "attempt": 3,
+      "terminal": "failed",
+      "elapsed_seconds": 1694.456,
+      "journal_calls": 8,
+      "native_requests_completed": 8,
+      "frozen_files_verified": 771,
+      "checkpoints_verified": 25,
+      "operator_intervention_during_trial": false,
+      "application_source_changed": false,
+      "independent_tests": 22,
+      "independent_reference_failures_before": 7,
+      "independent_reference_failures_after_promotions": 1,
+      "automatic_promotions": [
+        {
+          "before_failed": 7,
+          "after_failed": 2,
+          "regressions": 0
+        },
+        {
+          "before_failed": 2,
+          "after_failed": 1,
+          "regressions": 0
+        }
+      ],
+      "remaining_case": "test_game.TestGame.test_vacating_tail_allowed",
+      "error": "Settled corrective patch contained an invalid evidence reference; terminal consultant requested the missing original-output correction capability.",
+      "causes": [
+        "Early diagnostic no-progress rejection omitted captured post-patch failure observations.",
+        "Agent patch schema validation escaped the original bounded correction loop."
+      ],
+      "fixes": [
+        "Bind diagnostic no-progress feedback to the rejected candidate source and complete verifier receipt.",
+        "Rehydrate earlier source-bound no-progress diagnostics for the retained suite.",
+        "Return settled malformed patches through the original schema/validator with the same shared limits; keep unknown execution terminal."
+      ],
+      "carried_observation": "Rejected tail-test candidate introduced ReferenceError: d0 is not defined; this observation has no acceptance credit."
     }
   ]
 }

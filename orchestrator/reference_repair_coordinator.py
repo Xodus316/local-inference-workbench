@@ -159,7 +159,8 @@ def repair(flow,suite,result,*,smoke=False):
             if not smoke:
                 affected,_=targeted(flow,candidate,affected_cases,index)
                 if not set(affected['failed'])<set(before['failed']):
-                    raise ValueError('Affected checks show no progress; retain previous source')
+                    from .reference_repair_feedback import ReferencePatchError,feedback
+                    raise ReferencePatchError(feedback(before,affected,suite,candidate))
             record['validation_phase']='full_reference'
             full=flow.control(candidate)
             after=reference_evidence(flow.bundle,candidate,full)

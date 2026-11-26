@@ -326,10 +326,19 @@ def validate_output(recovery, value, validator, context):
                      'validation_failure':str(error)[:1600], 'agent_advice':proof['advice'],
                      **({'composed_patch_rejection':deepcopy(error.feedback)} if hasattr(error,'feedback') else {})},
                     {}, tool_policy=INLINE_RECOVERY_POLICY)
+            except AgentOutputValidationError as failure:
+                # The native request is settled and its exact raw value retained.
+                # Feed a malformed *patch* through the original schema/validator
+                # in this flat shared-budget loop. Consultant advice keeps its
+                # separate one-retry rule; unknown execution still stops below.
+                from .build_workflow import public_error
+                request.update(status='output_correction_rejected',rejection=public_error(failure),acceptance_credit=False,
+                    settled_invalid_output_digest=digest(failure.value))
+                corrected=deepcopy(failure.value)
             except Exception as failure:
                 from .build_workflow import public_error
                 request.update(status='output_correction_rejected', rejection=public_error(failure), acceptance_credit=False)
-                raise  # Never retry unknown execution or recursively repair an agent's malformed response.
+                raise  # Never retry unknown execution or an unclassified transport failure.
             finally:
                 flow.stage = saved_stage
                 flow._generation_context = context

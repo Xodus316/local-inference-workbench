@@ -119,8 +119,10 @@ class RepairCoordinatorTests(unittest.TestCase):
     def test_no_progress_or_regression_rolls_back_without_refunding_the_model_attempt(self):
         for kind in ['no_progress','regression']:
             flow,suite=fixture();flow.control=Mock(side_effect=lambda candidate:receipt(flow,candidate,failed=('test_math.Checks.test_c',)))
-            target={'failed':['test_math.Checks.test_a','test_math.Checks.test_b'] if kind=='no_progress' else [],'tests_run':2}
-            with patch('orchestrator.reference_repair_coordinator.targeted',return_value=(target,'probe')):
+            def target(f,candidate,cases,index):
+                failures=('test_math.Checks.test_a','test_math.Checks.test_b') if kind=='no_progress' else ()
+                return reference_evidence(f.bundle,candidate,receipt(f,candidate,failed=failures)),'probe'
+            with patch('orchestrator.reference_repair_coordinator.targeted',side_effect=target):
                 with self.assertRaises(ValueError):repair(flow,suite,receipt(flow,suite))
             self.assertEqual(flow.evidence['coordinated_repairs'][0]['disposition'],'rolled_back')
             self.assertEqual(flow.counters['recovery_output_correction'],4)
