@@ -19,6 +19,10 @@ Set `roles.fast_primary` in your configuration to a completion model installed i
 
 Ollama is the default backend. The optional [Strata backend](docs/strata.md) and [llama.cpp backend](docs/llama-cpp.md) require a pre-launched loopback server and immutable runtime, model, template, path and configuration fingerprints. Prepared approvals are invalidated if the observed backend identity changes. llama.cpp supports a native non-thinking profile with explicit host launch verification and slot cleanup checks.
 
+## Latest end-to-end result
+
+The fresh browser Snake project completed on November 25 after audited checkpoint continuations. It passed 22 independent tests, five smoke tests, 15 trusted Chromium checks, mobile verification, code review with no findings, final acceptance and delivery. The last trial ran without intervention and completed one OpenCode compaction. See the [daily summary](docs/development-summary-2026-11-25.md#later-work-a-fresh-browser-snake-project) and [audited Snake report](benchmarks/reports/snake-recovery-2026-11-25.json).
+
 ## Workflows
 
 See [model choices by role](#model-choices-by-role) for the lineup and benchmark scores.

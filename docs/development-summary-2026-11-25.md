@@ -62,3 +62,16 @@ The combined delivery digest is `1104c5a74b6e4f049ef18092c90ae78fc92b16c63a85337
 | `a107d90` | Publish Run 25's unattended completion, audit and verified delivery. |
 
 The successful terminal outcome ended the Run 25 repair/restart cycle. No further Run 25 continuation was started.
+
+
+## Later work: a fresh browser Snake project
+
+After publishing the Run 25 summary, we started a fresh whole-project Snake build with vanilla HTML/CSS/JavaScript and real Chromium verification. The application, plan, smoke suite and independent tests started empty; no Commerce application or tests were imported. All five roles used Qwen3.8-27B through OpenCode with automatic compaction enabled and unchanged model settings.
+
+The experiment exposed several generic recovery gaps. Fresh approvals needed an explicit shared 16/16/16 allowance; smoke qualification still had a separate two-repair ceiling. We connected smoke qualification to shared anchored recovery, corrected the ordinary structured-patch role route, and retained nested browser assertions from complete hash-bound test logs. A selected-case probe assumed a private Commerce verifier module; repair diagnostics now use the full approved verifier. Unavailable verifier evidence stops output rewriting, and inconclusive verifier attempts can be revalidated without deleting their history.
+
+Later fixes retained captured diagnostics when a rejected proposal changed the failure inside the same test, and returned settled malformed agent patches through the original bounded validator. Checkpoint reconstruction separates earlier smoke patches from later independent authorship. Each failed trial ran without intervention, closed its owned resources and passed an evidence audit before code changes and an explicitly frozen continuation. Generated application and test source were repaired by workflow agents, with no manual source edits.
+
+Snake continuation 4 **completed** in **34m17s**. Its agents resolved the last independent-test defect and made one application repair: opening food avoids the cell immediately ahead of the starting head, while subsequent spawning and +10 scoring per food stay unchanged. All **22 independent tests**, **five smoke tests**, **15 trusted Chromium checks**, mobile verification at **375x812**, code review with **zero findings**, final acceptance and delivery passed. The final audit verified **970 frozen files**, **27 checkpoints**, **16 completed native requests**, **one OpenCode compaction** and all **nine delivered files**. The model backend stopped, transport drained and the bridge closed.
+
+The latest implementation validation passed **708 core tests: 700 passes and eight optional skips**. The native-adapter suite also passed **38 tests** before these final feedback-only changes. Source-bound CPU controls verified complete browser diagnostics and retained checkpoint feedback without model inference or acceptance credit. The [Snake report](../benchmarks/reports/snake-recovery-2026-11-25.json) records each failed continuation, the fixes, final gate results and artifact digests. This completes the Snake repair/restart cycle.
