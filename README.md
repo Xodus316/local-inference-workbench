@@ -21,7 +21,7 @@ Ollama is the default backend. The optional [Strata backend](docs/strata.md) and
 
 ## Latest end-to-end result
 
-The fresh browser Snake project completed on November 25 after audited checkpoint continuations. It passed 22 independent tests, five smoke tests, 15 trusted Chromium checks, mobile verification, code review with no findings, final acceptance and delivery. The last trial ran without intervention and completed one OpenCode compaction. See the [daily summary](docs/development-summary-2026-11-25.md#later-work-a-fresh-browser-snake-project) and [audited Snake report](benchmarks/reports/snake-recovery-2026-11-25.json).
+The fresh browser Snake project completed on November 25 after four orchestrator repair rounds and five execution attempts. The final unattended continuation took 34m17s and passed 22 independent tests, five smoke tests, 15 trusted Chromium checks, mobile verification, code review with no findings, final acceptance and delivery. It completed one OpenCode compaction. See the [Snake results and repair timeline](docs/snake-end-to-end-2026-11-25.md), [daily summary](docs/development-summary-2026-11-25.md#later-work-a-fresh-browser-snake-project) and [machine-readable report](benchmarks/reports/snake-recovery-2026-11-25.json).
 
 ## Workflows
 
