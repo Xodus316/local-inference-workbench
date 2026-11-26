@@ -23,8 +23,8 @@
   ],
   "controls": {
     "core_tests": {
-      "run": 699,
-      "passed": 691,
+      "run": 701,
+      "passed": 693,
       "optional_skipped": 8
     },
     "additional_targeted_shared_smoke_tests": 4,
@@ -39,5 +39,20 @@
       "model settings"
     ]
   },
-  "continuation_status": "not_started"
+  "continuation_status": "routing_controls_passed_next_continuation_not_started",
+  "continuations": [
+    {
+      "attempt": 1,
+      "terminal": "failed",
+      "elapsed_seconds": 237.634,
+      "journal_calls": 1,
+      "native_requests_completed": 1,
+      "frozen_files_verified": 315,
+      "operator_intervention_during_trial": false,
+      "candidate_or_test_source_changed": false,
+      "error": "Unsupported role/stage/tool-policy combination before ordinary smoke patch dispatch",
+      "cause": "The shared smoke repair called the implementer via the base tool route instead of the structured test-author route.",
+      "fix": "Use the common test-author structured patch route; regression now exercises the first ordinary repair, not only exhausted-budget consultation."
+    }
+  ]
 }

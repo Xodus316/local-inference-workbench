@@ -59,6 +59,7 @@ class SharedSmokeRecoveryTests(unittest.TestCase):
         from unittest.mock import Mock
         flow,base=coordinated.fixture()
         flow.counters['whole_self_reference_repair']=2
+        flow.counters['build_tests_defect']=0
         revised=base.model_copy(deep=True)
         revised.files[0].content=revised.files[0].content.replace('return 0','return 1')
         before=coordinated.receipt(flow,base)
@@ -72,6 +73,8 @@ class SharedSmokeRecoveryTests(unittest.TestCase):
         flow.compile_test_suite.assert_called_once_with(revised)
         flow.control.assert_called_once_with(revised)
         self.assertEqual(flow.counters['coordinated_patch'],1)
+        self.assertEqual(flow.counters['build_tests_defect'],1)
+        self.assertEqual(flow._generate.call_args.args[0:2],('build_tests_defect_1','test_author'))
         self.assertEqual(flow.evidence['self_suite'],revised.model_dump())
         self.assertEqual(flow.evidence['coordinated_repairs'][0]['disposition'],'promoted')
         self.assertNotIn('independent_draft',flow.evidence)

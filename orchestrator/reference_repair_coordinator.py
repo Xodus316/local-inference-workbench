@@ -186,5 +186,5 @@ def repair(flow,suite,result,*,smoke=False):
     if retained is None and flow.counters['build_tests_defect']<flow.limits['max_test_defect_repairs']:
         ordinary=flow.bounded('build_tests_defect','max_test_defect_repairs')
     if retained is not None:flow._pending_repair=None
-    return flow.recovery.repair_patch(stage='whole_smoke_reference_recovery' if smoke else 'build_control_recovery',role='implementer' if smoke else 'test_author',instruction=instruction,
+    return flow.recovery.repair_patch(stage='whole_smoke_reference_recovery' if smoke else 'build_control_recovery',role='test_author',instruction=instruction,
         data=data,validator=checked,ordinary=ordinary,retained=retained)
