@@ -1,6 +1,6 @@
 {
   "date": "2026-11-25",
-  "status": "controls_passed_before_continuation15",
+  "status": "continuation15_completed_and_audited",
   "changes": [
     "Explicit checkpoint grant supports 16 output corrections, 16 total ordinary test-defect repairs, and 16 coordinated validations while preserving legacy grants and spent costs",
     "Expand finite repair, diagnosis and validation stages to admit the authorized boundary",
@@ -87,27 +87,199 @@
     "private_reference_source_exposed_to_models": false
   },
   "continuation15": {
-    "status": "not_started",
-    "fresh_budgets": {
-      "diagnoses": 16,
-      "requests": 64,
-      "output_corrections": 16,
-      "coordinated_validations": 16,
-      "test_defect_repairs": 16,
-      "context_observations": 2
+    "status": "completed",
+    "run_id": "abea435b-8e89-47da-8dd0-47b3f95444f5",
+    "source_run_id": "2113244b-dd50-426b-8204-dfef0189587e",
+    "runtime_commit": "6bfc4a92716a0deb01a3a61c397fe76adf69de49",
+    "manifest_sha256": "7647a0fb89fd36a589257ec78cdf42ed7e9ccf782f00d8b04934ef8e6aa6f23d",
+    "approval_digest": "0cd8c79355992bdcea1aa459b0da6a18e4e61399ddb9815140606066ec59866b",
+    "elapsed_seconds": 12173.211,
+    "elapsed_hms": "03:22:53",
+    "finished_utc": "2026-11-26T02:00:20.450792+00:00",
+    "no_operator_intervention": true,
+    "frozen_files_verified": 4936,
+    "durable_checkpoints": 105,
+    "journal_model_calls": 52,
+    "native": {
+      "qwen": {
+        "completed": 85,
+        "compactions": 1,
+        "other_outcomes": []
+      }
     },
-    "application_digest": "3dd49ed42f0b5651cfb1f65902cf0a966aefd7957df0e2b4904a6400f5e7eb6c",
-    "independent_suite_digest": "19ac7261a900d37458b804487a2b705fd6950f6f217e78fb532e490c78e54a71",
-    "ordinary_repairs_already_spent": 2,
-    "ordinary_repairs_remaining": 14,
-    "models": "Pinned Qwen3.8-27B, all workflow agents via OpenCode auto compaction",
-    "no_operator_rescue": true,
-    "all_original_acceptance_gates_required": true
+    "owners": {
+      "qwen": {
+        "container_id": "511c36272fbddd7e06bcdf295ad0779c1b88e4416609b9166e63b09e059d57c4",
+        "ownership_verified": true,
+        "stopped": true,
+        "transport_drained": true,
+        "bridge_closed": true
+      }
+    },
+    "application_files": 79,
+    "independent_test_files": 12,
+    "delivered_files": 91,
+    "delivery_digest": "1104c5a74b6e4f049ef18092c90ae78fc92b16c63a8533785d651ef526230eb2",
+    "application_digest": "25be1317d523549a904bf6057d2d87d9da6e457a943a307c16449f38f4b6ee8b",
+    "independent_suite_digest": "be1b117e0532763e8391396895aa30935a653797bc505f9a6edfea872f14c9eb",
+    "automatic_test_repair_proposals": 9,
+    "test_repair_proposals_rejected": 8,
+    "test_repair_proposals_promoted": 1,
+    "automatic_application_repairs": 3,
+    "source_counter_floors_preserved": true,
+    "spent_counters": {
+      "build_tests_defect": 3,
+      "coordinated_patch": 9,
+      "recovery_context_observation": 1,
+      "recovery_diagnosis": 8,
+      "recovery_issue_052d46361b53ef913f027025e8ef3fb4": 1,
+      "recovery_issue_05fc15477d86c5635f977090d259d64f": 1,
+      "recovery_issue_19d6a95e455a1def5c54b3b9ac43418d": 1,
+      "recovery_issue_1a610683a925e3d42dd7928d88f2b358": 1,
+      "recovery_issue_1a86b4f20698e11eb70093c998fe2daa": 1,
+      "recovery_issue_989bb5ef646d773d1af6045bb1cdca19": 1,
+      "recovery_issue_af1e8c854f8169e8e6152a40bf5d661d": 1,
+      "recovery_issue_f3162b59fe0311162c09e7fb93562f04": 1,
+      "recovery_output_correction": 8,
+      "recovery_request": 18,
+      "repair": 3,
+      "whole_compile_initial_1": 2,
+      "whole_compile_initial_2": 1,
+      "whole_self_repair": 3
+    },
+    "gates": {
+      "independent_cases": {
+        "status": "passed",
+        "count": 49
+      },
+      "supplemental_cases": {
+        "status": "passed",
+        "count": 14
+      },
+      "build_and_trusted_api_heldout_persistence": {
+        "status": "passed"
+      },
+      "candidate_source_contract": {
+        "status": "passed"
+      },
+      "production_dom_profile": {
+        "status": "passed",
+        "reference_ordinary": "passed",
+        "reference_profile": "passed",
+        "candidate": "passed"
+      },
+      "code_review": {
+        "status": "passed",
+        "chunks": 13,
+        "blocking_findings": 0,
+        "nonblocking_findings": {
+          "P2": 5,
+          "P3": 4
+        },
+        "citation_corrections": 1
+      },
+      "final_smoke": {
+        "status": "passed"
+      },
+      "final_supplemental": {
+        "status": "passed",
+        "count": 14
+      },
+      "full_api_restart_persistence": {
+        "status": "passed",
+        "before_restart": "passed",
+        "owned_api_stop": "passed",
+        "after_restart": "passed",
+        "database_restarted": false
+      },
+      "acceptance": {
+        "status": "passed"
+      },
+      "delivery": {
+        "status": "passed",
+        "all_file_hashes_verified": true
+      }
+    },
+    "model_reported_nonblocking_review_notes": [
+      {
+        "severity": "P2",
+        "title": "CorsConfig single configuration instance is shared across every request",
+        "path": "api/src/main/java/com/example/catalog/config/CorsConfig.java",
+        "line": 25
+      },
+      {
+        "severity": "P2",
+        "title": "Login returns 400 instead of 401 for missing/blank credentials",
+        "path": "api/src/main/java/com/example/catalog/service/AuthService.java",
+        "line": 62
+      },
+      {
+        "severity": "P2",
+        "title": "HTTP client does not handle 403 responses for authentication failures",
+        "path": "frontend/src/api/http.ts",
+        "line": 39
+      },
+      {
+        "severity": "P2",
+        "title": "Vuetify dark mode never activated; commerceDark theme renders as default light palette",
+        "path": "frontend/src/main.ts",
+        "line": 16
+      },
+      {
+        "severity": "P2",
+        "title": "Auth form double-submits on Enter (form submit + keyup handler)",
+        "path": "frontend/src/views/LoginView.vue",
+        "line": 85
+      },
+      {
+        "severity": "P3",
+        "title": "BadRequestException empty field-error map yields empty error string and no errors map",
+        "path": "api/src/main/java/com/example/catalog/exception/BadRequestException.java",
+        "line": 17
+      },
+      {
+        "severity": "P3",
+        "title": "Register trims username but login does not, locking out padded usernames",
+        "path": "api/src/main/java/com/example/catalog/service/AuthService.java",
+        "line": 38
+      },
+      {
+        "severity": "P3",
+        "title": "Dashboard blanks entirely if any single collection request fails",
+        "path": "frontend/src/views/DashboardView.vue",
+        "line": 27
+      },
+      {
+        "severity": "P3",
+        "title": "Products table adds a Category column beyond the spec's explicit list",
+        "path": "frontend/src/views/ProductsView.vue",
+        "line": 54
+      }
+    ],
+    "verification_limits": [
+      "Real browser testing was unavailable in the pinned offline image; the production UI profile used DOM verification.",
+      "Python mutation scoring does not cover this Java/Vue stack and was not run.",
+      "Persistence profile restarted the API with MongoDB left running; this trial did not reboot the computer."
+    ],
+    "terminal_error": null,
+    "gpu_released": true,
+    "evidence_sha256": {
+      "terminal.json": "df0651704851f67b5cf18aecc88a1b5a55abfb63ba6955cdc784fded90986957",
+      "outcome.json": "de9f0428635ccaa78606dc045813759862946f4a2dc53fe07283a39af5b4f666",
+      "operator-verification.json": "5b6079c4ea700374e9ef7203e80c6a6295362b6a7550415bc01d7465aea4665b",
+      "delivery.json": "a6b82eb27a6713969f242558dbb8f1093f08807da3ba4a2cb9a49cfaff4d0d74",
+      "build_project_acceptance.raw.json": "1835ced2cc05a00a24d1bbeb8f9835502a4b2e0b5f224dc207aba597361f24da",
+      "build_code_review_3.raw.json": "2bdc8cdf41817f647063b6f49d723e0cf2b84ab408eb56b96e8d017fc6890799",
+      "build_verify_3.raw.json": "77b786bf869cbbbf2340a3d0a5b966a538db3533d63090672e758c15142c196a",
+      "whole_regression_verify_0.raw.json": "d69ddbdf846b3be6e59f1e6ac5e857db9e1371cd9cab4a386119383fbd5629bc",
+      "whole_profile_1_0_candidate.raw.json": "fac71cd3c91d188587962b4656e30f460472624a1374bee0564f5116fe7d1ce8"
+    }
   },
   "evidence_sha256": {
     "context_control.py": "a78e123d2547005966acb1bd1eac217257bd521340bfe223e2cb5c4ed24c90fb",
     "context-control-summary.json": "38a131ef8365fa8f9e1eb38d30dcafd6101d907eeb2353b3bda53a1f4855fea0",
     "core-tests-final.log": "171726a756226954fc5202f8e564d81d8dc09ea7046d88b68d1e46a7636308eb",
     "adapter-tests.log": "1a098f30a2d0a11e431abc2b3d6bd225cd137f0eaa5ba99cbae0cc0c282550c3"
-  }
+  },
+  "outcome_summary": "The ninth reference repair proposal qualified all 49 cases. Three automatic application repairs then cleared navigation, supplemental UI failures, and one blocking concurrency review finding. The workflow completed all required gates and delivered the application plus frozen tests without operator rescue."
 }
