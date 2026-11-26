@@ -1,5 +1,5 @@
 {
-  "status": "recovery_controls_passed_continuation_not_started",
+  "status": "verifier_independent_recovery_controls_passed",
   "trial": "Snake Run 1",
   "terminal": "review_required",
   "elapsed_seconds": 1473.522,
@@ -23,8 +23,8 @@
   ],
   "controls": {
     "core_tests": {
-      "run": 701,
-      "passed": 693,
+      "run": 705,
+      "passed": 697,
       "optional_skipped": 8
     },
     "additional_targeted_shared_smoke_tests": 4,
@@ -37,9 +37,24 @@
       "reference identities",
       "checkpoint bytes",
       "model settings"
-    ]
+    ],
+    "verifier_independent_tests": 4,
+    "real_browser_full_diagnostic": {
+      "model_inference": false,
+      "acceptance_credit": false,
+      "tests_run": 22,
+      "reference_failures": 7,
+      "private_module_required": false
+    },
+    "latest_checkpoint_pack": {
+      "application_preserved": true,
+      "qualified_smoke_preserved": true,
+      "independent_suite_preserved": true,
+      "all_spent_costs_recorded": true,
+      "ordinary_test_repairs_retained": 4
+    }
   },
-  "continuation_status": "routing_controls_passed_next_continuation_not_started",
+  "continuation_status": "next_checkpoint_continuation_not_started",
   "continuations": [
     {
       "attempt": 1,
@@ -53,6 +68,39 @@
       "error": "Unsupported role/stage/tool-policy combination before ordinary smoke patch dispatch",
       "cause": "The shared smoke repair called the implementer via the base tool route instead of the structured test-author route.",
       "fix": "Use the common test-author structured patch route; regression now exercises the first ordinary repair, not only exhausted-budget consultation."
+    },
+    {
+      "attempt": 2,
+      "terminal": "failed",
+      "elapsed_seconds": 6032.277,
+      "journal_calls": 33,
+      "native_requests_completed": 33,
+      "frozen_files_verified": 463,
+      "checkpoints_verified": 66,
+      "operator_intervention_during_trial": false,
+      "application_source_changed": false,
+      "qualified_smoke_tests": 5,
+      "independent_tests": 22,
+      "independent_reference_failures": 7,
+      "error": "Repeat guard rejected a previously attempted patch after verifier-unavailable retries consumed the consultation allowance.",
+      "cause": [
+        "Selected-case adapter imported private quality_entrypoint absent from the browser verifier.",
+        "Unavailable verifier evidence was treated as correctable model output.",
+        "Different proposals generated distinct consultation fingerprints despite the unchanged tooling failure."
+      ],
+      "spent": {
+        "ordinary_test_defects": 4,
+        "syntax_repairs": 1,
+        "coordinated_validations": 15,
+        "diagnoses": 16,
+        "output_corrections": 14
+      },
+      "fix": [
+        "Run repair diagnostics through the complete approved verifier.",
+        "Treat unavailable verifier evidence as a terminal gate, not a model-output rewrite capability.",
+        "Permit fresh full revalidation after an inconclusive verifier attempt without erasing rejection history.",
+        "Reconstruct independent source from its actual author boundary, excluding earlier smoke patches."
+      ]
     }
   ]
 }

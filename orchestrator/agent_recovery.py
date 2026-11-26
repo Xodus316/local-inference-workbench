@@ -291,6 +291,9 @@ def validate_output(recovery, value, validator, context):
         try:
             result = validator(value)
         except Exception as error:
+            from .whole_project_gates import VerificationGateStop
+            if isinstance(error, VerificationGateStop):
+                raise  # Gate/tooling failures do not grant a model-output rewrite capability.
             if pending is not None:
                 from .build_workflow import public_error
                 pending.update(status='output_correction_rejected', rejection=public_error(error), acceptance_credit=False)

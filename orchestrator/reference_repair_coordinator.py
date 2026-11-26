@@ -14,6 +14,7 @@ from .project_build import execution_settled,matching_image_checks,sandbox_stage
 from .repair_coordinator import INSTRUCTION,compose_tests,root_hints,test_scope,prior_attempts,patch_type,metadata_projection,proposal_type,executable_edits,check_repeat,validate_metadata
 from .repair_allowance import coordinated_limit
 from .store import digest
+from .whole_project_gates import VerificationUnavailable
 
 
 def inventory(suite):
@@ -34,13 +35,13 @@ def reference_evidence(bundle,suite,receipt,*,profile=None,selected=None):
             or rows[0].get('source_unchanged') is not True or sandbox.get('image_id')!=image
             or sandbox.get('network')!='disabled' or sandbox.get('read_only_project') is not True
             or sandbox.get('read_only_root') is not True):
-        raise ValueError('Reference repair requires settled source-bound execution in the pinned sandbox')
+        raise VerificationUnavailable('Reference repair requires settled source-bound execution in the pinned sandbox')
     summary=sandbox_stage_results(rows[0])
     if not summary or not matching_image_checks(receipt,[summary],requirements):
-        raise ValueError('Reference repair requires conclusive pinned verifier checks')
+        raise VerificationUnavailable('Reference repair requires conclusive pinned verifier checks')
     if any((summary.get('checks',{}).get(name) or {}).get('status')!='passed'
             for name in requirements['required_checks'] if name!='python-unittest'):
-        raise ValueError('Reference infrastructure/build failures cannot authorize test repair')
+        raise VerificationUnavailable('Reference infrastructure/build failures cannot authorize test repair')
     cases=inventory(suite);wanted=set(cases) if selected is None else set(selected)
     if not wanted or not wanted<=cases.keys():raise ValueError('Reference repair selection exceeds actual test identities')
     if profile is not None:
@@ -94,19 +95,20 @@ def progress(before,after):
 
 
 def targeted(flow,suite,cases,index):
-    path=Path(__file__).with_name('targeted_reference_probe.py')
-    profile={'policy':'verification-profile-v1','name':'repair-targeted','phase':'candidate',
-        'entrypoint':'/usr/bin/tini','environment':{'WORKBENCH_REPAIR_CASES':json.dumps(sorted(cases))},
-        'readonly_files':[{'source':str(path),'target':'/opt/evaluation/repair_probe.py',
-            'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}],
-        'commands':['python3 -I /opt/evaluation/repair_probe.py'],
-        'verification':{**flow.bundle['project_environment']['verification'],'marker':'OFFLINE_PROJECT_RESULT'}}
-    reference=flow.artifact_type(summary='Trusted reference',files=flow.reference['files'])
-    project=flow.project_type(summary=reference.summary,files=[*reference.files,*suite.files])
-    stage=f'whole_coordinated_{index}_targeted';saved=flow.stage;flow.stage=stage
-    try:receipt=flow.runtime._build_execution(flow.state,stage,9000+index,project,suite,verification_profile=profile)
+    """Diagnose through the approved full verifier, without assuming its private Python API.
+
+    Running every original case is stronger than a selected-case probe. The
+    independent full-reference promotion check still follows this diagnostic.
+    """
+    if not cases or not set(cases)<=inventory(suite).keys():
+        raise ValueError('Reference diagnostic selection exceeds actual test identities')
+    saved=flow.stage
+    try:
+        receipt=flow.control(suite)
+        stage=flow.stage
+        observed=reference_evidence(flow.bundle,suite,receipt)
     finally:flow.stage=saved
-    return reference_evidence(flow.bundle,suite,receipt,profile=profile,selected=cases),stage
+    return observed,stage
 
 
 def repair(flow,suite,result,*,smoke=False):

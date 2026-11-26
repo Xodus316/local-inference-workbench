@@ -28,9 +28,16 @@ def approved_budgets(value):
     return value
 
 
-def accepted_suite(row):
+def accepted_suite(row,reconstructed=None):
     evidence=row['result']['output']['verification']['whole_project']
-    return evidence.get('independent_draft',{}).get('suite') or row['bundle'][KEY]['independent_suite']
+    declared=evidence.get('independent_draft',{}).get('suite') or row['bundle'][KEY].get('independent_suite')
+    if declared is not None:return declared
+    from .smoke_continuation import POLICY as SMOKE_POLICY
+    if row['bundle'][KEY].get('policy')==SMOKE_POLICY and reconstructed is not None:
+        # Exact completed author/syntax/promotion replay is bound below to the
+        # latest checkpoint's preflight and full reference source hashes.
+        return reconstructed
+    raise ValueError('Source has no retained independent suite')
 
 
 def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,preflight_bytes,reference_bytes,reference_history_bytes=None,fresh_repair_budgets=None):
@@ -59,7 +66,7 @@ def pack(row,requests,raw,target,*,closed_execution_audit,checkpoint_bytes,prefl
         if source['backend'].get(key)!=target['backend'].get(key):raise ValueError('Repair continuation cannot change models')
     suite_type=project_test_types(source)[0]
     suite=retained_suite(row,requests,raw)
-    if suite!=accepted_suite(row):raise ValueError('Accepted test source does not match completed promotion receipts')
+    if suite!=accepted_suite(row,suite):raise ValueError('Accepted test source does not match completed promotion receipts')
     record=row['checkpoints'][-1];cp=json.loads(checkpoint_bytes);pre=json.loads(preflight_bytes)
     cp_output=cp.get('state',{}).get('output') or cp.get('state',{}).get('update',{}).get('code_build',{}).get('output',{})
     if (hashlib.sha256(checkpoint_bytes).hexdigest()!=record['content_sha256']

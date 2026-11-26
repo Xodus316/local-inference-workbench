@@ -47,7 +47,12 @@ def retained_suite(row,requests,raw):
     rejected_stages={f"whole_recovery_{r['agent_consultation']['index']}_output"
         for r in (row['result']['output'].get('recovery') or {}).get('requests',[])
         if r.get('status')=='output_correction_rejected' and r.get('agent_consultation')}
-    for call in row['calls']:
+    calls=row['calls']
+    # A shared test-author may repair smoke before fresh independent authorship.
+    # Those earlier proposals belong to a different suite and cannot be replayed
+    # onto the independent draft created later in this same workflow.
+    start=next((i for i,c in enumerate(calls) if c['stage']=='build_tests'),0)
+    for call in calls[start:]:
         stage=call['stage'];request=requests[stage];response=raw[stage]
         if stage in rejected_stages:continue  # A settled model proposal is not an accepted source transition.
         if request.get('role')!='test_author' or 'value' not in response:continue

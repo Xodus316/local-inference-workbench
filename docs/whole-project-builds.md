@@ -91,3 +91,12 @@ With the explicit 16/16/16 recovery grant, reference smoke-test failures use the
 Nested browser assertions can be recovered from a complete, hash-bound unittest log. The recovered case identities and inventory must match the verifier's structured report; a truncated, altered or mismatched log cannot replace the reported diagnostics.
 
 `smoke_continuation.pack` imports an audited, settled smoke-qualification checkpoint into a separately approved runtime. It verifies the latest checkpoint, retained application worker chain, exact test source and reference receipt, model settings, and spent counters. It preserves application and smoke source and all costs, reruns compiler/reference/candidate gates, and still requires fresh independent tests and every downstream acceptance gate. It grants no fresh allowance or acceptance credit.
+
+
+### Verifier-independent repair diagnostics
+
+Independent-test repair diagnostics execute the complete approved reference gate. They do not import a verifier image's private Python modules or replace its entrypoint. The diagnostic must retain source/image binding, settled cleanup and complete case inventory; the separate full-reference promotion check still follows it. Existing finite control/preflight namespaces accommodate the shared allowance.
+
+Unavailable verifier evidence raises a terminal verification-gate error, rather than advertising a worker-output correction capability. A model cannot fix missing verifier infrastructure by rewriting tests. The terminal consultation remains available with no output-rewrite permission. Historical proposals rejected solely because pinned verifier checks were unavailable remain recorded and may be revalidated after tooling recovery; executable failures and regressions still block identical retries, and every promotion requires fresh complete verification.
+
+When a fresh independent author follows smoke repairs in the same run, checkpoint reconstruction begins at that independent authorship boundary. Earlier smoke patches are retained in history and costs, but are not replayed onto a different test suite. The audited repair epoch binds reconstructed author/syntax/promoted source to the latest checkpoint, passing preflight and full-reference source hashes.

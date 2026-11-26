@@ -320,7 +320,14 @@ def metadata_only_rejection(record,items):
 def check_repeat(attempts,base_digest,raw,items):
     matches=[r for r in attempts if r['patch_digest']==digest(executable_edits(raw)) and r['base_suite_digest']==base_digest]
     if not matches:return
-    if any(not metadata_only_rejection(r,items) for r in matches):
+    def unavailable_verification(record):
+        # These host failures establish no trusted executable rejection. Keep
+        # their history, but allow full revalidation once tooling is available.
+        return (record.get('disposition')=='rolled_back'
+            and record.get('validation_phase') in {'targeted','full_reference'}
+            and record.get('rejection')=='Reference repair requires conclusive pinned verifier checks'
+            and not any(k in record for k in ('progress','candidate_suite_digest','reference_receipt_digest')))
+    if any(not metadata_only_rejection(r,items) and not unavailable_verification(r) for r in matches):
         raise ValueError('This patch already failed against the same source; consult with new evidence')
     # A metadata-only failure has established nothing about executable behavior.
     # Require fully valid current metadata; changing prose or resubmitting the

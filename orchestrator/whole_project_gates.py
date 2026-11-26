@@ -14,6 +14,10 @@ class VerificationGateStop(RuntimeError):
     pass
 
 
+class VerificationUnavailable(VerificationGateStop, ValueError):
+    """Tooling or evidence is unavailable; rewriting worker output cannot prove a pass."""
+
+
 def snapshot(flow):
     flow.evidence['budget_counters'] = dict(flow.counters)
     flow.runtime.store.snapshot_result(flow.state['run_id'], {'output': flow.output, 'stages': flow.stages})
