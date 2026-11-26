@@ -99,6 +99,16 @@ class SharedSmokeRecoveryTests(unittest.TestCase):
         wrong=deepcopy(failure);wrong['test_failures'][0]['test']='test_clicks (test_smoke.Smoke)'
         self.assertIs(detailed_test_failures(report,raw,wrong),wrong)
 
+        incomplete=deepcopy(failure)
+        incomplete.update(test_failures=[],test_failure_count=0,omitted_test_failures=0,test_failures_complete=False)
+        recovered=detailed_test_failures(report,raw,incomplete)
+        self.assertTrue(recovered['test_failures_complete'])
+        self.assertEqual(recovered['test_failure_count'],1)
+        self.assertIn("null !== '10'",recovered['test_failures'][0]['assertion'])
+        self.assertIs(detailed_test_failures(report,altered,incomplete),incomplete)
+        contradictory=deepcopy(wrong);contradictory['test_failures_complete']=False
+        self.assertIs(detailed_test_failures(report,raw,contradictory),contradictory)
+
     def test_explicit_shared_grant_recovers_after_legacy_smoke_ceiling_without_crediting_independent_tests(self):
         flow,candidate=fixtures.SmokeReferenceTests().workflow([receipt(),receipt(())])
         flow.bundle.update({KEY:deepcopy(DYNAMIC_POLICY),LIMITS:deepcopy(EXPANDED),

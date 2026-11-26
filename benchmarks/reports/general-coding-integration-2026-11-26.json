@@ -1,5 +1,5 @@
 {
-  "status": "integration_controls_passed_live_trial_pending",
+  "status": "first_trial_closed_recovery_fixed_continuation_pending",
   "workflow": "general-coding-v1",
   "date": "2026-11-26",
   "implementation": {
@@ -24,7 +24,7 @@
       "run": 714, "passed": 706, "optional_skipped": 8,
       "environment": "Process-local GIT_* overrides cleared after Windows environment-mock restoration dropped an empty injected Git config value. The isolated Git workflow test also passed separately."
     },
-    "adapter_tests_passed": 42,
+    "adapter_tests_passed": 43,
     "workbench_javascript_syntax": "passed",
     "commerce_actual_configuration_preparation": {
       "status": "prepared_not_executed",
@@ -48,7 +48,28 @@
       "acceptance_credit": false
     }
   },
-  "fresh_general_snake_trial": {"status": "not_started"},
+  "fresh_general_snake_trial": {
+    "status": "review_required",
+    "elapsed_seconds": 1018.09,
+    "frozen_source_files_verified": 128,
+    "checkpoints_verified": 9,
+    "journal_calls": 5,
+    "native_completed": 10,
+    "compactions": 0,
+    "owned_cleanup_verified": true,
+    "operator_intervention_during_trial": false,
+    "stage": "smoke_reference_qualification",
+    "cause": "Incomplete structured failure inventory masked five exact failures recoverable from the complete hash-bound test log; consultation had no authorized correction capability.",
+    "authored_test_defect": "Non-contract button IDs instead of public accessible button names.",
+    "recovery": "Shared complete-log diagnostic recovery plus separately approved smoke checkpoint continuation; application, smoke tests, counters and gates retained.",
+    "saved_trial_cpu_control": {
+      "exact_failures_recovered": 5,
+      "checkpoint_preparation": "passed",
+      "model_inference": false,
+      "acceptance_credit": false
+    },
+    "continuation": {"status": "not_started"}
+  },
   "limitations": [
     "Commerce was prepared and validated through the shared General path; no new full Commerce inference trial was performed.",
     "Earlier Commerce and Snake completions do not establish the outcome of the new fresh General Snake trial."

@@ -15,6 +15,19 @@ import test_general_coding as core
 
 
 class GeneralRunnerTests(unittest.TestCase):
+    def test_checkpoint_preparation_refuses_changed_source_runtime_before_executing_its_audit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data=Path(directory)/'saved';root=Path(directory)/'frozen'
+            source=root/'orchestrator/source.py';source.parent.mkdir(parents=True)
+            source.write_text('original source')
+            runner.save(data/'general-manifest.json',{'runtime_root':str(root),
+                'source_sha256':{str(p):runner.sha(p) for p in runner.source_files(root)}})
+            expected=runner.sha(data/'general-manifest.json');source.write_text('changed source')
+            with patch.object(runner.subprocess,'run') as audit:
+                with self.assertRaisesRegex(ValueError,'Source runtime changed'):
+                    runner.smoke_continuation(data,expected,{})
+            audit.assert_not_called()
+
     def test_normal_prepare_is_inert_and_input_tamper_blocks_backend_creation(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);scenario=core.GeneralCodingTests();runtime=scenario.runtime(root,'snake')

@@ -30,8 +30,42 @@ def save(path,value):
     path.write_text(json.dumps(value,ensure_ascii=False,indent=2,allow_nan=False)+'\n',encoding='utf8',newline='\n')
 
 
-def source_files():
-    return sorted([*ROOT.glob('orchestrator/**/*.py'),*Path(__file__).parent.glob('*.py')])
+def source_files(root=ROOT):
+    return sorted([*root.glob('orchestrator/**/*.py'),*(root/'examples/hyperqwen').glob('*.py')])
+
+
+def smoke_continuation(data,expected,target):
+    """Re-audit the unchanged source runtime, then preserve its settled checkpoint."""
+    from orchestrator.smoke_continuation import pack
+    from orchestrator.stage_continuation import KEY
+    data=Path(data).resolve();manifest_path=data/'general-manifest.json'
+    if not expected or sha(manifest_path)!=expected:raise ValueError('Supply the exact source manifest SHA')
+    manifest=load(manifest_path);root=Path(manifest['runtime_root'])
+    if manifest['source_sha256']!={str(p):sha(p) for p in source_files(root)}:
+        raise ValueError('Source runtime changed; cannot audit its frozen trial')
+    # Run the source runtime's own bound audit, not a new engine over old receipts.
+    subprocess.run([sys.executable,'-X','utf8','-B',str(root/'examples/hyperqwen/general_audit.py'),
+        '--data',str(data),'--manifest-sha256',expected],check=True,timeout=60)
+    row=load(data/'terminal.json');folder=data/'state/artifacts'/row['id']
+    requests={c['stage']:load(folder/(c['stage']+'.request.json')) for c in row['calls']}
+    raw={c['stage']:load(folder/(c['stage']+'.raw.json')) for c in row['calls']}
+    record=row['checkpoints'][-1]
+    checkpoint=data/'state/checkpoints'/row['id']/(record['content_sha256']+'.json')
+    cp=load(checkpoint)
+    references=[folder/name for name in cp['receipts']
+        if name.startswith('build_control_') and name.endswith('.raw.json')]
+    if not references:raise ValueError('Checkpoint has no settled reference evidence')
+    reference=max(references,key=lambda p:int(p.name.split('_')[2].split('.')[0]))
+    target=deepcopy(target);target.pop('fresh_project')
+    target[KEY]=pack(row,requests,raw,target,closed_execution_audit=sha(data/'operator-verification.json'),
+        checkpoint_bytes=checkpoint.read_bytes(),reference_bytes=reference.read_bytes())
+    from orchestrator.project_build import project_enabled
+    project_enabled(target)
+    consumed=[manifest_path,data/'prepared-bundle.json',data/'terminal.json',data/'outcome.json',
+        data/'operator-verification.json',checkpoint,reference,
+        *[folder/(c['stage']+suffix) for c in row['calls'] for suffix in ('.request.json','.raw.json')]]
+    return target,consumed,{'data':str(data),'manifest_sha256':expected,
+        'audit_sha256':sha(data/'operator-verification.json'),'policy':target[KEY]['policy']}
 
 
 def verify_closed_lease(directory):
@@ -72,7 +106,7 @@ def install(runtime,bindings,*,backend=None,pin=None,executable=None):
     if backend is not None:runtime.native_backend=backend
 
 
-def prepare(data,config_path,request_path,pin_path,executable):
+def prepare(data,config_path,request_path,pin_path,executable,*,from_data=None,source_manifest_sha256=None):
     data=Path(data).resolve()
     if data.exists():raise ValueError('Use a new data directory for a fresh General workflow')
     paths=[Path(p).resolve(strict=True) for p in (config_path,request_path,pin_path,executable)]
@@ -81,18 +115,27 @@ def prepare(data,config_path,request_path,pin_path,executable):
     if config.build.general_coding is None:raise ValueError('Enable build.general_coding explicitly')
     bindings=native.profile(pin,executable,source_bytes=config.build.general_coding.source_bytes)
     validate_opencode_routes(bindings)
+    continuation=None;consumed=[]
     with closing(GeneralRuntime(data/'state',config,provider=IdentityOnly(bindings['backend']))) as runtime:
         install(runtime,bindings)
         # This is the ordinary Build API, not a project-specific whole_project override.
         row=runtime.prepare(load(request_path))
         validate(row['bundle']);validate_fresh_run(row['bundle'])
         if row['calls'] or row['approved'] or row['status']!='prepared':raise ValueError('Preparation dispatched work')
+        if from_data is not None:
+            target,consumed,continuation=smoke_continuation(from_data,source_manifest_sha256,row['bundle'])
+            # The inert fresh preparation supplies the normal API bindings; the
+            # only retained run is the separately approved checkpoint continuation.
+            runtime.store.delete(row['id'])
+            row=runtime.store.get(runtime.store.create(target))
         save(data/'prepared-bundle.json',row['bundle'])
     manifest={'policy':'general-coding-launch-v1','runtime_root':str(ROOT),'run_id':row['id'],
         'approval_digest':row['digest'],'config':config.model_dump(),'pin':pin,'profile':bindings,
-        'opencode':str(executable),'input_sha256':{str(p):sha(p) for p in paths},
+        'opencode':str(executable),'input_sha256':{str(p):sha(p) for p in [*paths,*consumed]},
         'source_sha256':{str(p):sha(p) for p in source_files()},
-        'bundle_sha256':sha(data/'prepared-bundle.json'),'initial_state':'fresh_no_seeds_no_costs'}
+        'bundle_sha256':sha(data/'prepared-bundle.json'),
+        'initial_state':'settled_smoke_checkpoint_costs_retained' if continuation else 'fresh_no_seeds_no_costs'}
+    if continuation:manifest['continuation_source']=continuation
     save(data/'general-manifest.json',manifest)
     result={'status':'prepared_not_started','run_id':row['id'],'approval_digest':row['digest'],
         'manifest_sha256':sha(data/'general-manifest.json'),'data':str(data),'model_calls':0}
@@ -112,7 +155,14 @@ def validate_launch(data,expected):
     if sha(data/'prepared-bundle.json')!=manifest['bundle_sha256']:raise ValueError('Prepared bundle changed')
     bundle=load(data/'prepared-bundle.json')
     if digest(bundle)!=manifest['approval_digest']:raise ValueError('Prepared approval changed')
-    validate(bundle);validate_fresh_run(bundle);validate_opencode_routes(manifest['profile'])
+    validate(bundle);validate_opencode_routes(manifest['profile'])
+    if 'continuation_source' in manifest:
+        from orchestrator.stage_continuation import KEY,validate as validate_continuation
+        if manifest['initial_state']!='settled_smoke_checkpoint_costs_retained':raise ValueError('Continuation scope changed')
+        validate_continuation(bundle[KEY],bundle)
+        from orchestrator.whole_project_setup import source_identity
+        if bundle['whole_project_engine_digest']!=source_identity():raise ValueError('Continuation engine changed')
+    else:validate_fresh_run(bundle)
     return manifest,bundle
 
 
@@ -184,11 +234,15 @@ def main():
     parser.add_argument('--config',type=Path);parser.add_argument('--request',type=Path)
     parser.add_argument('--pin',type=Path);parser.add_argument('--opencode',type=Path)
     parser.add_argument('--manifest-sha256');parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--from-data',type=Path,help='Retain an audited failed smoke qualification checkpoint')
+    parser.add_argument('--source-manifest-sha256')
     args=parser.parse_args()
     if args.action=='prepare':
         if any(v is None for v in (args.config,args.request,args.pin,args.opencode)):
             parser.error('prepare requires --config, --request, --pin and --opencode')
-        prepare(args.data,args.config,args.request,args.pin,args.opencode)
+        if args.from_data is not None and not args.source_manifest_sha256:parser.error('--from-data requires --source-manifest-sha256')
+        prepare(args.data,args.config,args.request,args.pin,args.opencode,
+            from_data=args.from_data,source_manifest_sha256=args.source_manifest_sha256)
     elif args.action=='validate':validate_launch(args.data,args.manifest_sha256);print('Prepared General workflow valid; no inference')
     else:run(args.data,args.manifest_sha256,resume=args.action=='resume',execute=args.execute)
 

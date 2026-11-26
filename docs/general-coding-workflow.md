@@ -115,6 +115,14 @@ steps and costs. Changed code, inputs or unknown native/sandbox execution preven
 resume. A failed workflow requiring code changes needs a separately approved
 checkpoint continuation; `resume` does not silently relaunch failed work.
 
+For a settled failure during smoke-test reference qualification, prepare a new
+approval with `--from-data runs/failed-project --source-manifest-sha256 OLD_HASH`
+added to the ordinary `prepare` command, using a new `--data` directory. This
+re-audits the frozen source runtime, retains the exact plan, application, smoke
+suite and spent counters, and binds the latest checkpoint and historical receipts
+into the new manifest. It grants no acceptance credit and refunds no budgets.
+Other failure phases continue to use their existing explicit checkpoint packers.
+
 Audit the terminal evidence and exact owned-resource cleanup with the same tool
 for either project:
 
@@ -125,3 +133,12 @@ python examples/hyperqwen/general_audit.py --data runs/new-project --manifest-sh
 The [Commerce](commerce-end-to-end-completion-2026-11-18.md) and
 [Snake](snake-end-to-end-2026-11-25.md) reports describe earlier experiments. Their
 successes are not a claim that a new fresh General trial has already passed.
+
+The first fresh General Snake trial stopped at smoke qualification after 17m.
+The verifier supplied an incomplete structured failure inventory alongside a
+complete hash-bound unittest log. Recovery initially refused the fuller evidence
+and offered no repair capability. The shared parser now recovers exact failures
+from that complete log, rejects contradictory identities or altered bytes, and
+routes the recovered cases through the existing reference repair coordinator.
+See the [integration report](../benchmarks/reports/general-coding-integration-2026-11-26.json)
+for controls and the continuation outcome.

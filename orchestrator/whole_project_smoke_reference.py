@@ -87,9 +87,19 @@ def detailed_test_failures(summary, receipt, failure):
         return failure
     if 'test_failures' in failure:
         identity = lambda rows: [(row['test'], row['status']) for row in rows]
-        if (identity(recovered['test_failures']) != identity(failure['test_failures'])
-                or any(recovered[key] != failure.get(key) for key in
-                       ('test_failure_count', 'omitted_test_failures', 'test_failures_complete', 'tests_run'))):
+        if failure.get('test_failures_complete') is False:
+            # Older verifier summaries can explicitly report an incomplete or
+            # empty inventory for multiline unittest descriptions. The complete
+            # hash-bound test log remains authoritative, never the excerpt.
+            rows=failure['test_failures']
+            if (not isinstance(rows,list) or any(not isinstance(row,dict)
+                    or not {'test','status'}<=row.keys() for row in rows)
+                    or failure.get('tests_run')!=recovered['tests_run']):return failure
+            observed=identity(rows);complete=identity(recovered['test_failures'])
+            if len(set(observed))!=len(observed) or not set(observed)<=set(complete):return failure
+        elif (identity(recovered['test_failures']) != identity(failure['test_failures'])
+              or any(recovered[key] != failure.get(key) for key in
+                     ('test_failure_count', 'omitted_test_failures', 'test_failures_complete', 'tests_run'))):
             return failure
     return {**failure, **recovered}
 
