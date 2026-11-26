@@ -67,9 +67,9 @@ The [November 24 reference recovery investigation](docs/reference-recovery-2026-
 
 The [Run 25 tool progress investigation](docs/worker-progress-recovery-2026-11-24.md) adds agent consultation for settled repeated-tool loops, prevents empty-worktree exploration and preserves completed work for an explicitly approved continuation.
 
-The [November 24 development summary](docs/development-summary-2026-11-24.md) covers Run 24, Run 25's continuations and the fresh independent-stage restart. Reference failures fell from 12 to 3 out of 49 cases before a requested pause. The [November 25 resume outcome](docs/run25-stage-restart-2026-11-24.md) records saved-state recovery after reboot and a terminal repair-repeat rejection; the application is preserved and end-to-end verification remains incomplete.
+The [November 25 development summary](docs/development-summary-2026-11-25.md) records Run 25's completed checkpoint continuation: all 49 independent cases, 14 supplemental cases, required verification profiles, review with no blocking findings and verified delivery passed without operator intervention. It covers the recovery changes, expanded 16/16/16 limits, retained nonblocking review notes and offline verification limits. The owned GPU backend was released.
 
-The [metadata repair investigation](docs/metadata-repair-recovery-2026-11-25.md) distinguishes metadata rejection from executable failure, preserves the repeat guard for substantive failures, and prepares a checkpoint continuation with an explicitly renewed shared repair epoch.
+The [November 24 development summary](docs/development-summary-2026-11-24.md) preserves the preceding paused state and earlier incomplete attempts. The [resume outcome](docs/run25-stage-restart-2026-11-24.md) and [metadata repair investigation](docs/metadata-repair-recovery-2026-11-25.md) trace saved-state recovery after reboot, the failures addressed between continuations and the final unattended completion.
 
 Workflows support [durable pause and resume](docs/workflow-pause.md). **Pause after current operation** saves the current operation's result and acknowledges **paused** before you shut down. Reopen the same data directory after restarting and choose **Resume saved run** to reuse completed receipts and continue under the same approval.
 
