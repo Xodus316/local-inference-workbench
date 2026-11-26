@@ -371,6 +371,8 @@ def repair(recovery, *,stage,role,instruction,data,validator,ordinary=None,retai
     from .independent_stage_restart import POLICY as RESTART_POLICY
     from .checkpoint_repair_continuation import POLICY as REPAIR_EPOCH
     direct=flow.bundle.get('whole_project_stage_continuation',{}).get('policy') in {RESTART_POLICY,REPAIR_EPOCH}
+    from .general_coding import KEY as GENERAL,validate as general_enabled
+    if GENERAL in flow.bundle:direct=general_enabled(flow.bundle)
     material={**deepcopy(data),'repair_policy':DIRECT_POLICY if direct else POLICY,'proposal_kind':'anchored_edits',
         'ordinary_attempts_are_not_refunded':True}
     flow.stage=stage

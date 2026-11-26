@@ -1,5 +1,10 @@
 # Pinned HyperQwen / OpenCode workflow bindings
 
+The [General coding workflow](../../docs/general-coding-workflow.md) provides a
+reusable `general_workflow.py prepare/start/resume` launcher and `general_audit.py`.
+Use project configuration and a prompt instead of copying a Commerce or Snake
+trial launcher. It binds the normal Build API to the shared recovery engine.
+
 This optional integration example runs the planner, implementer, repairer, test author and reviewer through the same pinned OpenCode executable, with isolated role sessions and auto compaction enabled. It publishes the reusable native bindings used in the November 20–21 Commerce experiments. It does not include an application, reference implementation, evaluation fixtures, model weights, credentials, run journals or a ready-made benchmark approval.
 
 The core workbench still uses its configured default provider. These modules are an explicit custom-provider integration, not an automatic backend switch. The model/image/context settings in `native_launch_profile.py` are an allowlist for the measured Windows/Docker deployment; provision the named model/cache volumes and supply your own validated model manifest before executing them. The local trial used OpenCode 1.19.0, Qwen 3.8 27B W4A16 AutoRound-fast and a 98,304-token context. Every profile change requires new identities and approval. Nothing starts a model merely by importing modules or constructing a preview profile.

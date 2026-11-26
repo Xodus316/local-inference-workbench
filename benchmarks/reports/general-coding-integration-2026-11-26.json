@@ -1,0 +1,56 @@
+{
+  "status": "integration_controls_passed_live_trial_pending",
+  "workflow": "general-coding-v1",
+  "date": "2026-11-26",
+  "implementation": {
+    "normal_build_api": true,
+    "shared_whole_project_engine": true,
+    "task_specific_runner_branches": false,
+    "project_capabilities_supplied_by_configuration": true,
+    "all_five_roles_use_compacting_opencode_by_default": true,
+    "recovery_limits": {
+      "output_corrections": 16,
+      "ordinary_test_defect_repairs": 16,
+      "coordinated_validations": 16
+    },
+    "direct_evidence_bound_repair_edits": true,
+    "checkpoint_and_unknown_execution_barriers_retained": true,
+    "historical_approval_digest_regression_preserved": true,
+    "generic_prepare_start_resume_audit_cli": true,
+    "physical_owned_backend_cleanup_before_delivery": true
+  },
+  "controls": {
+    "core_tests": {
+      "run": 714, "passed": 706, "optional_skipped": 8,
+      "environment": "Process-local GIT_* overrides cleared after Windows environment-mock restoration dropped an empty injected Git config value. The isolated Git workflow test also passed separately."
+    },
+    "adapter_tests_passed": 42,
+    "workbench_javascript_syntax": "passed",
+    "commerce_actual_configuration_preparation": {
+      "status": "prepared_not_executed",
+      "model_calls": 0,
+      "fresh_application_and_test_seeds": true,
+      "pinned_image_preflight": "passed",
+      "compiler_checkpoints": 2,
+      "verification_profiles": 2,
+      "optional_capabilities": [
+        "dependency_reference", "supplemental_suite", "java_api_probe",
+        "frontend_diagnostics", "candidate_source_contract"
+      ]
+    },
+    "snake_trusted_verifier": {
+      "real_chromium": true,
+      "trusted_cases": 15,
+      "correct_fixture": "passed",
+      "broken_score_mutant": "rejected",
+      "authored_test_failure_inventory": "source_bound",
+      "model_inference": false,
+      "acceptance_credit": false
+    }
+  },
+  "fresh_general_snake_trial": {"status": "not_started"},
+  "limitations": [
+    "Commerce was prepared and validated through the shared General path; no new full Commerce inference trial was performed.",
+    "Earlier Commerce and Snake completions do not establish the outcome of the new fresh General Snake trial."
+  ]
+}

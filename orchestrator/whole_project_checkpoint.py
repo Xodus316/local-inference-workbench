@@ -27,6 +27,7 @@ _BINDINGS = (
     "whole_project_frontend_diagnostics",
     "whole_project_candidate_source_contract",
     "whole_project_recovery_limits",
+    "general_coding_workflow",
 )
 
 
@@ -42,7 +43,7 @@ def binding_digest(bundle):
                                      "same_model_role_isolation", "project_review_policy", "whole_project_gate_policy", "fresh_project",
                                      "whole_project_compile_progress_policy", "whole_project_stage_recovery_policy",
                                      "whole_project_java_api_probe", "whole_project_frontend_diagnostics", "whole_project_candidate_source_contract",
-                                     "whole_project_recovery_limits"}
+                                     "whole_project_recovery_limits", "general_coding_workflow"}
                       or key in bundle}, "workers": workers,
                    "reference_digest": (bundle.get("project_reference") or {}).get("digest")})
 

@@ -25,6 +25,10 @@ The fresh browser Snake project completed on November 25 after four orchestrator
 
 ## Workflows
 
+The opt-in [General coding workflow](docs/general-coding-workflow.md) combines the
+Commerce and Snake recovery, checkpoint, verification and delivery behavior behind
+the normal Build API, with project tooling supplied as configuration.
+
 See [model choices by role](#model-choices-by-role) for the lineup and benchmark scores.
 
 | Mode | What happens |

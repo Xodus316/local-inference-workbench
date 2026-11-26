@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from pydantic import Field, field_validator, model_serializer, model_validator
 from .schemas import Record
 from .project_environment import ProjectEnvironment
+from .general_coding import GeneralCodingConfig
 
 DEFAULT_ROLES = {
     "fast_primary": "gemma4:12b",
@@ -177,6 +178,7 @@ class RagConfig(Record):
 class BuildConfig(Record):
     enabled: bool = True
     offline_project_enabled: bool = False
+    general_coding: GeneralCodingConfig | None = None
     allow_shared_test_author: bool = False
     project_environment: ProjectEnvironment | None = None
     # Harness-only directory with a known-good implementation of the offline project
@@ -202,6 +204,8 @@ class BuildConfig(Record):
     @model_serializer(mode="wrap")
     def serialize(self, handler):
         data = handler(self)
+        if self.general_coding is None:
+            data.pop('general_coding', None)
         # Keep disabled approvals compatible with the original Build configuration.
         if not self.allow_shared_test_author:
             data.pop("allow_shared_test_author", None)

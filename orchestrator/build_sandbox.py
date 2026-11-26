@@ -115,7 +115,8 @@ class DockerBuildExecutor:
             except (OSError, subprocess.TimeoutExpired):
                 raise ValueError("Docker sandbox is unavailable") from None
             if result.returncode:
-                raise ValueError("Configured Docker sandbox image is not installed")
+                raise ValueError("Docker sandbox is unavailable" if args[1]=='info'
+                                 else "Configured Docker sandbox image is not installed")
             if args[1:3] == ["image", "inspect"]:
                 image_id = result.stdout.decode("ascii", errors="strict").strip()
         if not image_id or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):

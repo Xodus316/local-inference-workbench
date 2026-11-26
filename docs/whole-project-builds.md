@@ -4,6 +4,10 @@ The public runtime now includes the reusable workflow fixes developed during the
 
 ## Prepare a fresh build
 
+For the combined Commerce/Snake setup through the normal Build API, see the
+[General coding workflow](general-coding-workflow.md). Its configuration binds the
+shared recovery defaults and project capabilities without per-project launch code.
+
 Configure the runtime's `whole_project_workers` with implementation, test-author and repair workers, optionally including a planner worker. `whole_project_prompt_tokenizers` can provide exact or conservatively bounded native-template token counts. These objects must expose stable identities matching the configured roles, context, reasoning and source capacities.
 
 Use `Runtime.prepare_whole_project(request, **options)` for the public entry point. It returns an unapproved prepared run. Preparation does not approve, enqueue or dispatch inference.

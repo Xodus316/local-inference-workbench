@@ -8,6 +8,7 @@
   let testNames = [];
   let internetSearch = null;
   let localSearch = null;
+  let generalCoding = false;
 
   async function api(path, body) {
     const options = { method: body === undefined ? "GET" : "POST", cache: "no-store",
@@ -287,7 +288,10 @@
     el("research-field").hidden = el("mode").value !== "balanced";
     updateSearchHelp();
     el("build-help").hidden = el("mode").value !== "build";
-    el("build-control").hidden = el("mode").value !== "build";
+    el("build-control").hidden = el("mode").value !== "build" || generalCoding;
+    el("build-help").textContent = generalCoding
+      ? "Describe the application, its behavior and error cases. General coding plans, builds, tests and reviews it using the configured toolchain."
+      : "Describe the Python program, its inputs, expected outputs and error cases. Build creates an independent test suite and runs the implementation in Docker.";
   };
   function updateSearchHelp() {
     const mode = el("mode").value;
@@ -335,7 +339,7 @@
     if (mode === "edit") {
       body.tests = Array.from(el("test-options").querySelectorAll("input:checked"), item => item.value);
     }
-    const controls = mode === "build" ? Array.from(el("control-files").files) : [];
+    const controls = mode === "build" && !generalCoding ? Array.from(el("control-files").files) : [];
     if (!controls.length) return mutation("/api/runs", body);
     mutation("/api/runs", async () => {
       if (controls.length > 40 || controls.reduce((sum, file) => sum + file.size, 0) > 16000) {
@@ -360,6 +364,8 @@
       const status = await api("/api/status");
       internetSearch = status.internet_search || null;
       localSearch = status.local_search || null;
+      generalCoding = status.general_coding_enabled === true;
+      el("mode").querySelector('option[value="build"]').textContent = generalCoding ? "General coding" : "Build a Python project";
       const checkedTests = Array.from(el("test-options").querySelectorAll("input:checked"), item => item.value);
       testNames = status.test_commands || [];
       el("test-options").replaceChildren();

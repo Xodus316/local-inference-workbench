@@ -157,6 +157,8 @@ def project_enabled(bundle):
     validate_reference(bundle.get("project_reference"))
     from .recovery_limits import approved
     approved(bundle)
+    from .general_coding import validate as validate_general
+    validate_general(bundle)
     from .project_environment import validate_project_environment
     environment = validate_project_environment(bundle)
     if (environment or {}).get("verification") and profile != REVIEWED_POLICY:

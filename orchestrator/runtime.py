@@ -97,7 +97,13 @@ class Runtime(CodeBuild, Stages):
         return self.prepare(raw, whole_project=options)
 
     def prepare(self, raw, *, whole_project=None):
+        from .general_coding import normalize_request
+        general=self.config.build.general_coding
+        raw=normalize_request(raw,general)
         request = Request.model_validate(raw)
+        use_general=general is not None and request.mode=='build'
+        if use_general and whole_project is not None:
+            raise ValueError('Configure General workflow options in build.general_coding, not per-request overrides')
         mode = "fast" if request.mode == "auto" else request.mode
         if mode == "research":
             readiness = self.search_readiness()
@@ -162,8 +168,13 @@ class Runtime(CodeBuild, Stages):
                 if self.config.build.reference_project is not None:
                     from .project_reference import pack_reference
                     bundle["project_reference"] = pack_reference(self.config.build.reference_project)
-                if whole_project is None:
+                if whole_project is None and not use_general:
                     project_enabled(bundle)
+        if use_general:
+            from .general_coding import configure
+            bundle=configure(self,bundle)
+            from .project_build import project_enabled
+            project_enabled(bundle)
         if whole_project is not None:
             from .whole_project_setup import configure_fresh_bundle
             bundle = configure_fresh_bundle(self, bundle, **whole_project)
